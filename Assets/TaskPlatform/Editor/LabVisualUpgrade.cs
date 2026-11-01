@@ -76,13 +76,20 @@ namespace EvidenceVR.Editor
             v.actionHint.text="Complete all three checks to continue"; v.pauseHint.text="SEATED TASK  /  NO MOVEMENT REQUIRED";
             v.matchKey.text="A"; v.nonmatchKey.text="B";
             ConfigureSpatialTask(c);
-            PlayerSettings.bundleVersion="1.3.0-stage1"; PlayerSettings.Android.bundleVersionCode=5;
+            PlayerSettings.bundleVersion="1.3.1-stage1"; PlayerSettings.Android.bundleVersionCode=6;
             EditorUtility.SetDirty(c); EditorUtility.SetDirty(v);
             EditorSceneManager.MarkSceneDirty(c.gameObject.scene); EditorSceneManager.SaveScene(c.gameObject.scene); AssetDatabase.SaveAssets();
-            Debug.Log("Spatial lab v1.3 applied: detached sphere, workbench, response countdown and onset cue.");
+            Debug.Log("Spatial lab v1.3.1 applied: satin stimulus with fixed lighting and unchanged response timing.");
         }
         static void ConfigureSpatialTask(TaskPlatformController c)
         {
+            var satin=AssetDatabase.LoadAssetAtPath<Material>(MaterialRoot+"StimulusSatin.mat");
+            if(satin==null) { satin=new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(satin,MaterialRoot+"StimulusSatin.mat"); }
+            satin.color=LabPalette.Stimuli[0];
+            satin.SetFloat("_Metallic",0); satin.SetFloat("_Smoothness",.42f);
+            satin.SetFloat("_SpecularHighlights",1); satin.SetFloat("_EnvironmentReflections",1);
+            c.stimulus.sharedMaterial=satin; EditorUtility.SetDirty(satin);
+            ConfigureSmoothStimulus(c);
             var view=c.GetComponent<SpatialTaskView>(); if(view==null)view=c.gameObject.AddComponent<SpatialTaskView>();
             c.spatialView=view; view.instructions=c.heading.canvas; view.instructions.enabled=true;
             view.instructions.transform.localPosition=new Vector3(0,0,-.20f);
@@ -128,6 +135,32 @@ namespace EvidenceVR.Editor
             var cue=c.GetComponent<TrialOnsetCue>(); if(cue==null)cue=c.gameObject.AddComponent<TrialOnsetCue>();
             var source=cue.GetComponent<AudioSource>(); source.playOnAwake=false;source.loop=false;source.spatialBlend=0;source.volume=.12f;
             c.onsetCue=cue; EditorUtility.SetDirty(view); EditorUtility.SetDirty(cue); EditorUtility.SetDirty(source);
+        }
+        static void ConfigureSmoothStimulus(TaskPlatformController c)
+        {
+            const string path="Assets/TaskPlatform/Materials/StimulusSmoothSphere.asset";
+            var mesh=AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if(mesh==null)
+            {
+                // A denser surface removes visible faceting without changing the 0.5-unit radius.
+                const int segments=64, rings=32, row=segments+1;
+                var vertices=new Vector3[(rings+1)*row]; var normals=new Vector3[vertices.Length];
+                var uv=new Vector2[vertices.Length]; var triangles=new System.Collections.Generic.List<int>();
+                for(int y=0;y<=rings;y++) for(int x=0;x<=segments;x++)
+                {
+                    float theta=Mathf.PI*y/rings, phi=2*Mathf.PI*x/segments;
+                    int i=y*row+x;
+                    normals[i]=new Vector3(Mathf.Sin(theta)*Mathf.Cos(phi),Mathf.Cos(theta),Mathf.Sin(theta)*Mathf.Sin(phi));
+                    vertices[i]=normals[i]*.5f; uv[i]=new Vector2((float)x/segments,(float)y/rings);
+                    if(y==rings || x==segments)continue;
+                    int a=i,b=i+row;
+                    if(y>0)triangles.AddRange(new[]{a,a+1,b});
+                    if(y<rings-1)triangles.AddRange(new[]{a+1,b+1,b});
+                }
+                mesh=new Mesh { name="StimulusSmoothSphere",vertices=vertices,normals=normals,uv=uv,triangles=triangles.ToArray() };
+                mesh.RecalculateBounds(); AssetDatabase.CreateAsset(mesh,path);
+            }
+            c.stimulus.GetComponent<MeshFilter>().sharedMesh=mesh;
         }
         static void Cylinder(Transform parent,string name,Vector3 position,Vector3 scale,Material material)
         {

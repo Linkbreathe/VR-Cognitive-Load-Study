@@ -1,5 +1,7 @@
 # Quiet laboratory / presentation v1.1
 
+Current v1.3.1 stimulus refinement: user-approved satin finish using URP Lit, metallic 0 and smoothness 0.42 under the existing fixed lighting. A 64-segment, 32-ring smooth sphere preserves the radius and visual angle while removing coarse surface faceting. Base palette values are retained; shaded pixel values now vary across the surface. This supersedes the historical unlit-sphere choice below.
+
 Current v1.3 extension: the stimulus floats independently over a matte laboratory workbench. Compact world-space signs show rule, countdown and progress; the full board is reserved for non-running phases. Existing colors and fixed lighting are preserved. One quiet onset cue per color is explicitly approved; the earlier no-audio rule below describes the v1.1 baseline. No other sound or scenery animation is introduced.
 
 Style: a restrained architectural VR laboratory with a warm neutral shell, a thin matte task panel and precise English typography.

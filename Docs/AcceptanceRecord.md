@@ -1,6 +1,6 @@
 # Stage 1 acceptance record
 
-Date: 2026-11-01. Software implementation and desktop validation are available; full physical-headset acceptance remains pending. The current presentation is spatial-lab-v1.3-response4s, application version 1.3.0-stage1.
+Date: 2026-11-01. Software implementation and desktop validation are available; full physical-headset acceptance remains pending. The current presentation is spatial-lab-v1.3.1-satin-sphere, application version 1.3.1-stage1.
 
 ## Verified software evidence
 
@@ -17,8 +17,10 @@ Date: 2026-11-01. Software implementation and desktop validation are available; 
 | Prior v1.1 APK | v1.1.0-stage1, version code 2; Android build succeeded in 191.7 seconds with zero errors; APK v2 signature verified; 41,735,754 bytes |
 | Prior v1.2 APK | v1.2.0-stage1, version code 3; Android build succeeded in 111.3 seconds with zero errors; APK v2 signature verified; 41,737,330 bytes |
 | Prior v1.2.1 APK | v1.2.1-stage1, version code 4; feedback wording changed to Incorrect; Android build succeeded in 53.2 seconds with zero errors; APK v2 signature verified; 41,736,466 bytes |
-| Current v1.3 APK | v1.3.0-stage1, version code 5; Android build succeeded in 121.0 seconds with zero errors; ARM64 and APK v2 signature verified; 41,831,962 bytes |
-| Visual refinement | See `SpatialTaskReview.md` for current v1.3, `VisualReview.md` for v1.1 history and `SequenceGuidanceReview.md` for v1.2 history |
+| Prior v1.3 APK | v1.3.0-stage1, version code 5; Android build succeeded in 121.0 seconds with zero errors; ARM64 and APK v2 signature verified; 41,831,962 bytes |
+| Current v1.3.1 APK | v1.3.1-stage1, version code 6; Android build succeeded in 55.2 seconds with zero errors; ARM64 and APK v2 signature verified; 41,874,802 bytes |
+| Visual refinement | See `StimulusMaterialReview.md` for current v1.3.1, `SpatialTaskReview.md` for v1.3, `VisualReview.md` for v1.1 history and `SequenceGuidanceReview.md` for v1.2 history |
+| Satin sphere | Four colors and a close-up rendered and visually reviewed; supported Lit material verified; sphere radius preserved with smoother mesh; `Evidence/stimulus-material-v1.3.1.txt` |
 | Spatial layout and countdown | 29 states and 88 color counters checked; final front, angled and instruction views inspected after fixing plinth/sign occlusion; `Evidence/visual-validation-v1.3.txt` |
 | Four-second live integration | 14-second Editor probe: four stimuli, four playing cues, countdown 4/3/2/1/NEXT; a programmatic response after 3.2 seconds accepted and saved; `Evidence/response-window-live-v1.3.txt` |
 | Sequence guidance | 29 snapshots checked; stage/color counters across 88 stimuli, two-back indices, warm-up prompts and absence of formal answer feedback verified; `Evidence/visual-validation-v1.2.txt` |
@@ -27,7 +29,7 @@ Date: 2026-11-01. Software implementation and desktop validation are available; 
 
 Synthetic data under `Evidence/SyntheticSessions/` and editor probes are not participant or device-test evidence. Historical live input probes remain as provenance; core validation and export verification were refreshed for v1.3. The response-window probe is explicitly marked editor-test, uses programmatic input, and does not establish physical sound onset or headset audibility.
 
-The official Unity OpenJDK 17.0.18+8 module was installed during initial delivery after the first build found it missing. The current build has one warning: crash diagnostics lack debug symbols. Current build outcome is in `Evidence/android-build-report-v1.3.json`; package inspection and checksum are in `Evidence/apk-inspection-v1.3.txt`. SHA256: `3865FE023656F384B8D7A5A64901633966ADF9E6E3B54865D5A11BB5AC64FDAC`. Older versioned reports remain historical. The latest observed ADB connection required debugging authorization for APK installation; Quest Link preview is a separate connection. Final Editor checks found zero console errors, no compilation failure, Play Mode stopped and the scene saved.
+The official Unity OpenJDK 17.0.18+8 module was installed during initial delivery after the first build found it missing. The current build has one warning: crash diagnostics lack debug symbols. Current build outcome is in `Evidence/android-build-report-v1.3.1.json`; package inspection and checksum are in `Evidence/apk-inspection-v1.3.1.txt`. SHA256: `CDA6BF1DDA4DAF378AFC269EF7F2D7F93CB99A0883F35DADC6061BFAC8FFCE04`. Older versioned reports remain historical. The latest observed ADB connection required debugging authorization for APK installation; Quest Link preview is a separate connection. Final Editor checks found zero console errors, no compilation failure, Play Mode stopped and the scene saved.
 
 ## Required physical-device checks
 

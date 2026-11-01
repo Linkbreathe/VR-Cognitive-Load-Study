@@ -75,10 +75,64 @@ namespace EvidenceVR.Editor
             c.body.text="Sit comfortably and look straight ahead.\nPress the LEFT TRIGGER to place the task area."; c.footer.text="";
             v.actionHint.text="Complete all three checks to continue"; v.pauseHint.text="SEATED TASK  /  NO MOVEMENT REQUIRED";
             v.matchKey.text="A"; v.nonmatchKey.text="B";
-            PlayerSettings.bundleVersion="1.2.1-stage1"; PlayerSettings.Android.bundleVersionCode=4;
+            ConfigureSpatialTask(c);
+            PlayerSettings.bundleVersion="1.3.0-stage1"; PlayerSettings.Android.bundleVersionCode=5;
             EditorUtility.SetDirty(c); EditorUtility.SetDirty(v);
             EditorSceneManager.MarkSceneDirty(c.gameObject.scene); EditorSceneManager.SaveScene(c.gameObject.scene); AssetDatabase.SaveAssets();
-            Debug.Log("Quiet lab v1.2 sequence guidance applied. Stimulus materials, timing and scoring unchanged.");
+            Debug.Log("Spatial lab v1.3 applied: detached sphere, workbench, response countdown and onset cue.");
+        }
+        static void ConfigureSpatialTask(TaskPlatformController c)
+        {
+            var view=c.GetComponent<SpatialTaskView>(); if(view==null)view=c.gameObject.AddComponent<SpatialTaskView>();
+            c.spatialView=view; view.instructions=c.heading.canvas; view.instructions.enabled=true;
+            view.instructions.transform.localPosition=new Vector3(0,0,-.20f);
+            var anchor=c.taskAnchor;
+            var bench=Child(anchor,"ExperimentWorkbench"); view.bench=bench;
+            var top=Mat("WorkbenchTop",LabPalette.Trim); var leg=Mat("WorkbenchSupport",LabPalette.Floor);
+            Box(bench,"WorkSurface",new Vector3(0,-.50f,.08f),new Vector3(1.85f,.055f,.65f),top);
+            Box(bench,"FrontEdge",new Vector3(0,-.52f,-.25f),new Vector3(1.85f,.06f,.025f),leg);
+            Box(bench,"LeftLeg",new Vector3(-.70f,-.85f,.08f),new Vector3(.065f,.65f,.50f),leg);
+            Box(bench,"RightLeg",new Vector3(.70f,-.85f,.08f),new Vector3(.065f,.65f,.50f),leg);
+            view.leftLeg=bench.Find("LeftLeg"); view.rightLeg=bench.Find("RightLeg");
+            Cylinder(bench,"StimulusPlinth",new Vector3(0,-.19f,0),new Vector3(.30f,.025f,.30f),top);
+            Cylinder(bench,"PlinthStem",new Vector3(0,-.35f,0),new Vector3(.09f,.14f,.09f),leg);
+            var canvasTransform=anchor.Find("SpatialTaskHUD");
+            if(canvasTransform==null)
+            {
+                var go=new GameObject("SpatialTaskHUD",typeof(RectTransform),typeof(Canvas));
+                canvasTransform=go.transform; canvasTransform.SetParent(anchor,false);
+            }
+            canvasTransform.localPosition=new Vector3(0,0,.08f); canvasTransform.localScale=Vector3.one*.001f;
+            var canvas=canvasTransform.GetComponent<Canvas>(); canvas.renderMode=RenderMode.WorldSpace; canvas.worldCamera=c.heading.canvas.worldCamera;
+            canvas.GetComponent<RectTransform>().sizeDelta=new Vector2(2100,1100); view.taskCanvas=canvas;
+            var font=c.heading.font;
+            var banner=Surface(canvasTransform,"StageSign",new Vector2(0,365),new Vector2(1350,140),LabPalette.Panel,22);
+            view.stage=Label(banner.transform,"Stage",new Vector2(0,36),new Vector2(1300,40),28,font,LabPalette.Muted);
+            view.rule=Label(banner.transform,"Rule",new Vector2(0,-28),new Vector2(1300,60),36,font,LabPalette.Text);
+            var rule=Surface(canvasTransform,"RuleCard",new Vector2(-650,0),new Vector2(560,275),LabPalette.Panel,22);
+            Label(rule.transform,"Title",new Vector2(0,95),new Vector2(520,40),25,font,LabPalette.Muted).text="COMPARISON RULE";
+            view.comparison=Label(rule.transform,"Comparison",new Vector2(0,-25),new Vector2(515,190),28,font,LabPalette.Text);
+            var timer=Surface(canvasTransform,"CountdownCard",new Vector2(605,0),new Vector2(350,275),LabPalette.Panel,22);
+            view.timer=Label(timer.transform,"Number",new Vector2(0,20),new Vector2(310,145),92,font,LabPalette.Text);
+            view.timerLabel=Label(timer.transform,"Caption",new Vector2(0,-90),new Vector2(325,55),22,font,LabPalette.Muted);
+            var progress=Surface(canvasTransform,"ProgressSign",new Vector2(0,-290),new Vector2(1300,75),LabPalette.Panel,16);
+            view.progress=Label(progress.transform,"Progress",Vector2.zero,new Vector2(1250,65),28,font,LabPalette.Text);
+            view.feedback=Label(canvasTransform,"PracticeFeedback",new Vector2(0,-350),new Vector2(1300,45),25,font,LabPalette.Accent);
+            var controls=Surface(canvasTransform,"ControlsSign",new Vector2(0,-415),new Vector2(1450,65),LabPalette.Panel,14);
+            view.controls=Label(controls.transform,"Controls",Vector2.zero,new Vector2(1400,55),25,font,LabPalette.Text);
+            // Put reading surfaces in front of the plinth instead of behind its stem.
+            foreach(var sign in new[]{progress.transform,controls.transform,view.feedback.transform})
+            { var p=sign.localPosition; p.z=-230; sign.localPosition=p; }
+            view.PlaceSupports(anchor); canvas.enabled=false;
+            if(c.head.GetComponent<AudioListener>()==null)c.head.gameObject.AddComponent<AudioListener>();
+            var cue=c.GetComponent<TrialOnsetCue>(); if(cue==null)cue=c.gameObject.AddComponent<TrialOnsetCue>();
+            var source=cue.GetComponent<AudioSource>(); source.playOnAwake=false;source.loop=false;source.spatialBlend=0;source.volume=.12f;
+            c.onsetCue=cue; EditorUtility.SetDirty(view); EditorUtility.SetDirty(cue); EditorUtility.SetDirty(source);
+        }
+        static void Cylinder(Transform parent,string name,Vector3 position,Vector3 scale,Material material)
+        {
+            var t=parent.Find(name); if(t==null){t=GameObject.CreatePrimitive(PrimitiveType.Cylinder).transform;t.name=name;t.SetParent(parent,false);}
+            t.localPosition=position;t.localScale=scale;t.GetComponent<Renderer>().sharedMaterial=material;
         }
         static Material Mat(string name,Color color,bool unlit=false)
         {

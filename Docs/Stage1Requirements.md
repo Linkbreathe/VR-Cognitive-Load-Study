@@ -2,6 +2,10 @@
 
 English project specification derived from the supplied Stage 1 brief. The original supplied text remains in the user's attachment and the pre-refinement Git checkpoint; maintained project documentation is English.
 
+## Approved revision: v1.3 (2026-11-01)
+
+The user requested a freestanding sphere outside the large task panel and explicitly selected a four-second response countdown for every color, with one quiet sound at countdown start. This supersedes the original three-second/2.5-second timing and no-audio presentation below. Current timing is 4.5 seconds per trial, one second of stimulus visibility and four seconds to respond, followed by a half-second closed interval. Warmups remain observe-only. The original brief below is retained as history; current operation is documented in ExperimentGuide.md. No spatial matching rule, grabbing, correctness audio or automatic adaptation was added.
+
 ## Purpose and evidence boundary
 
 Build a standalone, controllable, reproducible VR cognitive task platform for the Evidence-Aware Bioadaptive VR Patent Demonstrator. It will eventually provide a common environment for comparing a baseline physiological adaptive system against a system enhanced with evidence-source checks, decision review and active verification. Stage 1 does not implement either adaptive controller, EEG/ECG/eye-tracking analysis, VLMs or patent mechanisms.

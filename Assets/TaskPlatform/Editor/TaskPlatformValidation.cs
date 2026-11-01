@@ -33,6 +33,7 @@ namespace EvidenceVR.Editor
                 }
             }
             BoundaryTests();
+            FourSecondBoundaryTests();
             Directory.CreateDirectory("Evidence");
             string root = Path.GetFullPath("Evidence/SyntheticSessions");
             for (int run = 0; run < 5; run++)
@@ -87,7 +88,7 @@ namespace EvidenceVR.Editor
         }
         static void BoundaryTests()
         {
-            var c = new TaskConfig(); var e = Running(c);
+            var c = new TaskConfig { trialSeconds=3, responseSeconds=2.5f }; var e = Running(c);
             Check(!e.Respond(true,0,0), "warmup rejects answers");
             e.Tick(3,216); e.Tick(6,432);
             bool answer = e.Current.expectedMatch;
@@ -106,7 +107,7 @@ namespace EvidenceVR.Editor
             c.scoredTrials = 100; Check(e.Config.scoredTrials == 30,"config cloned at session start");
             var copy = e.Config; copy.responseSeconds = 99; Check(e.Config.responseSeconds == 2.5,"config getter immutable copy");
             e.Abort(103,7416,"test"); Check(e.Phase==TaskPhase.Aborted && e.Results.Last().aborted,"abort saves active trial");
-            var invalid = new TaskConfig { responseSeconds = 4 }; bool rejected=false;
+            var invalid = new TaskConfig { responseSeconds = 5 }; bool rejected=false;
             try { invalid.Validate(); } catch (ArgumentException) { rejected=true; }
             Check(rejected,"invalid timing rejected");
             var stalled = Running(new TaskConfig()); TaskEvent pauseEvent = null;
@@ -120,6 +121,33 @@ namespace EvidenceVR.Editor
             while(r.Phase != TaskPhase.Rest && t<500) { t+=3; r.Tick(t, (int)(t*72)); if(r.Phase==TaskPhase.Instructions) r.Advance(t,(int)(t*72)); }
             Check(r.Phase==TaskPhase.Rest,"rest reached"); r.Advance(t+24,1); Check(r.Phase==TaskPhase.Rest,"rest cannot skip"); r.Advance(t+25,2); Check(r.Phase==TaskPhase.Instructions,"rest gate opens");
             Check(r.RequestDifficulty(TaskMode.Easy,t+25,2),"boundary request accepted"); r.Advance(t+25,2); Check(r.TrialIndex==0 && !r.Current.scored,"new difficulty resets memory");
+        }
+        static void FourSecondBoundaryTests()
+        {
+            var config=new TaskConfig(); var e=Running(config); int starts=0;
+            e.OnEvent+=item=>{if(item.type=="trial_countdown_start")starts++;};
+            Check(config.responseSeconds==4 && config.trialSeconds==4.5f,"current response window and onset interval");
+            Check(e.ResponseRemaining(0)==4,"countdown starts at four");
+            Check(!e.Respond(true,3.9,1),"warmup remains observe-only for whole countdown");
+            e.Tick(4.5,2); e.Tick(9,3);
+            Check(e.ResponseRemaining(9)==4,"scored trial starts a fresh countdown");
+            e.Tick(10,4); Check(!e.StimulusVisible,"visibility remains one second");
+            Check(e.Respond(e.Current.expectedMatch,12.5,5),"response after old 2.5-second deadline accepted");
+            Check(e.TrialIndex==2 && e.ResponseRemaining(12.5)==.5,"early response preserves scheduled interval");
+            Check(!e.Respond(true,12.6,6),"duplicate in extended window rejected");
+            e.Tick(13,7); Check(e.ResponseRemaining(13)==0,"countdown closes at four seconds");
+            e.Tick(13.49,8); Check(e.TrialIndex==2,"half-second transition gap retained");
+            e.Tick(13.5,9); Check(e.TrialIndex==3,"next onset at 4.5 seconds");
+            Check(!e.Respond(true,17.5,10),"four-second deadline is exclusive");
+            e.Tick(18,11); Check(e.Results[3].timeout,"extended-window omission recorded");
+            e.Pause(18.75,12); e.Tick(100,13);
+            Check(e.ResponseRemaining(100)==3.25 && e.TrialIndex==4,"pause freezes countdown and trial");
+            e.Resume(100,14); Check(e.ResponseRemaining(100)==3.25,"resume retains remaining response time");
+            Check(!e.Respond(true,103.25,15),"resumed deadline remains exclusive");
+            Check(starts==4,"one countdown event per new stimulus, none on resume");
+            var badVolume=new TaskConfig { onsetCueVolume=-.1f }; bool rejected=false;
+            try{badVolume.Validate();}catch(ArgumentException){rejected=true;}
+            Check(rejected,"negative onset cue gain rejected");
         }
     }
 }

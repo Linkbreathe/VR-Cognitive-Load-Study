@@ -13,7 +13,8 @@ public static class VisualReviewProbe
     static readonly PropertyInfo EngineProperty=typeof(TaskPlatformController).GetProperty("Engine");
     static readonly MethodInfo RenderMethod=typeof(TaskPlatformController).GetMethod("Render",BindingFlags.Instance|BindingFlags.NonPublic);
     static int screens;
-    const string CaptureDirectory="Evidence/Visuals-v1.2";
+    const string CaptureDirectory="Evidence/Visuals-v1.3";
+    static double snapshotTime;
     public static string Run()
     {
         if(!Application.isPlaying) throw new Exception("Run in Play Mode.");
@@ -46,6 +47,7 @@ public static class VisualReviewProbe
                 else if(engine.Phase==TaskPhase.Running)
                 {
                     RenderMethod.Invoke(controller,null);
+                    snapshotTime=clock;
                     int number=engine.TrialIndex+1;
                     if(!controller.footer.text.StartsWith("COLOR "+number+"/")) throw new Exception("Color position label mismatch");
                     if(!controller.badge.text.Contains("STAGE "+(engine.Block+1)+"/4")) throw new Exception("Stage label mismatch");
@@ -77,7 +79,7 @@ public static class VisualReviewProbe
                 .Where(r=>r.sharedMaterials.Any(m=>m!=null && m.name=="Default-Material")).Select(r=>r.name).ToArray();
             if(defaults.Length>0)throw new Exception("Default materials: "+string.Join(",",defaults));
             var report="PASS: "+screens+" presentation snapshots checked; stage and color counters verified across 88 stimuli; two-back references verified; warm-up response guidance present; no active TMP overflow; rounded surfaces have meshes; no default materials; practice feedback present; formal feedback absent.\nSynthetic state injection with original engine restored; not physical input, timing or headset evidence.\n";
-            File.WriteAllText("Evidence/visual-validation-v1.2.txt",report); Debug.Log(report); return report;
+            File.WriteAllText("Evidence/visual-validation-v1.3.txt",report); Debug.Log(report); return report;
         }
         finally
         {
@@ -88,14 +90,16 @@ public static class VisualReviewProbe
     static void Show(string name)
     {
         RenderMethod.Invoke(controller,null); Canvas.ForceUpdateCanvases();
-        foreach(var text in controller.presentation.GetComponentInParent<Transform>().root.GetComponentsInChildren<TMP_Text>())
+        controller.spatialView?.Refresh(controller,snapshotTime); Canvas.ForceUpdateCanvases();
+        foreach(var text in controller.taskAnchor.GetComponentsInChildren<TMP_Text>())
         {
+            if(text.canvas==null || !text.canvas.isActiveAndEnabled)continue;
             text.ForceMeshUpdate();
             if(text.isTextOverflowing)throw new Exception(name+": text overflow in "+text.name);
         }
         foreach(var surface in UnityEngine.Object.FindObjectsByType<RoundedSurface>(FindObjectsSortMode.None))
-            if(surface.canvasRenderer==null || surface.canvasRenderer.GetMesh().vertexCount==0)throw new Exception(name+": empty panel "+surface.name);
-        Capture(name); screens++;
+            if(surface.canvas!=null && surface.canvas.isActiveAndEnabled && (surface.canvasRenderer==null || surface.canvasRenderer.GetMesh()==null || surface.canvasRenderer.GetMesh().vertexCount==0))throw new Exception(name+": empty panel "+surface.name);
+        Capture(name); if(name=="block-3-color-7")Capture("spatial-angle"); screens++;
     }
     static void Capture(string name)
     {
@@ -108,6 +112,11 @@ public static class VisualReviewProbe
         {
             cameraData.allowXRRendering=false;
             camera.transform.SetPositionAndRotation(controller.taskAnchor.position-controller.taskAnchor.forward*controller.SessionConfig.distance,controller.taskAnchor.rotation);
+            if(name=="spatial-angle")
+            {
+                camera.transform.position+=controller.taskAnchor.right*.45f;
+                camera.transform.rotation=Quaternion.LookRotation(controller.taskAnchor.position-camera.transform.position,Vector3.up);
+            }
             camera.targetTexture=rt;
             camera.Render(); // Warm-up render is discarded.
             camera.Render(); RenderTexture.active=rt;

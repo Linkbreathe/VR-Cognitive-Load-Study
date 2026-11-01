@@ -17,6 +17,8 @@ namespace EvidenceVR
         public Renderer stimulus;
         public TMP_Text heading, body, footer, badge;
         public LabPresentation presentation;
+        public SpatialTaskView spatialView;
+        public TrialOnsetCue onsetCue;
         public bool Calibrated => calibrated;
         public bool MatchChecked => checkedMatch;
         public bool NonmatchChecked => checkedNonmatch;
@@ -71,6 +73,7 @@ namespace EvidenceVR
             recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, "TaskPlatformData"), Engine.Config, kind: Application.isEditor ? "editor-test" : "participant");
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
+            onsetCue?.Bind(Engine,config);
             Engine.Note("session_start", "configuration frozen; generator=xorshift32-v1", Time.realtimeSinceStartupAsDouble, Time.frameCount);
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
@@ -85,6 +88,7 @@ namespace EvidenceVR
             taskAnchor.rotation = Quaternion.LookRotation(forward, Vector3.up);
             float diameter = 2 * config.distance * Mathf.Tan(config.visualAngle * Mathf.Deg2Rad * .5f);
             stimulus.transform.localScale = Vector3.one * diameter;
+            spatialView?.PlaceSupports(taskAnchor);
             calibrated = confirm;
             Engine?.Note("calibration", "head=" + head.position + ";forward=" + forward + ";diameter_m=" + diameter, Time.realtimeSinceStartupAsDouble, Time.frameCount);
             lastPhase = (TaskPhase)(-1);
@@ -149,7 +153,7 @@ namespace EvidenceVR
             bool running = Engine.Phase == TaskPhase.Running;
             stimulus.enabled = running && Engine.StimulusVisible;
             if (Engine.Current != null && running) sphereMaterial.color = Colors[Engine.Current.color];
-            if (presentation != null) { presentation.Refresh(); return; }
+            if (presentation != null) { presentation.Refresh(); spatialView?.Refresh(this,Time.realtimeSinceStartupAsDouble); return; }
             if (lastPhase == Engine.Phase && lastTrial == Engine.TrialIndex && Engine.Phase != TaskPhase.Rest && !(Engine.Practice && running)) return;
             lastPhase = Engine.Phase; lastTrial = Engine.TrialIndex;
             badge.text = "EVIDENCE-AWARE VR  /  TASK PLATFORM 01";
@@ -168,7 +172,7 @@ namespace EvidenceVR
                     heading.text = (Engine.Practice ? "PRACTICE  /  " : "") + (Engine.Mode == TaskMode.Easy ? "0-BACK  /  " + ColorNames[config.targetColor] : "2-BACK") + (Engine.Current.scored ? "" : "  /  WARM-UP");
                     badge.text = ""; body.text = "";
                     if (Engine.Practice && Engine.Current.scored && Engine.CurrentResult != null && (Engine.CurrentResult.responded || Engine.CurrentResult.timeout))
-                        body.text = "\n\n\n\n" + (Engine.CurrentResult.timeout ? "No response" : Engine.CurrentResult.correct ? "Correct" : "Try again") + "  /  Answer: " + (Engine.Current.expectedMatch ? "MATCH" : "NON-MATCH");
+                        body.text = "\n\n\n\n" + (Engine.CurrentResult.timeout ? "No response" : Engine.CurrentResult.correct ? "Correct" : "Incorrect") + "  /  Answer: " + (Engine.Current.expectedMatch ? "MATCH" : "NON-MATCH");
                     break;
                 case TaskPhase.Rest:
                     heading.text = "REST";
@@ -187,6 +191,7 @@ namespace EvidenceVR
         void Fail(Exception e)
         {
             setupError = e.Message; if (stimulus != null) stimulus.enabled = false;
+            spatialView?.ShowError();
             heading.text = "PLATFORM ERROR"; body.text = "Please ask the experimenter for assistance.\n\n" + e.Message; Debug.LogException(e);
             recorder?.Dispose();
         }

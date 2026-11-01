@@ -24,12 +24,12 @@ Practice feedback uses `Correct`, `Incorrect`, or `No response`, followed by the
 3. Read the 0-back rule: match BLUE; all other colors are non-matches. Press X. Observe two unscored warmups without answering, then complete eight scored practice trials. Practice includes answer feedback.
 4. Read the 2-back rule and static BLUE > ORANGE > BLUE example. The third color matches two positions ago. Press X, observe two warmups, then complete 12 practice trials while continually updating color memory.
 5. Confirm understanding before formal testing. If needed, pause and restart as a new session; the incomplete session remains saved. Repeating only one practice block is not implemented.
-6. Read the first formal rule and press X. The block contains two warmups plus 30 scored trials, taking 96 seconds. There is no trial-level feedback, score, sound or animated progress indicator.
+6. Read the first formal rule and press X. The block contains two warmups plus 30 scored trials, taking 144 seconds. The full instruction board gives way to the freestanding stimulus, workbench and compact rule/countdown signs. A quiet tone marks each color onset. There is no correctness feedback or score in formal trials.
 7. Rest for at least 25 seconds. The next rule is shown. After the countdown, X opens the instructions and a second X starts the next block.
 8. Complete the other formal block. The completion screen confirms that responses have been saved. Wait for the experimenter before removing the headset. X creates a fresh session without overwriting the previous one.
 9. Export the files and recompute metrics with the Python tool below. Inspect omissions, interrupted trials, configuration and scheduling deviations.
 
-Default formal order is Easy then Hard. Set `hardFirst=true` for Hard then Easy; practice order stays unchanged. Stimulus time totals 264 seconds (30 + 42 practice; 96 + 96 formal), plus 25 seconds of rest. Preparation, rule reading and pauses are additional.
+Default formal order is Easy then Hard. Set `hardFirst=true` for Hard then Easy; practice order stays unchanged. The v1.3 task intervals total 396 seconds (45 + 63 practice; 144 + 144 formal), plus 25 seconds of rest. Preparation, rule reading and pauses are additional.
 
 ### Reading the sequence guidance
 
@@ -41,7 +41,7 @@ For 0-back, always compare with the named target color (BLUE by default). For 2-
 
 ## Timing, sequence and analysis
 
-Each trial has a fixed three-second cycle: show the sphere for 0–1 s, accept responses until 2.5 s, then close the response window until the next onset. Early responses never advance the trial. Warmups do not require responses. Each formal block has exactly ten match and twenty non-match scored trials.
+Each trial has a fixed 4.5-second cycle: show the sphere for 0–1 s, accept responses until 4 s, then close the response window for 0.5 s until the next onset. The countdown displays 4, 3, 2, 1, then NEXT. An onset tone is requested once per color, including warmups. Early responses never advance the trial or stop the countdown. Warmups reject responses and display OBSERVE ONLY. Pause freezes remaining response time; resume does not replay the tone. Each formal block has exactly ten match and twenty non-match scored trials.
 
 Each block has its own memory history and seed. The generator uses a fixed xorshift32 implementation and Fisher–Yates shuffle; block seed = session seed + block index × 104729, using 32-bit arithmetic. Identical configuration and seed reproduce the colors and answers. Randomization does not forbid all coincidental runs or impose an unspecified maximum streak length.
 
@@ -56,6 +56,10 @@ The default configuration is `Assets/TaskPlatform/Config/default-task-config.jso
 The v1.1 quiet-lab presentation adds a warm neutral room, architectural seams, matte rounded panel, English typography, preparation checks, button legends and a static 2-back example. The existing unlit stimulus colors are retained. The room and panel remain identical across formal conditions, with no animation, music, post-processing or feedback. `presentationVersion` in session.json identifies this visual revision; do not silently pool it with v1.0 without considering the changed visual environment.
 
 Version 1.2 adds persistent stage/block labels, color and response-trial counters, explicit warm-up instructions, numbered examples and current comparison indices. It records `quiet-lab-v1.2-sequence-guidance` in session metadata. These cues may affect task experience; review comparability before combining presentation versions. Sequence generation, timing, colors, geometry and scoring are unchanged.
+
+Version 1.3 implements the user's approved spatial layout and timing revision. Current configuration is `stage1-v1.3-response4s`, presentation is `spatial-lab-v1.3-response4s`, and application is `1.3.0-stage1`. The sphere retains its 1.5 m distance, 6-degree diameter and unlit colors; it floats above a grounded workbench plinth with separate world-space signs. Instruction, rest and completion screens still use the full board. The onset cue is a 120 ms mono 660 Hz sine with a smooth envelope, fixed pitch and default gain 0.12. `onsetCueEnabled` and `onsetCueVolume` are frozen into each session configuration. There is no music, ticking, or answer-dependent sound. Audibility depends on headset output and volume and must be checked physically.
+
+This revision changes response time, auditory cues and visual context. Treat it as a new protocol revision; do not silently pool its data with earlier versions. The visible sphere remains on for one second even though the response interval is now four seconds. Existing custom configuration overrides retain their explicitly configured timing; remove or update an old override to use the new defaults.
 
 `matchAction` and `nonmatchAction` default to RightPrimary and RightSecondary and can be swapped. Continue and pause use `advanceAction` and `pauseAction`. Actions are pre-authored in `TaskControls.inputactions` with Oculus Touch and Quest Pro Touch layouts. Every operation must use a distinct button action; changing the action asset requires rebuilding.
 
@@ -80,6 +84,8 @@ Synthetic validation data is stored separately in `Evidence/SyntheticSessions/au
 | summary.json | Metrics generated by the analysis script |
 
 Events use `Time.realtimeSinceStartupAsDouble`. These are software events, not measured photon onset. Frame gaps are software diagnostics, not compositor dropped-frame counts. Writers flush each row; forced termination can leave an `in_progress` session, which must not be treated as complete.
+
+`trial_countdown_start` records the window duration and whether the trial permits a response. `audio_cue_requested` records cue version, gain and software playback-request time; it is not a measured acoustic onset. The visual timer follows the same planned trial clock and pause offset as the response gate.
 
 ```powershell
 adb install -r Builds/Quest/EvidenceVR-Stage1.apk

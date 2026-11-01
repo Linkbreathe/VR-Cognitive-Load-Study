@@ -9,7 +9,7 @@ namespace EvidenceVR
     [Serializable]
     public sealed class TaskConfig
     {
-        public string version = "stage1-v1.0";
+        public string version = "stage1-v1.3-response4s";
         public int seed = 20261101;
         public int colorCount = 4;
         public int targetColor = 0;
@@ -18,9 +18,11 @@ namespace EvidenceVR
         public int easyPracticeTrials = 8;
         public int hardPracticeTrials = 12;
         public float matchRatio = 1f / 3f;
-        public float trialSeconds = 3;
+        public float trialSeconds = 4.5f;
         public float visibleSeconds = 1;
-        public float responseSeconds = 2.5f;
+        public float responseSeconds = 4;
+        public bool onsetCueEnabled = true;
+        public float onsetCueVolume = .12f;
         public float restSeconds = 25;
         public float distance = 1.5f;
         public float visualAngle = 6;
@@ -34,7 +36,7 @@ namespace EvidenceVR
             if (string.IsNullOrWhiteSpace(version) || colorCount < 2 || colorCount > 4 || targetColor < 0 || targetColor >= colorCount ||
                 scoredTrials < 2 || scoredTrials > 1000 || warmupTrials < 2 || warmupTrials > 100 || easyPracticeTrials < 2 || hardPracticeTrials < 2 ||
                 !(matchRatio > 0 && matchRatio < 1) || !(visibleSeconds > 0 && visibleSeconds <= responseSeconds && responseSeconds < trialSeconds) ||
-                !(restSeconds >= 0 && restSeconds <= 600) || !(distance >= 0.5f && distance <= 5) || !(visualAngle >= 1 && visualAngle <= 20) ||
+                !(restSeconds >= 0 && restSeconds <= 600) || !(onsetCueVolume >= 0 && onsetCueVolume <= 1) || !(distance >= 0.5f && distance <= 5) || !(visualAngle >= 1 && visualAngle <= 20) ||
                 string.IsNullOrWhiteSpace(matchAction) || string.IsNullOrWhiteSpace(nonmatchAction) || matchAction == nonmatchAction ||
                 matchAction == advanceAction || matchAction == pauseAction || nonmatchAction == advanceAction || nonmatchAction == pauseAction || advanceAction == pauseAction)
                 throw new ArgumentException("Invalid task configuration. Check counts, color, timing, geometry and bindings.");
@@ -122,6 +124,11 @@ namespace EvidenceVR
         void Emit(string type, double now, int frame, double planned, string detail = "") => OnEvent?.Invoke(new TaskEvent { type = type, actual = now, planned = planned, deviation = now - planned, frame = frame, block = Block, trial = TrialIndex, detail = detail });
         public void Note(string type, string detail, double now, int frame) => Emit(type, now, frame, now, detail);
         public double RestRemaining(double now) => Math.Max(0, restEnd - now);
+        public double ResponseRemaining(double now)
+        {
+            if(CurrentResult==null || (Phase!=TaskPhase.Running && !(Phase==TaskPhase.Paused && resumePhase==TaskPhase.Running))) return 0;
+            return Math.Max(0,Math.Min(config.responseSeconds,config.responseSeconds-((Phase==TaskPhase.Paused ? pauseStart : now)-Planned)));
+        }
         public void Advance(double now, int frame)
         {
             if (Phase == TaskPhase.Preparation) { Block = 0; SetInstructions(now, frame); }
@@ -151,6 +158,7 @@ namespace EvidenceVR
             closed = false; StimulusVisible = true;
             CurrentResult = new TrialResult { block = Block, trial = TrialIndex, color = Current.color, mode = (int)Mode, seed = unchecked(config.seed + Block * 104729), practice = Practice, scored = Current.scored, expectedMatch = Current.expectedMatch, plannedOnset = Planned, actualOnset = now, onsetFrame = frame };
             Emit("stimulus_on", now, frame, Planned, "color=" + Current.color);
+            Emit("trial_countdown_start",now,frame,Planned,"seconds="+config.responseSeconds.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+";response_allowed="+Current.scored);
         }
         public void Tick(double now, int frame)
         {

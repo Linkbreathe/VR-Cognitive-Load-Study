@@ -1,5 +1,7 @@
 # Quiet laboratory / presentation v1.1
 
+Current v1.3 extension: the stimulus floats independently over a matte laboratory workbench. Compact world-space signs show rule, countdown and progress; the full board is reserved for non-running phases. Existing colors and fixed lighting are preserved. One quiet onset cue per color is explicitly approved; the earlier no-audio rule below describes the v1.1 baseline. No other sound or scenery animation is introduced.
+
 Style: a restrained architectural VR laboratory with a warm neutral shell, a thin matte task panel and precise English typography.
 Palette: wall #8A8985, floor #555A5B, trim #6A6D6C, panel #30393D, inset #394347, text #F0F1ED, muted #B9C4C4; accent #A9C7BF appears only in preparation and instructional content.
 Mood: stable diffuse overhead illumination, subtle material separation and joinery; no decorative animation, audio, bloom, vignette, automatic exposure or camera movement.

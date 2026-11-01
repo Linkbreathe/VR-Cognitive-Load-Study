@@ -77,10 +77,10 @@ namespace EvidenceVR.Editor
             v.matchKey.text="A"; v.nonmatchKey.text="B";
             ConfigureSpatialTask(c);
             DistractionSceneSetup.Apply(c);
-            PlayerSettings.bundleVersion="1.6.0-stage1"; PlayerSettings.Android.bundleVersionCode=9;
+            PlayerSettings.bundleVersion="1.6.1-stage1"; PlayerSettings.Android.bundleVersionCode=10;
             EditorUtility.SetDirty(c); EditorUtility.SetDirty(v);
             EditorSceneManager.MarkSceneDirty(c.gameObject.scene); EditorSceneManager.SaveScene(c.gameObject.scene); AssetDatabase.SaveAssets();
-            Debug.Log("Spatial lab v1.6 applied: lower seated desk, corrected XR origin and front-wall distraction positions.");
+            Debug.Log("Spatial lab v1.6.1 applied: seated panel clearance, foreground task labels and restrained text outlines.");
         }
         static void ConfigureSpatialTask(TaskPlatformController c)
         {
@@ -143,15 +143,23 @@ namespace EvidenceVR.Editor
             var root=view.taskCanvas.transform;
             foreach(string name in new[]{"RuleCard","ProgressSign","ControlsSign","PracticeFeedback"})root.Find(name).gameObject.SetActive(false);
             var banner=root.Find("StageSign").GetComponent<RectTransform>();
-            banner.anchoredPosition=new Vector2(0,210);banner.sizeDelta=new Vector2(1000,100);
+            banner.anchoredPosition=new Vector2(0,400);banner.sizeDelta=new Vector2(1000,100);
             banner.GetComponent<RoundedSurface>().enabled=false;
-            SetText(view.stage,new Vector2(0,22),new Vector2(1000,40),24,LabPalette.Muted);
+            SetText(view.stage,new Vector2(0,22),new Vector2(1000,40),24,LabPalette.Text);
             SetText(view.rule,new Vector2(0,-22),new Vector2(1000,45),28,LabPalette.Text);
             var countdown=root.Find("CountdownCard").GetComponent<RectTransform>();
             countdown.anchoredPosition=new Vector2(220,0);countdown.sizeDelta=new Vector2(230,180);
             countdown.GetComponent<RoundedSurface>().enabled=false;
             SetText(view.timer,new Vector2(0,15),new Vector2(210,110),72,LabPalette.Text);
             SetText(view.timerLabel,new Vector2(0,-58),new Vector2(230,40),21,LabPalette.Muted);
+            const string path=MaterialRoot+"TaskHudText.mat";
+            var textMaterial=AssetDatabase.LoadAssetAtPath<Material>(path);
+            if(textMaterial==null){textMaterial=new Material(view.stage.font.material);AssetDatabase.CreateAsset(textMaterial,path);}
+            textMaterial.SetColor("_OutlineColor",new Color(.06f,.07f,.08f,1));
+            textMaterial.SetFloat("_OutlineWidth",.16f);EditorUtility.SetDirty(textMaterial);
+            textMaterial.EnableKeyword("OUTLINE_ON");
+            foreach(var label in new[]{view.stage,view.rule,view.timer,view.timerLabel})
+            {label.fontSharedMaterial=textMaterial;label.UpdateMeshPadding();EditorUtility.SetDirty(label);}
         }
         static void ConfigureSmoothStimulus(TaskPlatformController c)
         {

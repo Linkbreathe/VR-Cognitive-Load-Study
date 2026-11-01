@@ -15,7 +15,7 @@ public static class SeatedMinimalProbe
         var engineProperty=typeof(TaskPlatformController).GetProperty("Engine");
         var render=typeof(TaskPlatformController).GetMethod("Render",BindingFlags.Instance|BindingFlags.NonPublic);
         var original=c.Engine;bool enabled=c.enabled;var anchorPosition=c.taskAnchor.position;
-        const string folder="Evidence/Visuals-v1.6";Directory.CreateDirectory(folder);int checks=0;
+        const string folder="Evidence/Visuals-v1.6.1";Directory.CreateDirectory(folder);int checks=0;
         try
         {
             c.enabled=false;
@@ -51,7 +51,7 @@ public static class SeatedMinimalProbe
             Check(textCount==4,"Only four active running text elements");
             Check(!view.taskCanvas.transform.Find("StageSign").GetComponent<RoundedSurface>().enabled && !view.taskCanvas.transform.Find("CountdownCard").GetComponent<RoundedSurface>().enabled,"No large running panels");
             var report="PASS: "+checks+" checks; 0.65 m tabletop at three calibrated eye heights, grounded legs, sphere visible through 3.999 s including early response, hidden at 4 s, pause-adjusted offset, green/red practice feedback, neutral reset and no formal correctness feedback. Four active HUD text elements; screenshots inspected separately.\nIsolated synthetic engine; not participant or headset evidence.\n";
-            File.WriteAllText("Evidence/seated-minimal-v1.6.txt",report);Debug.Log(report);return report;
+            File.WriteAllText("Evidence/seated-minimal-v1.6.1.txt",report);Debug.Log(report);return report;
             void Show(double time,string name)
             {
                 render.Invoke(c,null);view.Refresh(c,time);Canvas.ForceUpdateCanvases();

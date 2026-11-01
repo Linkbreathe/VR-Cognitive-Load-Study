@@ -10,6 +10,7 @@ namespace EvidenceVR
         public TMP_Text stage, rule, progress, comparison, timer, timerLabel, controls, feedback;
         public Transform bench, leftLeg, rightLeg;
         public const float TabletopHeight=.65f;
+        public const float InstructionForwardOffset=-.25f, HudForwardOffset=-.22f;
         public static readonly Color CorrectColor=LabPalette.Hex("70D69A"), IncorrectColor=LabPalette.Hex("F27D7D");
         public void Refresh(TaskPlatformController controller,double now)
         {
@@ -37,6 +38,11 @@ namespace EvidenceVR
         }
         public void PlaceSupports(Transform anchor)
         {
+            // Keep reading surfaces ahead of the furniture and clear of the seated tabletop.
+            float panelHalfHeight=((RectTransform)instructions.transform).rect.height*instructions.transform.lossyScale.y*.5f;
+            float panelY=Mathf.Max(.12f,TabletopHeight+.12f+panelHalfHeight-anchor.position.y);
+            instructions.transform.localPosition=new Vector3(0,panelY,InstructionForwardOffset);
+            taskCanvas.transform.localPosition=new Vector3(0,0,HudForwardOffset);
             // The desk stays at floor height, independently of the calibrated eye height.
             var benchPosition=bench.position;benchPosition.y=0;bench.position=benchPosition;
             bench.Find("WorkSurface").localPosition=new Vector3(0,TabletopHeight-.0275f,.08f);

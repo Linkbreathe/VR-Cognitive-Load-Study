@@ -11,6 +11,7 @@ namespace EvidenceVR
         [Serializable] sealed class Metadata
         {
             public string sessionId, sessionType, participantCode, utcStarted, applicationVersion, unityVersion, device, status, timingNote;
+            public string presentationVersion = LabPresentation.Version;
             public TaskConfig config;
         }
         public string DirectoryPath { get; }

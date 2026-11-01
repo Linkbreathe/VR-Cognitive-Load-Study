@@ -1,0 +1,11 @@
+# Quiet laboratory / presentation v1.1
+
+Style: a restrained architectural VR laboratory with a warm neutral shell, a thin matte task panel and precise English typography.
+Palette: wall #8A8985, floor #555A5B, trim #6A6D6C, panel #30393D, inset #394347, text #F0F1ED, muted #B9C4C4; accent #A9C7BF appears only in preparation and instructional content.
+Mood: stable diffuse overhead illumination, subtle material separation and joinery; no decorative animation, audio, bloom, vignette, automatic exposure or camera movement.
+
+The four stimulus colors and unlit sphere are retained from v1.0. The static panel and room are identical in both conditions. The panel remains fixed in world space, with the sphere at the calibrated 1.5 m distance and 6 degree visual diameter.
+
+Read craft references: `art-direction.md`, `scene-lighting.md`, `visual-scorecard.md`; mechanics: `ui-ugui/SKILL.md`. Game-oriented suggestions for props, post-processing, movement and audio are intentionally excluded by the experimental specification. No character silhouette axis applies to this task. Visual review covers palette, consistency, spatial depth, UI hierarchy and preparation/practice feedback.
+
+Unity reference pages consulted: [Volumes](https://docs.unity3d.com/6000.3/Documentation/Manual/urp/Volumes.html), [Bloom](https://docs.unity3d.com/6000.3/Documentation/Manual/urp/post-processing-bloom.html), [Run in background](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Application-runInBackground.html). Post-processing remains disabled deliberately.

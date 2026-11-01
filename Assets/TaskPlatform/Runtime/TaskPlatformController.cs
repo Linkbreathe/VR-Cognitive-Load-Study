@@ -16,10 +16,15 @@ namespace EvidenceVR
         public Transform head;
         public Renderer stimulus;
         public TMP_Text heading, body, footer, badge;
+        public LabPresentation presentation;
+        public bool Calibrated => calibrated;
+        public bool MatchChecked => checkedMatch;
+        public bool NonmatchChecked => checkedNonmatch;
+        public TaskConfig SessionConfig => config;
         public TaskEngine Engine { get; private set; }
         public string DataPath { get; private set; }
         public static readonly string[] ColorNames = { "BLUE", "ORANGE", "GREEN", "MAGENTA" };
-        static readonly Color[] Colors = { new Color(.10f,.36f,.95f), new Color(1f,.42f,.08f), new Color(.12f,.72f,.32f), new Color(.77f,.15f,.67f) };
+        static readonly Color[] Colors = LabPalette.Stimuli;
         TaskConfig config;
         SessionRecorder recorder;
         InputAction match, nonmatch, advance, pause, calibrate;
@@ -69,7 +74,7 @@ namespace EvidenceVR
             Engine.Note("session_start", "configuration frozen; generator=xorshift32-v1", Time.realtimeSinceStartupAsDouble, Time.frameCount);
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
-            Recenter(false); Render();
+            Recenter(false); Render(); presentation?.Refresh();
         }
         public void Recenter(bool confirm = true)
         {
@@ -135,7 +140,7 @@ namespace EvidenceVR
                 {
                     recorder.Complete(Engine.Phase == TaskPhase.Complete ? "complete" : "aborted"); terminalRecorded = true;
                 }
-                Render();
+                Render(); presentation?.Refresh();
             }
             catch (Exception e) { Fail(e); }
         }
@@ -144,6 +149,7 @@ namespace EvidenceVR
             bool running = Engine.Phase == TaskPhase.Running;
             stimulus.enabled = running && Engine.StimulusVisible;
             if (Engine.Current != null && running) sphereMaterial.color = Colors[Engine.Current.color];
+            if (presentation != null) { presentation.Refresh(); return; }
             if (lastPhase == Engine.Phase && lastTrial == Engine.TrialIndex && Engine.Phase != TaskPhase.Rest && !(Engine.Practice && running)) return;
             lastPhase = Engine.Phase; lastTrial = Engine.TrialIndex;
             badge.text = "EVIDENCE-AWARE VR  /  TASK PLATFORM 01";

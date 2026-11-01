@@ -10,5 +10,9 @@
 *.csproj
 *.slnx
 /Assets/Captures/
+/Assets/Captures.meta
+/.utmp/
+/Assets/Resources/PerformanceTestRunInfo.json*
+/Assets/Resources/PerformanceTestRunSettings.json*
 /Evidence/
 /Tools/__pycache__/

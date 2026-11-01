@@ -4,6 +4,8 @@ English project specification derived from the supplied Stage 1 brief. The origi
 
 ## Approved revision: v1.4 (2026-11-01)
 
+Subsequent v1.5 approval (2026-11-01): lower the workbench for seated use, keep the sphere visible until the four-second response window ends, and simplify the running HUD with green/red practice feedback on the countdown. The tabletop is fixed at 0.72 m. The existing 4.5-second onset interval, distraction schedule and formal no-correctness-feedback rule remain in force. See SeatedMinimalReview.md.
+
 The user requested eight local street videos for temporary windows on both side walls (5–8 seconds), local door sounds from rear-left/right (1–2 seconds), and quiet intelligible English two-speaker conversation outside the room (5–10 seconds). They explicitly selected formal blocks only, equal frequency in Easy and Hard, with no overlap between distraction types. The default is two events of each type per formal block. This is an approved exception to the earlier no-extra-audio/animated-scenery baseline. The resolved random seed, asset catalog, schedule, playback and interruptions are recorded. The sphere, trial timing and scoring remain unchanged. See EnvironmentalDistractions.md.
 
 ## Approved revision: v1.3 (2026-11-01)

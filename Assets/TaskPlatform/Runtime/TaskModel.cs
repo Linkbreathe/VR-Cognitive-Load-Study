@@ -9,7 +9,7 @@ namespace EvidenceVR
     [Serializable]
     public sealed class TaskConfig
     {
-        public string version = "stage1-v1.4-distractions";
+        public string version = "stage1-v1.5-visible4s";
         public int seed = 20261101;
         public int colorCount = 4;
         public int targetColor = 0;
@@ -19,7 +19,7 @@ namespace EvidenceVR
         public int hardPracticeTrials = 12;
         public float matchRatio = 1f / 3f;
         public float trialSeconds = 4.5f;
-        public float visibleSeconds = 1;
+        public float visibleSeconds = 4;
         public float responseSeconds = 4;
         public bool onsetCueEnabled = true;
         public float onsetCueVolume = .12f;

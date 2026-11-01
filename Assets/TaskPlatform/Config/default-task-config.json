@@ -1,5 +1,5 @@
 {
-  "version": "stage1-v1.4-distractions",
+  "version": "stage1-v1.5-visible4s",
   "seed": 20261101,
   "colorCount": 4,
   "targetColor": 0,
@@ -9,7 +9,7 @@
   "hardPracticeTrials": 12,
   "matchRatio": 0.33333334,
   "trialSeconds": 4.5,
-  "visibleSeconds": 1.0,
+  "visibleSeconds": 4.0,
   "responseSeconds": 4.0,
   "onsetCueEnabled": true,
   "onsetCueVolume": 0.12,

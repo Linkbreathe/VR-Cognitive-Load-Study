@@ -88,7 +88,7 @@ namespace EvidenceVR.Editor
         }
         static void BoundaryTests()
         {
-            var c = new TaskConfig { trialSeconds=3, responseSeconds=2.5f }; var e = Running(c);
+            var c = new TaskConfig { trialSeconds=3, responseSeconds=2.5f, visibleSeconds=1 }; var e = Running(c);
             Check(!e.Respond(true,0,0), "warmup rejects answers");
             e.Tick(3,216); e.Tick(6,432);
             bool answer = e.Current.expectedMatch;
@@ -131,11 +131,12 @@ namespace EvidenceVR.Editor
             Check(!e.Respond(true,3.9,1),"warmup remains observe-only for whole countdown");
             e.Tick(4.5,2); e.Tick(9,3);
             Check(e.ResponseRemaining(9)==4,"scored trial starts a fresh countdown");
-            e.Tick(10,4); Check(!e.StimulusVisible,"visibility remains one second");
+            e.Tick(10,4); Check(e.StimulusVisible,"sphere remains visible after one second");
             Check(e.Respond(e.Current.expectedMatch,12.5,5),"response after old 2.5-second deadline accepted");
+            e.Tick(12.999,6); Check(e.StimulusVisible,"sphere remains visible until four seconds after answering");
             Check(e.TrialIndex==2 && e.ResponseRemaining(12.5)==.5,"early response preserves scheduled interval");
             Check(!e.Respond(true,12.6,6),"duplicate in extended window rejected");
-            e.Tick(13,7); Check(e.ResponseRemaining(13)==0,"countdown closes at four seconds");
+            e.Tick(13,7); Check(e.ResponseRemaining(13)==0 && !e.StimulusVisible && e.CurrentResult.offsetTime==13,"countdown and sphere close together at four seconds");
             e.Tick(13.49,8); Check(e.TrialIndex==2,"half-second transition gap retained");
             e.Tick(13.5,9); Check(e.TrialIndex==3,"next onset at 4.5 seconds");
             Check(!e.Respond(true,17.5,10),"four-second deadline is exclusive");

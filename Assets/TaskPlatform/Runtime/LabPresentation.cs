@@ -6,7 +6,7 @@ namespace EvidenceVR
 {
     public sealed class LabPresentation : MonoBehaviour
     {
-        public const string Version = "spatial-lab-v1.4-environmental-distractions";
+        public const string Version = "spatial-lab-v1.5-seated-minimal-ui";
         public TaskPlatformController controller;
         public GameObject setupCards, exampleCards;
         public TMP_Text[] setupLabels;

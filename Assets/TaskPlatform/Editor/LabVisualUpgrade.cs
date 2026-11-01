@@ -77,10 +77,10 @@ namespace EvidenceVR.Editor
             v.matchKey.text="A"; v.nonmatchKey.text="B";
             ConfigureSpatialTask(c);
             DistractionSceneSetup.Apply(c);
-            PlayerSettings.bundleVersion="1.4.0-stage1"; PlayerSettings.Android.bundleVersionCode=7;
+            PlayerSettings.bundleVersion="1.5.0-stage1"; PlayerSettings.Android.bundleVersionCode=8;
             EditorUtility.SetDirty(c); EditorUtility.SetDirty(v);
             EditorSceneManager.MarkSceneDirty(c.gameObject.scene); EditorSceneManager.SaveScene(c.gameObject.scene); AssetDatabase.SaveAssets();
-            Debug.Log("Spatial lab v1.4 applied: satin stimulus and balanced formal-only environmental distractions.");
+            Debug.Log("Spatial lab v1.5 applied: seated desk, minimal task HUD and four-second visible stimulus.");
         }
         static void ConfigureSpatialTask(TaskPlatformController c)
         {
@@ -131,11 +131,27 @@ namespace EvidenceVR.Editor
             // Put reading surfaces in front of the plinth instead of behind its stem.
             foreach(var sign in new[]{progress.transform,controls.transform,view.feedback.transform})
             { var p=sign.localPosition; p.z=-230; sign.localPosition=p; }
+            ConfigureMinimalHud(view);
             view.PlaceSupports(anchor); canvas.enabled=false;
             if(c.head.GetComponent<AudioListener>()==null)c.head.gameObject.AddComponent<AudioListener>();
             var cue=c.GetComponent<TrialOnsetCue>(); if(cue==null)cue=c.gameObject.AddComponent<TrialOnsetCue>();
             var source=cue.GetComponent<AudioSource>(); source.playOnAwake=false;source.loop=false;source.spatialBlend=0;source.volume=.12f;
             c.onsetCue=cue; EditorUtility.SetDirty(view); EditorUtility.SetDirty(cue); EditorUtility.SetDirty(source);
+        }
+        static void ConfigureMinimalHud(SpatialTaskView view)
+        {
+            var root=view.taskCanvas.transform;
+            foreach(string name in new[]{"RuleCard","ProgressSign","ControlsSign","PracticeFeedback"})root.Find(name).gameObject.SetActive(false);
+            var banner=root.Find("StageSign").GetComponent<RectTransform>();
+            banner.anchoredPosition=new Vector2(0,210);banner.sizeDelta=new Vector2(1000,100);
+            banner.GetComponent<RoundedSurface>().enabled=false;
+            SetText(view.stage,new Vector2(0,22),new Vector2(1000,40),24,LabPalette.Muted);
+            SetText(view.rule,new Vector2(0,-22),new Vector2(1000,45),28,LabPalette.Text);
+            var countdown=root.Find("CountdownCard").GetComponent<RectTransform>();
+            countdown.anchoredPosition=new Vector2(220,0);countdown.sizeDelta=new Vector2(230,180);
+            countdown.GetComponent<RoundedSurface>().enabled=false;
+            SetText(view.timer,new Vector2(0,15),new Vector2(210,110),72,LabPalette.Text);
+            SetText(view.timerLabel,new Vector2(0,-58),new Vector2(230,40),21,LabPalette.Muted);
         }
         static void ConfigureSmoothStimulus(TaskPlatformController c)
         {

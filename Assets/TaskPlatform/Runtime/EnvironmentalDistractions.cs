@@ -84,7 +84,7 @@ namespace EvidenceVR
                 }
             }
             HideWindows();
-            engine.Note("distraction_configuration",DistractionPlan.Version+";seed="+config.distractionSeed+";formal_only=true;per_type="+config.distractionsPerTypePerBlock+";native_3d_panning=true;acoustic_onsets_not_measured",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            engine.Note("distraction_configuration",DistractionPlan.Version+";seed="+config.distractionSeed+";formal_only=true;audio_per_type="+config.distractionsPerTypePerBlock+";video_per_block="+config.streetEventsPerBlock+";native_3d_panning=true;acoustic_onsets_not_measured",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             if(config.distractionsEnabled && !MediaReady && !initializing)StartCoroutine(InitializeMedia());
         }
         IEnumerator InitializeMedia()

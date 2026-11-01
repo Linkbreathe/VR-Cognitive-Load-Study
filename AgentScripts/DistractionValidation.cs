@@ -19,15 +19,18 @@ public static class DistractionValidation
             var c=new TaskConfig { distractionSeed=seed };
             var easy=DistractionPlan.Create(c,2,8,doors,voices,EnvironmentalDistractions.Families(d.doorClips,false),EnvironmentalDistractions.Families(d.conversationClips,true));var hard=DistractionPlan.Create(c,3,8,doors,voices,EnvironmentalDistractions.Families(d.doorClips,false),EnvironmentalDistractions.Families(d.conversationClips,true));
             var repeat=DistractionPlan.Create(c,2,8,doors,voices,EnvironmentalDistractions.Families(d.doorClips,false),EnvironmentalDistractions.Families(d.conversationClips,true));
-            Assert(easy.Count==9 && hard.Count==9,"Event counts");
+            Assert(easy.Count==11 && hard.Count==11,"Event counts");
             Assert(DistractionPlan.Create(c,0,8,doors,voices,EnvironmentalDistractions.Families(d.doorClips,false),EnvironmentalDistractions.Families(d.conversationClips,true)).Count==0 && DistractionPlan.Create(c,1,8,doors,voices,EnvironmentalDistractions.Families(d.doorClips,false),EnvironmentalDistractions.Families(d.conversationClips,true)).Count==0,"Practice exclusion");
-            foreach(DistractionKind kind in Enum.GetValues(typeof(DistractionKind)))Assert(easy.Count(x=>x.kind==kind)==3 && hard.Count(x=>x.kind==kind)==3,"Balanced types");
+            foreach(DistractionKind kind in Enum.GetValues(typeof(DistractionKind)))Assert(easy.Count(x=>x.kind==kind)==(kind==DistractionKind.Street ? 5 : 3) && hard.Count(x=>x.kind==kind)==(kind==DistractionKind.Street ? 5 : 3),"Balanced types");
             foreach(var block in new[]{easy,hard})
             {
+                var video=block.Where(x=>x.kind==DistractionKind.Street).ToArray();
+                Assert(video.Select(x=>x.mediaIndex).Distinct().Count()==5,"No video repeat within a block");
+                for(int i=1;i<video.Length;i++)Assert(Math.Abs(video[i].start-video[i-1].start-24.6)<.00001,"Video every 24.6 seconds");
                 Assert(block.Where(x=>x.kind==DistractionKind.Environment).Select(x=>EnvironmentalDistractions.EnvironmentFamily(d.doorClips[x.mediaIndex].name)).Distinct().Count()==3,"Door/traffic/footstep coverage");
                 Assert(block.Where(x=>x.kind==DistractionKind.Speech).Select(x=>EnvironmentalDistractions.SpeechFamily(d.conversationClips[x.mediaIndex].name)).Distinct().Count()==3,"Conversation/news/near-ear coverage");
             }
-            for(int i=0;i<9;i++)
+            for(int i=0;i<11;i++)
             {
                 var a=easy[i];var b=hard[i];var r=repeat[i];
                 Assert(JsonUtility.ToJson(a)==JsonUtility.ToJson(r),"Repeatability");
@@ -35,10 +38,10 @@ public static class DistractionValidation
                 Assert(a.start>c.warmupTrials*c.trialSeconds && a.start+a.duration<32*c.trialSeconds,"Within scored block");
                 Assert(a.kind!=DistractionKind.Street || a.duration==10,"Video duration");
                 if(i>0)Assert(easy[i-1].start+easy[i-1].duration+1.5<a.start && hard[i-1].start+hard[i-1].duration+1.5<b.start,"No overlap with decoder grace");
-                if(i>0){double gap=(a.start-easy[i-1].start)/c.trialSeconds;Assert(gap==3 || gap==4,"Three or four trial cadence");}
+                if(i>0){double gap=a.start-easy[i-1].start;Assert(Math.Abs(gap-12.3)<.00001,"Safe interleaved cadence");}
             }
             var streets=easy.Concat(hard).Where(x=>x.kind==DistractionKind.Street).ToArray();
-            Assert(streets.Select(x=>x.mediaIndex).Distinct().Count()==6,"No street repeats per session");
+            Assert(streets.Select(x=>x.mediaIndex).Distinct().Count()==8,"All eight street clips used across session");
             Assert(streets.Select(x=>x.windowPosition).Distinct().Count()==5,"All five positions over the session");
             for(int i=1;i<streets.Length;i++)Assert(streets[i].windowPosition!=streets[i-1].windowPosition,"No adjacent position repeats");
             c.distractionsEnabled=false;Assert(DistractionPlan.Create(c,2,8,doors,voices,EnvironmentalDistractions.Families(d.doorClips,false),EnvironmentalDistractions.Families(d.conversationClips,true)).Count==0,"Disabled");
@@ -54,8 +57,8 @@ public static class DistractionValidation
             Assert(TaskPlatformController.TrackingRigHeight(true,rawHeight)==0,"Floor tracking has no additional height offset");
             Assert(Math.Abs(TaskPlatformController.TrackingRigHeight(false,rawHeight)+rawHeight-1.2f)<.001f,"Device fallback normalizes seated eye height");
         }
-        var report="PASS: "+checks+" checks across 1,000 seeds; nine formal events per block, balanced types, 3/4-trial cadence, no overlaps, deterministic replay, six distinct streets and all five front positions per session, no adjacent position repeats, pause clocks, 40 local media assets, mono audio and requested duration ranges; floor/device height arithmetic.\n";
-        Directory.CreateDirectory("Evidence");File.WriteAllText("Evidence/distraction-validation-v1.7.txt",report);Debug.Log(report);return report;
+        var report="PASS: "+checks+" checks across 1,000 seeds; eleven formal events per block (five video, six audio), matched blocks, 12.3-second event slots, no overlaps, deterministic replay, eight distinct streets and all five front positions per session, no adjacent position repeats, pause clocks, 40 local media assets, mono audio and requested duration ranges; floor/device height arithmetic.\n";
+        Directory.CreateDirectory("Evidence");File.WriteAllText("Evidence/distraction-validation-v1.7.1.txt",report);Debug.Log(report);return report;
         void Assert(bool ok,string description){checks++;if(!ok)throw new Exception(description);}
     }
 }

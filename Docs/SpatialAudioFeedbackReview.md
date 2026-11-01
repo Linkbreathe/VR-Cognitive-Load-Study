@@ -1,5 +1,7 @@
 # Ten-second video, expanded spatial audio and formal feedback
 
+The v1.7.1 video-frequency update supersedes the three-video schedule below: five videos plus six audio events now occur per default formal block. See `VideoFrequencyReview.md`; other v1.7 behavior and media are retained.
+
 Application `1.7.0-stage1`, Android code 11; presentation `spatial-lab-v1.7-feedback-spatial-audio`; configuration `stage1-v1.7-feedback-spatial-audio`; schedule `distractions-v3-ten-second-video-spatial-pools`. Restore point: `ed2047a`.
 
 ## Approved changes

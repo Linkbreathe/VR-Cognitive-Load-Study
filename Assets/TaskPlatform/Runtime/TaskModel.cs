@@ -9,7 +9,7 @@ namespace EvidenceVR
     [Serializable]
     public sealed class TaskConfig
     {
-        public string version = "stage1-v1.7-feedback-spatial-audio";
+        public string version = "stage1-v1.7.1-more-video";
         public bool formalFeedbackEnabled = true;
         public int seed = 20261101;
         public int colorCount = 4;
@@ -27,6 +27,7 @@ namespace EvidenceVR
         public bool distractionsEnabled = true;
         public int distractionSeed;
         public int distractionsPerTypePerBlock = 3;
+        public int streetEventsPerBlock = 5;
         public float distractionMasterVolume = 1;
         public float doorVolume = .35f;
         public float conversationVolume = .3f;
@@ -44,7 +45,7 @@ namespace EvidenceVR
                 scoredTrials < 2 || scoredTrials > 1000 || warmupTrials < 2 || warmupTrials > 100 || easyPracticeTrials < 2 || hardPracticeTrials < 2 ||
                 !(matchRatio > 0 && matchRatio < 1) || !(visibleSeconds > 0 && visibleSeconds <= responseSeconds && responseSeconds < trialSeconds) ||
                 !(restSeconds >= 0 && restSeconds <= 600) || !(onsetCueVolume >= 0 && onsetCueVolume <= 1) || !(distance >= 0.5f && distance <= 5) || !(visualAngle >= 1 && visualAngle <= 20) ||
-                distractionsPerTypePerBlock<0 || distractionsPerTypePerBlock>4 || !(distractionMasterVolume>=0 && distractionMasterVolume<=1) || !(doorVolume>=0 && doorVolume<=1) || !(conversationVolume>=0 && conversationVolume<=1) ||
+                distractionsPerTypePerBlock<0 || distractionsPerTypePerBlock>4 || streetEventsPerBlock<0 || streetEventsPerBlock>8 || !(distractionMasterVolume>=0 && distractionMasterVolume<=1) || !(doorVolume>=0 && doorVolume<=1) || !(conversationVolume>=0 && conversationVolume<=1) ||
                 string.IsNullOrWhiteSpace(matchAction) || string.IsNullOrWhiteSpace(nonmatchAction) || matchAction == nonmatchAction ||
                 matchAction == advanceAction || matchAction == pauseAction || nonmatchAction == advanceAction || nonmatchAction == pauseAction || advanceAction == pauseAction)
                 throw new ArgumentException("Invalid task configuration. Check counts, color, timing, geometry and bindings.");

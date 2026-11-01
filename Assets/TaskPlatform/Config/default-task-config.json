@@ -1,5 +1,5 @@
 {
-  "version": "stage1-v1.7-feedback-spatial-audio",
+  "version": "stage1-v1.7.1-more-video",
   "seed": 20261101,
   "colorCount": 4,
   "targetColor": 0,
@@ -17,6 +17,7 @@
   "formalFeedbackEnabled": true,
   "distractionSeed": 0,
   "distractionsPerTypePerBlock": 3,
+  "streetEventsPerBlock": 5,
   "distractionMasterVolume": 1.0,
   "doorVolume": 0.35,
   "conversationVolume": 0.3,

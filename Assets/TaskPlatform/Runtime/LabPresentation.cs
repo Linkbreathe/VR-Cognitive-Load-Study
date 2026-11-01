@@ -6,7 +6,7 @@ namespace EvidenceVR
 {
     public sealed class LabPresentation : MonoBehaviour
     {
-        public const string Version = "spatial-lab-v1.7-feedback-spatial-audio";
+        public const string Version = "spatial-lab-v1.7.1-more-video";
         public TaskPlatformController controller;
         public GameObject setupCards, exampleCards;
         public TMP_Text[] setupLabels;

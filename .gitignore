@@ -16,3 +16,5 @@
 /Assets/Resources/PerformanceTestRunSettings.json*
 /Evidence/
 /Tools/__pycache__/
+# Keep original downloaded media local; runtime assets retain provenance.
+/MediaSources/

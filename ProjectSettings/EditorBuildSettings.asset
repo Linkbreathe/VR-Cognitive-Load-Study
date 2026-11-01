@@ -1,0 +1,15 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/TaskPlatform/Scenes/NBackExperiment.unity
+    guid: c2b2843d0573b494f909222542c86c2e
+  m_configObjects:
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 8b8bb8370f5493b409c16406d4371b84, type: 2}
+    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 790904f28649a93438db372c13edbb2b, type: 2}
+  m_UseUCBPForAssetBundles: 0

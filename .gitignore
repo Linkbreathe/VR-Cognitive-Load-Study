@@ -1,0 +1,14 @@
+/Library/
+/Temp/
+/Logs/
+/obj/
+/Builds/
+/UserSettings/
+/.agents/
+/.codex/
+/.vscode/
+*.csproj
+*.slnx
+/Assets/Captures/
+/Evidence/
+/Tools/__pycache__/

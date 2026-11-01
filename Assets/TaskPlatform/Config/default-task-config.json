@@ -1,0 +1,22 @@
+{
+  "version": "stage1-v1.0",
+  "seed": 20261101,
+  "colorCount": 4,
+  "targetColor": 0,
+  "scoredTrials": 30,
+  "warmupTrials": 2,
+  "easyPracticeTrials": 8,
+  "hardPracticeTrials": 12,
+  "matchRatio": 0.33333334,
+  "trialSeconds": 3.0,
+  "visibleSeconds": 1.0,
+  "responseSeconds": 2.5,
+  "restSeconds": 25.0,
+  "distance": 1.5,
+  "visualAngle": 6.0,
+  "hardFirst": false,
+  "matchAction": "RightPrimary",
+  "nonmatchAction": "RightSecondary",
+  "advanceAction": "LeftPrimary",
+  "pauseAction": "LeftSecondary"
+}

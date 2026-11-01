@@ -4,7 +4,9 @@ English project specification derived from the supplied Stage 1 brief. The origi
 
 ## Approved revision: v1.4 (2026-11-01)
 
-Current v1.6 approval (2026-11-01): lower the tabletop further to 0.65 m, correct seated tracking offsets, increase formal distractions to one every three or four trials (three of each type per default block), and use one front-wall video window with five seeded positions and no consecutive repeats. See FrontWallCalibrationReview.md.
+Current v1.7 approval (2026-11-01): ten-second silent street exposure, six sourced English news clips, passing traffic, approaching footsteps and near-ear soft speech; green/red countdown feedback in formal trials as well as practice. This explicitly supersedes the earlier formal-feedback prohibition. Preserve the four-second response window, 4.5-second cycle, balanced formal-only distractions and non-overlap. See SpatialAudioFeedbackReview.md.
+
+Historical v1.6 approval (2026-11-01): lower the tabletop further to 0.65 m, correct seated tracking offsets, increase formal distractions to one every three or four trials (three of each type per default block), and use one front-wall video window with five seeded positions and no consecutive repeats. See FrontWallCalibrationReview.md.
 
 Historical v1.5 approval (2026-11-01): lower the workbench for seated use, keep the sphere visible until the four-second response window ends, and simplify the running HUD with green/red practice feedback on the countdown. The tabletop is fixed at 0.72 m. The existing 4.5-second onset interval, distraction schedule and formal no-correctness-feedback rule remain in force. See SeatedMinimalReview.md.
 

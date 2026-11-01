@@ -1,6 +1,8 @@
-# Environmental distractions
+# Environmental distractions: v1.4 to v1.6 history
 
-Current application `1.6.0-stage1` (Android code 9), presentation `spatial-lab-v1.6-seated-front-windows`, configuration `stage1-v1.6-front-distractions`. See `FrontWallCalibrationReview.md` for the current revision; the media catalog originated in v1.4.
+Current v1.7 behavior, ten-second videos, expanded media pools, formal feedback and spatial trajectories are documented in `SpatialAudioFeedbackReview.md`. The following records the prior protocol.
+
+Historical application `1.6.0-stage1` (Android code 9), presentation `spatial-lab-v1.6-seated-front-windows`, configuration `stage1-v1.6-front-distractions`. See `FrontWallCalibrationReview.md` for the current revision; the media catalog originated in v1.4.
 
 ## Approved protocol
 

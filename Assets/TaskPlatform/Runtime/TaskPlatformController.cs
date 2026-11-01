@@ -219,12 +219,12 @@ namespace EvidenceVR
                     footer.text = "Seated task  /  No movement required"; break;
                 case TaskPhase.Instructions:
                     heading.text = (Engine.Practice ? "PRACTICE" : "FORMAL BLOCK " + (Engine.Block - 1)) + "  /  " + (Engine.Mode == TaskMode.Easy ? "0-BACK" : "2-BACK");
-                    body.text = rule + "\n\nFirst " + config.warmupTrials + " colors: observe and remember.\nNo answers needed during warm-up.\n\n" + (Engine.Practice ? "Practice includes answer feedback." : "No feedback during the formal block.") + "\n\n{continue} to begin."; break;
+                    body.text = rule + "\n\nFirst " + config.warmupTrials + " colors: observe and remember.\nNo answers needed during warm-up.\n\n" + (Engine.Practice || config.formalFeedbackEnabled ? "Correct and incorrect answers receive visual feedback." : "No feedback during the formal block.") + "\n\n{continue} to begin."; break;
                 case TaskPhase.Running:
                     heading.text = (Engine.Practice ? "PRACTICE  /  " : "") + (Engine.Mode == TaskMode.Easy ? "0-BACK  /  " + ColorNames[config.targetColor] : "2-BACK") + (Engine.Current.scored ? "" : "  /  WARM-UP");
                     badge.text = ""; body.text = "";
-                    if (Engine.Practice && Engine.Current.scored && Engine.CurrentResult != null && (Engine.CurrentResult.responded || Engine.CurrentResult.timeout))
-                        body.text = "\n\n\n\n" + (Engine.CurrentResult.timeout ? "No response" : Engine.CurrentResult.correct ? "Correct" : "Incorrect") + "  /  Answer: " + (Engine.Current.expectedMatch ? "MATCH" : "NON-MATCH");
+                    if ((Engine.Practice || config.formalFeedbackEnabled) && Engine.Current.scored && Engine.CurrentResult != null && (Engine.CurrentResult.responded || Engine.CurrentResult.timeout))
+                        body.text = "\n\n\n\n" + (Engine.CurrentResult.timeout ? "No response" : Engine.CurrentResult.correct ? "Correct" : "Incorrect");
                     break;
                 case TaskPhase.Rest:
                     heading.text = "REST";

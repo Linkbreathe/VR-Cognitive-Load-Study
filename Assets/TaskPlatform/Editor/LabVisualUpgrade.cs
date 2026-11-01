@@ -77,10 +77,10 @@ namespace EvidenceVR.Editor
             v.matchKey.text="A"; v.nonmatchKey.text="B";
             ConfigureSpatialTask(c);
             DistractionSceneSetup.Apply(c);
-            PlayerSettings.bundleVersion="1.6.1-stage1"; PlayerSettings.Android.bundleVersionCode=10;
+            PlayerSettings.bundleVersion="1.7.0-stage1"; PlayerSettings.Android.bundleVersionCode=11;
             EditorUtility.SetDirty(c); EditorUtility.SetDirty(v);
             EditorSceneManager.MarkSceneDirty(c.gameObject.scene); EditorSceneManager.SaveScene(c.gameObject.scene); AssetDatabase.SaveAssets();
-            Debug.Log("Spatial lab v1.6.1 applied: seated panel clearance, foreground task labels and restrained text outlines.");
+            Debug.Log("Spatial lab v1.7 applied: ten-second videos, expanded spatial audio and formal correctness feedback.");
         }
         static void ConfigureSpatialTask(TaskPlatformController c)
         {

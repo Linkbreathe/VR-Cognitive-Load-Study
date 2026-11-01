@@ -1,0 +1,10 @@
+[
+  {"id":"news-01","date":"2026-10-29","source":"https://www.jpl.nasa.gov/news/nasa-funded-study-details-one-of-oldest-mars-meteorites-ever-found/","text":"Researchers report that a meteorite found in the Sahara came from ancient Mars. Its minerals formed over four billion years ago."},
+  {"id":"news-02","date":"2026-10-29","source":"https://www.jpl.nasa.gov/news/nasas-voyager-1-conserves-power-resolves-brief-communications-pause/","text":"Voyager One is saving power as its journey continues. Engineers have also resolved a brief interruption in communications with the spacecraft."},
+  {"id":"news-03","date":"2026-10-26","source":"https://www.jpl.nasa.gov/news/nasas-perseverance-offers-clues-to-protect-crews-from-mars-dust/","text":"A Mars rover is studying dust on spacesuit samples. The findings could help researchers design better protection for future astronauts."},
+  {"id":"news-04","date":"2026-10-22","source":"https://www.jpl.nasa.gov/news/pedal-to-the-metal-nasas-psyche-heads-toward-asteroid-belt/","text":"The Psyche spacecraft is heading toward the asteroid belt. Solar electric propulsion will power most of its remaining journey."},
+  {"id":"news-05","date":"2026-10-20","source":"https://www.jpl.nasa.gov/news/nasa-study-refines-projections-for-thwaites-glacier/","text":"A new NASA study updates projections for Antarctica's Thwaites Glacier. Researchers are working to understand its contribution to future sea level rise."},
+  {"id":"news-06","date":"2026-10-29","source":"https://esahubble.org/news/heic2614/","text":"Hubble and Webb have captured different views of the Cat's Head Nebula. Infrared images reveal stars hidden within its dusty clouds."},
+  {"id":"softvoice-01","date":"2026-11-01","source":"Original neutral script","text":"I left the notebook beside the window. We can pick it up later, when the room is quiet again."},
+  {"id":"softvoice-02","date":"2026-11-01","source":"Original neutral script","text":"Someone brought a small package this morning. It is waiting on the shelf outside, next to the spare keys."}
+]

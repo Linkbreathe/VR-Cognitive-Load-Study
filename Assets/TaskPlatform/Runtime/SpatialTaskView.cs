@@ -29,7 +29,7 @@ namespace EvidenceVR
             timerLabel.text=remaining>0 ? "" : "Next";
             timer.color=LabPalette.Text;timerLabel.color=LabPalette.Muted;
             var result=engine.CurrentResult;
-            if(engine.Practice && engine.Current.scored && result!=null && (result.responded || result.timeout))
+            if((engine.Practice || config.formalFeedbackEnabled) && engine.Current.scored && result!=null && (result.responded || result.timeout))
             {
                 bool correct=result.responded && result.correct;
                 timer.color=timerLabel.color=correct ? CorrectColor : IncorrectColor;

@@ -6235,6 +6235,14 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 6b99d6c7e92d27642bac4b88cb93636a, type: 3}
   - {fileID: 8300000, guid: 0dde1e1ad9c88b646b75b0dd25deffa7, type: 3}
   - {fileID: 8300000, guid: b8152ea5a9f4fd5429fb9f9fe1edbc70, type: 3}
+  - {fileID: 8300000, guid: c9f7e2a9252d5714eb7dd54ff63be53c, type: 3}
+  - {fileID: 8300000, guid: 35d31f3c435577f4885c8a772cc98fc9, type: 3}
+  - {fileID: 8300000, guid: 77cb825daaf8cd944a2ea89a0e99683d, type: 3}
+  - {fileID: 8300000, guid: a0a807ea2897ba848bddc34441c7d72d, type: 3}
+  - {fileID: 8300000, guid: 82c205c6ee12b394d962543b7d17d825, type: 3}
+  - {fileID: 8300000, guid: c01d48e36e3cfab42b318610f10fcfef, type: 3}
+  - {fileID: 8300000, guid: a1785a5833f0b6c4284caf349227d86c, type: 3}
+  - {fileID: 8300000, guid: 5f7b5138da454934cb038c9687239ece, type: 3}
   conversationClips:
   - {fileID: 8300000, guid: 714fa18844bf82b4dbf27a84bdfe70eb, type: 3}
   - {fileID: 8300000, guid: 5b5815805d96b7949a340db48b98878a, type: 3}
@@ -6244,6 +6252,14 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 87658bc6ba4f5a24fad2e2678c473ab6, type: 3}
   - {fileID: 8300000, guid: aaea4ee2263aa1a4d80767e59da9dd94, type: 3}
   - {fileID: 8300000, guid: 8b4c8932d3e88854c8ded0a8e3a89a1d, type: 3}
+  - {fileID: 8300000, guid: ace02d4d4621466469738560284fc06d, type: 3}
+  - {fileID: 8300000, guid: 042f652d63f8ebb479ccbf71caec3b7c, type: 3}
+  - {fileID: 8300000, guid: f8fc8931a9b28f54e8f36bb017fc67f2, type: 3}
+  - {fileID: 8300000, guid: 00f923442ad61ec4b97fccbfbc9da21b, type: 3}
+  - {fileID: 8300000, guid: 75fa05db404850e488a8c2b62f83f6af, type: 3}
+  - {fileID: 8300000, guid: 3e3405fe1908fb04eb55b13c24d54d12, type: 3}
+  - {fileID: 8300000, guid: 7d95f605f9e05db4a97f39bbc251a323, type: 3}
+  - {fileID: 8300000, guid: a64c8ee1a8c1e434d8d82c58c35613d5, type: 3}
   windowRoots:
   - {fileID: 1273910115}
   windowScreens:
@@ -6256,6 +6272,7 @@ MonoBehaviour:
   - {fileID: 148104540}
   player: {fileID: 1253222520}
   mediaManifest: {fileID: 4900000, guid: 30293f8b772c10140b777d9f420a30fd, type: 3}
+  listener: {fileID: 744287844}
 --- !u!4 &1253222522
 Transform:
   m_ObjectHideFlags: 0

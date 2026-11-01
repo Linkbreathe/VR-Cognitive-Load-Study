@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace EvidenceVR
 {
-    public enum DistractionKind { Street, Door, Conversation }
+    public enum DistractionKind { Street, Environment, Speech }
 
     [Serializable]
     public sealed class DistractionEvent
@@ -15,8 +15,8 @@ namespace EvidenceVR
 
     public static class DistractionPlan
     {
-        public const string Version="distractions-v2-front-wall-3-or-4-trials";
-        public static List<DistractionEvent> Create(TaskConfig config,int block,int videoCount,float[] doorDurations,float[] voiceDurations)
+        public const string Version="distractions-v3-ten-second-video-spatial-pools";
+        public static List<DistractionEvent> Create(TaskConfig config,int block,int videoCount,float[] doorDurations,float[] voiceDurations,int[] environmentFamilies=null,int[] speechFamilies=null)
         {
             var result=new List<DistractionEvent>();
             if(!config.distractionsEnabled || block<2 || block>3)return result;
@@ -40,6 +40,7 @@ namespace EvidenceVR
             Shuffle(gaps,random);
             var bags=new[]{Bag(videoCount,random),Bag(doorDurations.Length,random),Bag(voiceDurations.Length,random)};
             var positions=Bag(5,random);
+            var familyOrder=Bag(3,random);
             var used=new int[3];
             double onset=config.warmupTrials*config.trialSeconds+firstOffset;
             for(int i=0;i<count;i++)
@@ -47,7 +48,17 @@ namespace EvidenceVR
                 var kind=kinds[i]; int k=(int)kind;
                 int ordinal=used[k]+repeats*(block-2);
                 int pick=bags[k][ordinal%bags[k].Count]; used[k]++;
-                double duration=kind==DistractionKind.Street ? 5+random.Next(3001)/1000.0 : kind==DistractionKind.Door ? doorDurations[pick] : voiceDurations[pick];
+                if(kind!=DistractionKind.Street)
+                {
+                    var families=kind==DistractionKind.Environment ? environmentFamilies : speechFamilies;
+                    if(families!=null)
+                    {
+                        var familyBag=bags[k].FindAll(x=>families[x]==familyOrder[ordinal%3]);
+                        if(familyBag.Count==0)throw new ArgumentException("Missing audio family in catalog.");
+                        pick=familyBag[(ordinal/3)%familyBag.Count];
+                    }
+                }
+                double duration=kind==DistractionKind.Street ? 10 : kind==DistractionKind.Environment ? doorDurations[pick] : voiceDurations[pick];
                 result.Add(new DistractionEvent { index=i,kind=kind,mediaIndex=pick,side=(i+block)%2,windowPosition=kind==DistractionKind.Street ? positions[ordinal%positions.Count] : -1,start=onset,duration=duration });
                 if(i<gapCount)onset+=gaps[i]*config.trialSeconds;
             }

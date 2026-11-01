@@ -18,6 +18,9 @@ namespace EvidenceVR
         public AudioSource[] doorSources, conversationSources;
         public VideoPlayer player;
         public TextAsset mediaManifest;
+        public Transform listener;
+        public AudioSource ActiveAudioSource=>activeSource;
+        public string ActiveAudioProfile=>audioProfile;
         public bool MediaReady { get; private set; }
         public DistractionEvent Active => active;
         public int StartedCount { get; private set; }
@@ -34,6 +37,13 @@ namespace EvidenceVR
         int next,preparedIndex=-1;
         bool started,initializing,callbacksBound;
         double began,requestElapsed,lastBlockElapsed;
+        Vector3 audioStart,audioEnd;
+        string audioProfile="none";
+
+        public static int EnvironmentFamily(string name)=>name.StartsWith("traffic-") ? 1 : name.StartsWith("footsteps-") ? 2 : 0;
+        public static int SpeechFamily(string name)=>name.StartsWith("news-") ? 1 : name.StartsWith("softvoice-") ? 2 : 0;
+        public static int[] Families(AudioClip[] clips,bool speech)
+        {var values=new int[clips.Length];for(int i=0;i<clips.Length;i++)values[i]=speech ? SpeechFamily(clips[i].name) : EnvironmentFamily(clips[i].name);return values;}
 
         public static string FrontWindowName(int position)=>new[]{"center","upper_left","upper_right","lower_left","lower_right"}[position];
         public static Vector3 FrontWindowPosition(int position)
@@ -131,7 +141,7 @@ namespace EvidenceVR
         }
         void BuildPlan()
         {
-            next=0; plan=DistractionPlan.Create(config,engine.Practice ? -1 : engine.Block,streetFiles.Length,Lengths(doorClips),Lengths(conversationClips));
+            next=0; plan=DistractionPlan.Create(config,engine.Practice ? -1 : engine.Block,streetFiles.Length,Lengths(doorClips),Lengths(conversationClips),Families(doorClips,false),Families(conversationClips,true));
         }
         static float[] Lengths(AudioClip[] clips)
         { var values=new float[clips.Length];for(int i=0;i<clips.Length;i++)values[i]=clips[i].length;return values; }
@@ -140,6 +150,8 @@ namespace EvidenceVR
             if(engine==null || engine.Phase!=TaskPhase.Running || engine.Practice || !config.distractionsEnabled)return;
             double elapsed=engine.BlockElapsed(now);
             lastBlockElapsed=elapsed;
+            if(active!=null && started && activeSource!=null)
+                activeSource.transform.position=Vector3.Lerp(audioStart,audioEnd,Mathf.Clamp01((float)((elapsed-began)/active.duration)));
             if(active!=null)
             {
                 if(started && elapsed-began>=active.duration)End("duration_complete",now);
@@ -178,10 +190,38 @@ namespace EvidenceVR
             }
             else
             {
-                var clips=item.kind==DistractionKind.Door ? doorClips : conversationClips;
-                activeSource=(item.kind==DistractionKind.Door ? doorSources : conversationSources)[item.side];
-                activeSource.clip=clips[item.mediaIndex]; activeSource.Play(); MarkStarted(now);
+                var clips=item.kind==DistractionKind.Environment ? doorClips : conversationClips;
+                activeSource=(item.kind==DistractionKind.Environment ? doorSources : conversationSources)[item.side];
+                activeSource.clip=clips[item.mediaIndex];ConfigureAudioPath(item);
+                activeSource.Play(); MarkStarted(now);
+                Note("distraction_audio_path",Describe(item)+";profile="+audioProfile+";from="+audioStart+";to="+audioEnd+";spatializer="+(string.IsNullOrEmpty(AudioSettings.GetSpatializerPluginName()) ? "native_3d_panning" : AudioSettings.GetSpatializerPluginName()));
             }
+        }
+        void ConfigureAudioPath(DistractionEvent item)
+        {
+            string name=activeSource.clip.name;float side=item.side==0 ? -1 : 1;
+            bool speech=item.kind==DistractionKind.Speech;
+            int family=speech ? SpeechFamily(name) : EnvironmentFamily(name);
+            audioProfile=speech ? family==2 ? "near_ear_soft_voice" : family==1 ? "outside_news" : "outside_conversation" : family==2 ? "approaching_footsteps" : family==1 ? "passing_traffic" : "rear_door";
+            activeSource.volume=config.distractionMasterVolume*(speech ? config.conversationVolume*(family==2 ? .45f : 1) : config.doorVolume);
+            activeSource.minDistance=2.5f;activeSource.maxDistance=12;
+            var forward=Vector3.ProjectOnPlane(listener.forward,Vector3.up).normalized;
+            if(forward.sqrMagnitude<.1f)forward=Vector3.forward;
+            var right=Vector3.Cross(Vector3.up,forward);
+            audioStart=audioEnd=speech ? new Vector3(side*1.9f,1.55f,-3.35f) : new Vector3(side*2.4f,1.35f,-2.65f);
+            if(!speech && family==1)
+            {audioStart=new Vector3(side*3.8f,.9f,3.35f);audioEnd=new Vector3(-side*3.8f,.9f,3.35f);activeSource.minDistance=1.5f;}
+            if(!speech && family==2)
+            {
+                audioStart=listener.position-forward*2.8f+right*side*1.6f;audioStart.y=.08f;
+                audioEnd=listener.position-forward*.35f+right*side*.55f;audioEnd.y=.08f;
+                activeSource.minDistance=.4f;activeSource.maxDistance=6;
+            }
+            if(speech && family==2)
+            {audioStart=audioEnd=listener.position+right*side*.38f-forward*.15f;activeSource.minDistance=.25f;activeSource.maxDistance=5;}
+            var filter=activeSource.GetComponent<AudioLowPassFilter>();
+            if(filter!=null)filter.cutoffFrequency=family==2 ? 6500 : 5500;
+            activeSource.transform.position=audioStart;
         }
         void OnPrepared(VideoPlayer video)
         {
@@ -230,8 +270,8 @@ namespace EvidenceVR
         void Note(string type,string detail){engine?.Note(type,detail,Time.realtimeSinceStartupAsDouble,Time.frameCount);}
         string Describe(DistractionEvent item)
         {
-            string asset=item.kind==DistractionKind.Street ? streetFiles[item.mediaIndex] : (item.kind==DistractionKind.Door ? doorClips : conversationClips)[item.mediaIndex].name;
-            float volume=item.kind==DistractionKind.Door ? config.doorVolume : item.kind==DistractionKind.Conversation ? config.conversationVolume : 0;
+            string asset=item.kind==DistractionKind.Street ? streetFiles[item.mediaIndex] : (item.kind==DistractionKind.Environment ? doorClips : conversationClips)[item.mediaIndex].name;
+            float volume=item.kind==DistractionKind.Environment ? config.doorVolume : item.kind==DistractionKind.Speech ? config.conversationVolume*(SpeechFamily(asset)==2 ? .45f : 1) : 0;
             return "index="+item.index+";kind="+item.kind+";asset="+asset+";side="+(item.kind==DistractionKind.Street ? "front" : item.side==0 ? "left" : "right")+";window_position="+(item.kind==DistractionKind.Street ? FrontWindowName(item.windowPosition) : "none")+";planned_block_s="+F(item.start)+";duration_s="+F(item.duration)+";gain="+F(volume*config.distractionMasterVolume);
         }
         static string F(double value)=>value.ToString("R",CultureInfo.InvariantCulture);

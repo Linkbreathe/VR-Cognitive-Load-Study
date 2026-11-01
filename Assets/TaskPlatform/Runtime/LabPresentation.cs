@@ -6,7 +6,7 @@ namespace EvidenceVR
 {
     public sealed class LabPresentation : MonoBehaviour
     {
-        public const string Version = "spatial-lab-v1.6.1-readable-seated-ui";
+        public const string Version = "spatial-lab-v1.7-feedback-spatial-audio";
         public TaskPlatformController controller;
         public GameObject setupCards, exampleCards;
         public TMP_Text[] setupLabels;
@@ -43,7 +43,7 @@ namespace EvidenceVR
                     controller.heading.text=e.Mode==TaskMode.Easy ? "0-back  /  Color match" : "2-back  /  Remember two";
                     controller.body.text=e.Mode==TaskMode.Easy ? "Always compare with "+TaskPlatformController.ColorNames[c.targetColor]+".\nSame color: "+Key(c.matchAction)+". Different color: "+Key(c.nonmatchAction)+".\n\nFirst "+c.warmupTrials+" colors: observe only." : "Compare with the color TWO positions earlier.\nSame color: "+Key(c.matchAction)+". Different color: "+Key(c.nonmatchAction)+".\nFirst "+c.warmupTrials+" colors: remember only; do not respond.";
                     exampleCaption.text="Example: #3 matches #1. Press "+Key(c.matchAction)+".\nNext: #4 compares with #2, then #5 with #3.";
-                    actionHint.text=next+"   Start "+(e.Practice ? "practice" : "block")+"     /     "+(e.Practice ? "Feedback on" : "No answer feedback"); break;
+                    actionHint.text=next+"   Start "+(e.Practice ? "practice" : "block")+"     /     "+(e.Practice || c.formalFeedbackEnabled ? "Feedback on" : "No answer feedback"); break;
                 case TaskPhase.Running:
                     controller.heading.text=e.Mode==TaskMode.Easy ? "0-BACK  /  TARGET: "+TaskPlatformController.ColorNames[c.targetColor] : "2-BACK  /  TWO POSITIONS BACK";
                     controller.body.rectTransform.anchoredPosition=new Vector2(0,200);
@@ -51,8 +51,8 @@ namespace EvidenceVR
                     controller.footer.text=Progress(e,c);
                     controller.body.text=!e.Current.scored ? "OBSERVE ONLY  /  Do not respond\n"+(e.Mode==TaskMode.Hard ? "Remember this color for a later comparison." : "The target for this block is "+TaskPlatformController.ColorNames[c.targetColor]+".") :
                         (e.Mode==TaskMode.Easy ? "Compare this color with "+TaskPlatformController.ColorNames[c.targetColor]+"." : "Compare color #"+position+" with color #"+(position-2)+".")+"\nSame color: "+Key(c.matchAction)+". Different color: "+Key(c.nonmatchAction)+".";
-                    if(e.Practice && e.Current.scored && e.CurrentResult!=null && (e.CurrentResult.responded || e.CurrentResult.timeout))
-                        actionHint.text=(e.CurrentResult.timeout ? "No response" : e.CurrentResult.correct ? "Correct" : "Incorrect")+"   /   Answer: "+(e.Current.expectedMatch ? "MATCH" : "NON-MATCH");
+                    if((e.Practice || c.formalFeedbackEnabled) && e.Current.scored && e.CurrentResult!=null && (e.CurrentResult.responded || e.CurrentResult.timeout))
+                        actionHint.text=e.CurrentResult.timeout ? "No response" : e.CurrentResult.correct ? "Correct" : "Incorrect";
                     break;
                 case TaskPhase.Rest:
                     controller.badge.text="BREAK  /  MAIN BLOCK 1 OF 2 COMPLETE";

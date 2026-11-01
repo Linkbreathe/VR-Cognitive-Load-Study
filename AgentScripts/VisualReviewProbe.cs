@@ -13,7 +13,7 @@ public static class VisualReviewProbe
     static readonly PropertyInfo EngineProperty=typeof(TaskPlatformController).GetProperty("Engine");
     static readonly MethodInfo RenderMethod=typeof(TaskPlatformController).GetMethod("Render",BindingFlags.Instance|BindingFlags.NonPublic);
     static int screens;
-    const string CaptureDirectory="Evidence/Visuals-v1.3";
+    const string CaptureDirectory="Evidence/Visuals-v1.7";
     static double snapshotTime;
     public static string Run()
     {
@@ -60,7 +60,7 @@ public static class VisualReviewProbe
                         bool accepted=engine.Respond(engine.Current.expectedMatch,clock+.2,frame++);
                         if(!accepted) throw new Exception("Synthetic response rejected");
                         Show(engine.Practice ? "practice-feedback" : "formal-response");
-                        if(!engine.Practice && controller.presentation.actionHint.text!="") throw new Exception("Formal response exposed feedback");
+                        if(!engine.Practice && !controller.presentation.actionHint.text.Contains("Correct")) throw new Exception("Formal feedback missing");
                         if(engine.Practice && !controller.presentation.actionHint.text.Contains("Correct")) throw new Exception("Practice feedback missing");
                         if(!engine.Practice)
                         {
@@ -78,8 +78,8 @@ public static class VisualReviewProbe
             var defaults=UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None)
                 .Where(r=>r.sharedMaterials.Any(m=>m!=null && m.name=="Default-Material")).Select(r=>r.name).ToArray();
             if(defaults.Length>0)throw new Exception("Default materials: "+string.Join(",",defaults));
-            var report="PASS: "+screens+" presentation snapshots checked; stage and color counters verified across 88 stimuli; two-back references verified; warm-up response guidance present; no active TMP overflow; rounded surfaces have meshes; no default materials; practice feedback present; formal feedback absent.\nSynthetic state injection with original engine restored; not physical input, timing or headset evidence.\n";
-            File.WriteAllText("Evidence/visual-validation-v1.3.txt",report); Debug.Log(report); return report;
+            var report="PASS: "+screens+" presentation snapshots checked; stage and color counters verified across 88 stimuli; two-back references verified; warm-up response guidance present; no active TMP overflow; rounded surfaces have meshes; no default materials; practice feedback present; formal feedback present.\nSynthetic state injection with original engine restored; not physical input, timing or headset evidence.\n";
+            File.WriteAllText("Evidence/visual-validation-v1.7.txt",report); Debug.Log(report); return report;
         }
         finally
         {

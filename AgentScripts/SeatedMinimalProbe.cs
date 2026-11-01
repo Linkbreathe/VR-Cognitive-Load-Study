@@ -15,7 +15,7 @@ public static class SeatedMinimalProbe
         var engineProperty=typeof(TaskPlatformController).GetProperty("Engine");
         var render=typeof(TaskPlatformController).GetMethod("Render",BindingFlags.Instance|BindingFlags.NonPublic);
         var original=c.Engine;bool enabled=c.enabled;var anchorPosition=c.taskAnchor.position;
-        const string folder="Evidence/Visuals-v1.6.1";Directory.CreateDirectory(folder);int checks=0;
+        const string folder="Evidence/Visuals-v1.7";Directory.CreateDirectory(folder);int checks=0;
         try
         {
             c.enabled=false;
@@ -43,15 +43,31 @@ public static class SeatedMinimalProbe
             while(e.Block<2)
             {if(e.Phase==TaskPhase.Instructions)e.Advance(clock,frame++);else{clock+=4.5;e.Tick(clock,frame++);}}
             e.Advance(clock,frame++);e.Tick(clock+=4.5,frame++);e.Tick(clock+=4.5,frame++);
-            e.Respond(!e.Current.expectedMatch,clock+.1,frame++);Show(clock+.1,"formal-neutral-after-error");
-            Check(view.timer.color==LabPalette.Text && view.timerLabel.text=="","No formal error feedback");
-            e.Tick(clock+=4.5,frame++);e.Respond(e.Current.expectedMatch,clock+.1,frame++);Show(clock+.1,"formal-neutral-after-correct");
-            Check(view.timer.color==LabPalette.Text && view.timerLabel.text=="","No formal correct feedback");
+            e.Respond(!e.Current.expectedMatch,clock+.1,frame++);Show(clock+.1,"formal-incorrect");
+            Check(view.timer.color==SpatialTaskView.IncorrectColor && view.timerLabel.text=="Incorrect","Formal red error feedback");
+            e.Tick(clock+=4.5,frame++);e.Respond(e.Current.expectedMatch,clock+.1,frame++);Show(clock+.1,"formal-correct");
+            Check(view.timer.color==SpatialTaskView.CorrectColor && view.timerLabel.text=="Correct","Formal green correct feedback");
+            while(e.Block<3)
+            {
+                if(e.Phase==TaskPhase.Rest){clock+=c.SessionConfig.restSeconds;e.Advance(clock,frame++);}
+                else{clock+=4.5;e.Tick(clock,frame++);}
+            }
+            if(e.Phase==TaskPhase.Rest){clock+=c.SessionConfig.restSeconds;e.Advance(clock,frame++);}
+            e.Advance(clock,frame++);Show(clock,"formal-hard-warmup");
+            Check(view.timer.color==LabPalette.Text && view.timerLabel.text=="" && !e.Respond(true,clock+.1,frame++),"Formal warmup is neutral and observe-only");
+            e.Tick(clock+=4.5,frame++);e.Tick(clock+=4.5,frame++);
+            e.Respond(!e.Current.expectedMatch,clock+.1,frame++);Show(clock+.1,"formal-hard-incorrect");
+            Check(view.timer.color==SpatialTaskView.IncorrectColor && view.timerLabel.text=="Incorrect","Hard formal incorrect");
+            e.Tick(clock+=4.5,frame++);Show(clock,"formal-hard-reset");Check(view.timer.color==LabPalette.Text,"Formal next-trial reset");
+            e.Respond(e.Current.expectedMatch,clock+.1,frame++);Show(clock+.1,"formal-hard-correct");
+            Check(view.timer.color==SpatialTaskView.CorrectColor && view.timerLabel.text=="Correct","Hard formal correct");
+            e.Tick(clock+=4.5,frame++);e.Tick(clock+4,frame++);Show(clock+4,"formal-hard-omission");
+            Check(view.timer.color==SpatialTaskView.IncorrectColor && view.timerLabel.text=="No response","Formal omission feedback");
             int textCount=0;foreach(var text in view.taskCanvas.GetComponentsInChildren<TMP_Text>())if(text.isActiveAndEnabled)textCount++;
             Check(textCount==4,"Only four active running text elements");
             Check(!view.taskCanvas.transform.Find("StageSign").GetComponent<RoundedSurface>().enabled && !view.taskCanvas.transform.Find("CountdownCard").GetComponent<RoundedSurface>().enabled,"No large running panels");
-            var report="PASS: "+checks+" checks; 0.65 m tabletop at three calibrated eye heights, grounded legs, sphere visible through 3.999 s including early response, hidden at 4 s, pause-adjusted offset, green/red practice feedback, neutral reset and no formal correctness feedback. Four active HUD text elements; screenshots inspected separately.\nIsolated synthetic engine; not participant or headset evidence.\n";
-            File.WriteAllText("Evidence/seated-minimal-v1.6.1.txt",report);Debug.Log(report);return report;
+            var report="PASS: "+checks+" checks; 0.65 m tabletop at three calibrated eye heights, grounded legs, sphere visible through 3.999 s including early response, hidden at 4 s, pause-adjusted offset, green/red practice feedback, neutral reset and green/red formal correctness feedback. Four active HUD text elements; screenshots inspected separately.\nIsolated synthetic engine; not participant or headset evidence.\n";
+            File.WriteAllText("Evidence/seated-minimal-v1.7.txt",report);Debug.Log(report);return report;
             void Show(double time,string name)
             {
                 render.Invoke(c,null);view.Refresh(c,time);Canvas.ForceUpdateCanvases();

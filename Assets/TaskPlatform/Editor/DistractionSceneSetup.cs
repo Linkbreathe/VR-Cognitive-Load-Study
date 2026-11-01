@@ -15,10 +15,11 @@ namespace EvidenceVR.Editor
             var component=root.GetComponent<EnvironmentalDistractions>(); if(component==null)component=root.AddComponent<EnvironmentalDistractions>();
             controller.distractions=component;
             component.streetFiles=Directory.GetFiles("Assets/StreamingAssets/Distractions/Streets","*.mp4").Select(Path.GetFileName).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
-            component.doorClips=ImportAudio("Assets/TaskPlatform/Media/Doors");
-            component.conversationClips=ImportAudio("Assets/TaskPlatform/Media/Conversation");
+            component.doorClips=ImportAudio("Assets/TaskPlatform/Media/Doors").Concat(ImportAudio("Assets/TaskPlatform/Media/Environment")).ToArray();
+            component.conversationClips=ImportAudio("Assets/TaskPlatform/Media/Conversation").Concat(ImportAudio("Assets/TaskPlatform/Media/News")).ToArray();
+            component.listener=controller.head;
             component.mediaManifest=AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/TaskPlatform/Media/distraction-media-manifest.json");
-            if(component.streetFiles.Length!=8 || component.doorClips.Length!=8 || component.conversationClips.Length!=8 || component.mediaManifest==null)throw new Exception("Expected eight street, door and conversation assets plus the media manifest.");
+            if(component.streetFiles.Length!=8 || component.doorClips.Length!=16 || component.conversationClips.Length!=16 || component.mediaManifest==null)throw new Exception("Expected eight videos, sixteen environmental sounds and sixteen speech clips plus the manifest.");
             var player=root.GetComponent<VideoPlayer>();if(player==null)player=root.AddComponent<VideoPlayer>();
             player.playOnAwake=false; player.isLooping=false; player.source=VideoSource.Url;player.renderMode=VideoRenderMode.RenderTexture;
             player.audioOutputMode=VideoAudioOutputMode.None;player.waitForFirstFrame=true;player.skipOnDrop=true;player.sendFrameReadyEvents=true;

@@ -1,5 +1,5 @@
 {
-  "version": "stage1-v1.6-front-distractions",
+  "version": "stage1-v1.7-feedback-spatial-audio",
   "seed": 20261101,
   "colorCount": 4,
   "targetColor": 0,
@@ -14,6 +14,7 @@
   "onsetCueEnabled": true,
   "onsetCueVolume": 0.12,
   "distractionsEnabled": true,
+  "formalFeedbackEnabled": true,
   "distractionSeed": 0,
   "distractionsPerTypePerBlock": 3,
   "distractionMasterVolume": 1.0,

@@ -9,7 +9,8 @@ namespace EvidenceVR
     [Serializable]
     public sealed class TaskConfig
     {
-        public string version = "stage1-v1.6-front-distractions";
+        public string version = "stage1-v1.7-feedback-spatial-audio";
+        public bool formalFeedbackEnabled = true;
         public int seed = 20261101;
         public int colorCount = 4;
         public int targetColor = 0;

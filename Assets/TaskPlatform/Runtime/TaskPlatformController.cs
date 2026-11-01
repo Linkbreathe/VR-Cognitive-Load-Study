@@ -19,6 +19,7 @@ namespace EvidenceVR
         public LabPresentation presentation;
         public SpatialTaskView spatialView;
         public TrialOnsetCue onsetCue;
+        public EnvironmentalDistractions distractions;
         public bool Calibrated => calibrated;
         public bool MatchChecked => checkedMatch;
         public bool NonmatchChecked => checkedNonmatch;
@@ -69,11 +70,14 @@ namespace EvidenceVR
         {
             if (Engine != null && !terminalRecorded) { Engine.Abort(Time.realtimeSinceStartupAsDouble, Time.frameCount, "restart"); recorder.Complete("aborted_restart"); }
             recorder?.Dispose();
-            Engine = new TaskEngine(config);
+            var frozen=JsonUtility.FromJson<TaskConfig>(JsonUtility.ToJson(config));
+            if(frozen.distractionSeed==0)frozen.distractionSeed=BitConverter.ToInt32(Guid.NewGuid().ToByteArray(),0);
+            Engine = new TaskEngine(frozen);
             recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, "TaskPlatformData"), Engine.Config, kind: Application.isEditor ? "editor-test" : "participant");
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
             onsetCue?.Bind(Engine,config);
+            distractions?.Bind(Engine,Engine.Config,DataPath);
             Engine.Note("session_start", "configuration frozen; generator=xorshift32-v1", Time.realtimeSinceStartupAsDouble, Time.frameCount);
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
@@ -140,6 +144,7 @@ namespace EvidenceVR
                     else Engine.Advance(now, Time.frameCount);
                 }
                 if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame && Engine.Phase == TaskPhase.Paused) BeginSession();
+                distractions?.Tick(now);
                 if ((Engine.Phase == TaskPhase.Complete || Engine.Phase == TaskPhase.Aborted) && !terminalRecorded)
                 {
                     recorder.Complete(Engine.Phase == TaskPhase.Complete ? "complete" : "aborted"); terminalRecorded = true;
@@ -191,6 +196,7 @@ namespace EvidenceVR
         void Fail(Exception e)
         {
             setupError = e.Message; if (stimulus != null) stimulus.enabled = false;
+            distractions?.Cancel("platform_error");
             spatialView?.ShowError();
             heading.text = "PLATFORM ERROR"; body.text = "Please ask the experimenter for assistance.\n\n" + e.Message; Debug.LogException(e);
             recorder?.Dispose();

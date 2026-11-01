@@ -1,6 +1,6 @@
 # Stage 1 acceptance record
 
-Date: 2026-11-01. Software implementation and desktop validation are available; full physical-headset acceptance remains pending. The current presentation is spatial-lab-v1.3.1-satin-sphere, application version 1.3.1-stage1.
+Date: 2026-11-01. Software implementation and desktop validation are available; full physical-headset acceptance remains pending. The current presentation is spatial-lab-v1.4-environmental-distractions, application version 1.4.0-stage1.
 
 ## Verified software evidence
 
@@ -18,8 +18,13 @@ Date: 2026-11-01. Software implementation and desktop validation are available; 
 | Prior v1.2 APK | v1.2.0-stage1, version code 3; Android build succeeded in 111.3 seconds with zero errors; APK v2 signature verified; 41,737,330 bytes |
 | Prior v1.2.1 APK | v1.2.1-stage1, version code 4; feedback wording changed to Incorrect; Android build succeeded in 53.2 seconds with zero errors; APK v2 signature verified; 41,736,466 bytes |
 | Prior v1.3 APK | v1.3.0-stage1, version code 5; Android build succeeded in 121.0 seconds with zero errors; ARM64 and APK v2 signature verified; 41,831,962 bytes |
-| Current v1.3.1 APK | v1.3.1-stage1, version code 6; Android build succeeded in 55.2 seconds with zero errors; ARM64 and APK v2 signature verified; 41,874,802 bytes |
-| Visual refinement | See `StimulusMaterialReview.md` for current v1.3.1, `SpatialTaskReview.md` for v1.3, `VisualReview.md` for v1.1 history and `SequenceGuidanceReview.md` for v1.2 history |
+| Prior v1.3.1 APK | v1.3.1-stage1, version code 6; Android build succeeded in 55.2 seconds with zero errors; ARM64 and APK v2 signature verified; 41,874,802 bytes |
+| Current v1.4 APK | v1.4.0-stage1, version code 7; Android build succeeded in 266.1 seconds with zero errors; ARM64 and APK v2 signature verified; 70,020,954 bytes; all eight packaged videos match their catalog SHA256 values |
+| Visual refinement | See `EnvironmentalDistractions.md` for current v1.4; prior refinements remain in `StimulusMaterialReview.md`, `SpatialTaskReview.md`, `VisualReview.md` and `SequenceGuidanceReview.md` |
+| Distraction scheduling | 37,004 checks over 1,000 seeds: formal-only, balanced frequency, no overlap, reproducible seeds and media selection; `Evidence/distraction-validation-v1.4.txt` |
+| Distraction playback | 127.47-second isolated Editor run: six completed exposures, no skips or decoder errors, video pause/hide/resume and clock freeze verified; `Evidence/distraction-playback-v1.4.txt` |
+| Spatial audio | Both sides' door and conversation sources advanced; mono, gain multiplication, pause/resume, cancellation and abort verified; `Evidence/distraction-audio-v1.4.txt` |
+| Local media | Eight silent H.264 videos, eight door clips and eight synthesized English dialogues; 28,004,343 prepared bytes; source and hash catalog saved in `Assets/TaskPlatform/Media/distraction-media-manifest.json` |
 | Satin sphere | Four colors and a close-up rendered and visually reviewed; supported Lit material verified; sphere radius preserved with smoother mesh; `Evidence/stimulus-material-v1.3.1.txt` |
 | Spatial layout and countdown | 29 states and 88 color counters checked; final front, angled and instruction views inspected after fixing plinth/sign occlusion; `Evidence/visual-validation-v1.3.txt` |
 | Four-second live integration | 14-second Editor probe: four stimuli, four playing cues, countdown 4/3/2/1/NEXT; a programmatic response after 3.2 seconds accepted and saved; `Evidence/response-window-live-v1.3.txt` |
@@ -27,9 +32,9 @@ Date: 2026-11-01. Software implementation and desktop validation are available; 
 | Quest Link initialization | Standalone OpenXR configuration added after diagnosing missing Editor XR settings; Oculus runtime, a running XR display subsystem and head-tracking device observed in Play Mode. See `Evidence/quest-link-runtime.json`. Visual confirmation and physical input remain separate checks. |
 | Quest 3 Link visual confirmation | On 2026-11-01, the user confirmed that the experiment scene was visible inside Quest 3 while Unity Play Mode was running through Link. This confirms Editor preview, not standalone APK operation or complete task/input acceptance. |
 
-Synthetic data under `Evidence/SyntheticSessions/` and editor probes are not participant or device-test evidence. Historical live input probes remain as provenance; core validation and export verification were refreshed for v1.3. The response-window probe is explicitly marked editor-test, uses programmatic input, and does not establish physical sound onset or headset audibility.
+Synthetic data under `Evidence/SyntheticSessions/` and editor probes are not participant or device-test evidence. Historical live input probes remain as provenance; core validation and export verification were refreshed for v1.4. The response-window probe is explicitly marked editor-test, uses programmatic input, and does not establish physical sound onset or headset audibility. Distraction probes use isolated engines and store their data under `Evidence/`.
 
-The official Unity OpenJDK 17.0.18+8 module was installed during initial delivery after the first build found it missing. The current build has one warning: crash diagnostics lack debug symbols. Current build outcome is in `Evidence/android-build-report-v1.3.1.json`; package inspection and checksum are in `Evidence/apk-inspection-v1.3.1.txt`. SHA256: `CDA6BF1DDA4DAF378AFC269EF7F2D7F93CB99A0883F35DADC6061BFAC8FFCE04`. Older versioned reports remain historical. The latest observed ADB connection required debugging authorization for APK installation; Quest Link preview is a separate connection. Final Editor checks found zero console errors, no compilation failure, Play Mode stopped and the scene saved.
+The official Unity OpenJDK 17.0.18+8 module was installed during initial delivery after the first build found it missing. The current build has one warning: crash diagnostics lack debug symbols. Current build outcome is in `Evidence/android-build-report-v1.4.json`; package inspection and checksum are in `Evidence/apk-inspection-v1.4.txt`, with video integrity checks in `Evidence/apk-media-v1.4.txt`. SHA256: `E7AC484A9FEF55A9397CB818D7F866FF00937FE997FA59D8C11DDF1763DDCA97`. Older versioned reports remain historical. The latest observed ADB connection required debugging authorization for APK installation; Quest Link preview is a separate connection. Final Editor checks found zero console errors, no compilation failure, Play Mode stopped and the scene saved.
 
 ## Required physical-device checks
 
@@ -42,6 +47,7 @@ The official Unity OpenJDK 17.0.18+8 module was installed during initial deliver
 | Pause, resume, restart, headset backgrounding | Pending | Trial order and interruption flags |
 | Color discrimination and text readability | Pending | Review all four colors and all instructions |
 | v1.3 cue audibility and comfortable gain | Pending | Quest 3 output volume and perceived onset cue level |
+| v1.4 local video and spatial distraction audio | Pending | Android decoding/performance, comfortable gain, dialogue intelligibility and perceived rear localization; the Editor uses native 3D panning with no HRTF plugin |
 | At least ten minutes of device operation | Pending | Refresh rate, software gaps, device performance tools |
 | Five complete real sessions | Pending | Session IDs, complete status, 60 formal scored trials each |
 | Export, metric recomputation, file persistence | Pending on device | Paths and summaries |

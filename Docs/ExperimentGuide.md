@@ -51,7 +51,9 @@ Accuracy = correct / scored trials, counting omissions as incorrect. Balanced ac
 
 ## Configuration and presentation
 
-Current application: `1.3.1-stage1`, presentation: `spatial-lab-v1.3.1-satin-sphere`. The user-approved sphere refinement adds a satin lit material and smoother surface tessellation. Base colors, physical radius, placement, four-second response timing and scoring are retained. Shading changes apparent surface brightness; session metadata distinguishes this revision from the earlier unlit stimulus. See `StimulusMaterialReview.md` for visual checks.
+Current application is `1.4.0-stage1`, presentation `spatial-lab-v1.4-environmental-distractions`. Formal blocks now contain two silent street-window events, two rear door sounds and two outside conversations per block. Practice remains distraction-free. The schedule is balanced between Easy and Hard, non-overlapping and saved with a separate resolved random seed. All media is local. See `EnvironmentalDistractions.md` for timing, configuration, source licenses and verification. Conversations use two synthesized English voices.
+
+Version 1.3.1 introduced presentation `spatial-lab-v1.3.1-satin-sphere`. The user-approved sphere refinement adds a satin lit material and smoother surface tessellation. Base colors, physical radius, placement, four-second response timing and scoring are retained. Shading changes apparent surface brightness; session metadata distinguishes this revision from the earlier unlit stimulus. See `StimulusMaterialReview.md` for visual checks.
 
 The default configuration is `Assets/TaskPlatform/Config/default-task-config.json`. Color indices: 0 BLUE, 1 ORANGE, 2 GREEN, 3 MAGENTA. Sphere diameter is `2 × distance × tan(visualAngle / 2)`; defaults yield about 0.157 m at 1.5 m (6 degrees).
 

@@ -9,7 +9,7 @@ namespace EvidenceVR
     [Serializable]
     public sealed class TaskConfig
     {
-        public string version = "stage1-v1.3-response4s";
+        public string version = "stage1-v1.4-distractions";
         public int seed = 20261101;
         public int colorCount = 4;
         public int targetColor = 0;
@@ -23,6 +23,12 @@ namespace EvidenceVR
         public float responseSeconds = 4;
         public bool onsetCueEnabled = true;
         public float onsetCueVolume = .12f;
+        public bool distractionsEnabled = true;
+        public int distractionSeed;
+        public int distractionsPerTypePerBlock = 2;
+        public float distractionMasterVolume = 1;
+        public float doorVolume = .35f;
+        public float conversationVolume = .3f;
         public float restSeconds = 25;
         public float distance = 1.5f;
         public float visualAngle = 6;
@@ -37,6 +43,7 @@ namespace EvidenceVR
                 scoredTrials < 2 || scoredTrials > 1000 || warmupTrials < 2 || warmupTrials > 100 || easyPracticeTrials < 2 || hardPracticeTrials < 2 ||
                 !(matchRatio > 0 && matchRatio < 1) || !(visibleSeconds > 0 && visibleSeconds <= responseSeconds && responseSeconds < trialSeconds) ||
                 !(restSeconds >= 0 && restSeconds <= 600) || !(onsetCueVolume >= 0 && onsetCueVolume <= 1) || !(distance >= 0.5f && distance <= 5) || !(visualAngle >= 1 && visualAngle <= 20) ||
+                distractionsPerTypePerBlock<0 || distractionsPerTypePerBlock>4 || !(distractionMasterVolume>=0 && distractionMasterVolume<=1) || !(doorVolume>=0 && doorVolume<=1) || !(conversationVolume>=0 && conversationVolume<=1) ||
                 string.IsNullOrWhiteSpace(matchAction) || string.IsNullOrWhiteSpace(nonmatchAction) || matchAction == nonmatchAction ||
                 matchAction == advanceAction || matchAction == pauseAction || nonmatchAction == advanceAction || nonmatchAction == pauseAction || advanceAction == pauseAction)
                 throw new ArgumentException("Invalid task configuration. Check counts, color, timing, geometry and bindings.");
@@ -122,7 +129,8 @@ namespace EvidenceVR
         TaskMode? requested;
         public TaskEngine(TaskConfig c) { c.Validate(); config = UnityEngine.JsonUtility.FromJson<TaskConfig>(UnityEngine.JsonUtility.ToJson(c)); }
         void Emit(string type, double now, int frame, double planned, string detail = "") => OnEvent?.Invoke(new TaskEvent { type = type, actual = now, planned = planned, deviation = now - planned, frame = frame, block = Block, trial = TrialIndex, detail = detail });
-        public void Note(string type, string detail, double now, int frame) => Emit(type, now, frame, now, detail);
+        public void Note(string type, string detail, double now, int frame, double? planned = null) => Emit(type, now, frame, planned ?? now, detail);
+        public double BlockElapsed(double now) => Phase==TaskPhase.Running || (Phase==TaskPhase.Paused && resumePhase==TaskPhase.Running) ? Math.Max(0,(Phase==TaskPhase.Paused ? pauseStart : now)-origin-pausedTotal) : 0;
         public double RestRemaining(double now) => Math.Max(0, restEnd - now);
         public double ResponseRemaining(double now)
         {

@@ -1,0 +1,325 @@
+{
+  "version": "distraction-media-v1",
+  "assets": [
+    {
+      "id": "door-182",
+      "kind": "door",
+      "title": "Lightweight sliding door close Doors Train Tram Slide 0:02 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/182/182-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-182.wav",
+      "duration": 1.988313,
+      "sourceDuration": 2.874989,
+      "tempo": 1.4374945,
+      "sha256": "695ac3d61abdb5b164f90d9e9d0589484f119be876e3a89e0ba92306c7305fe9"
+    },
+    {
+      "id": "door-189",
+      "kind": "door",
+      "title": "Creaky closing wood door Doors Wood 0:02 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/189/189-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-189.wav",
+      "duration": 1.987125,
+      "sourceDuration": 2.402971,
+      "tempo": 1.2014855,
+      "sha256": "7facd6eeae3418ea516ad2c28bc4c4e2872ed15b9429eb1c4bffa673f1e02800"
+    },
+    {
+      "id": "door-1908",
+      "kind": "door",
+      "title": "Cupboard soft sliding door Doors Slide Bedroom 0:02 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/1908/1908-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-1908.wav",
+      "duration": 2.0,
+      "sourceDuration": 2.420975,
+      "tempo": 1.2104875,
+      "sha256": "866e805596f26b36807f2cdf1aca0e1ab7282f92b42727bd799f525c9c691ef6"
+    },
+    {
+      "id": "door-192",
+      "kind": "door",
+      "title": "Cabinet door closing Doors Bedroom 0:01 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/192/192-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-192.wav",
+      "duration": 1.0,
+      "sourceDuration": 0.566984,
+      "tempo": 1,
+      "sha256": "478e5a3ad1dd2e2df68bc50ffbab0a8fd7a6b0cbcc7fc8f70636c65cb4e982cd"
+    },
+    {
+      "id": "door-194",
+      "kind": "door",
+      "title": "Slamming a door Doors 0:01 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/194/194-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-194.wav",
+      "duration": 1.673896,
+      "sourceDuration": 1.689002,
+      "tempo": 1,
+      "sha256": "b79580bbba73594dc09af27e254af1b03af49030dd17909f8db9951ea4de4ba2"
+    },
+    {
+      "id": "door-195",
+      "kind": "door",
+      "title": "Creaky door open Doors Wood 0:02 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/195/195-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-195.wav",
+      "duration": 2.0,
+      "sourceDuration": 2.679002,
+      "tempo": 1.339501,
+      "sha256": "b0565b7d8ec01ddc5060ea23060449bf277ffd50fbf125f1f27b94977688252d"
+    },
+    {
+      "id": "door-196",
+      "kind": "door",
+      "title": "Door hard shut Doors 0:01 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/196/196-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-196.wav",
+      "duration": 1.0,
+      "sourceDuration": 0.459002,
+      "tempo": 1,
+      "sha256": "71a1aa74bd222b03415c647f8df8391934dbf42777866323710d3f3a0d08cbf7"
+    },
+    {
+      "id": "door-203",
+      "kind": "door",
+      "title": "Creaking public toilet door Bathroom Doors Public Places Wood 0:03 ",
+      "sourcePage": "https://mixkit.co/free-sound-effects/door/",
+      "downloadUrl": "https://assets.mixkit.co/active_storage/sfx/203/203-preview.mp3",
+      "license": "Mixkit Sound Effects Free License",
+      "file": "Assets/TaskPlatform/Media/Doors/door-203.wav",
+      "duration": 2.0,
+      "sourceDuration": 3.559138,
+      "tempo": 1.779569,
+      "sha256": "fd4132d475dfb3bed3d67e99c5d807fe78eb06c45bc423197578a96cc8b0f9f8"
+    },
+    {
+      "id": "street-3428",
+      "kind": "street",
+      "title": "Street with people walking at dusk",
+      "sourcePage": "https://mixkit.co/free-stock-video/street-with-people-walking-at-dusk-3428/",
+      "downloadUrl": "https://assets.mixkit.co/videos/3428/3428-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-3428.mp4",
+      "duration": 8.0,
+      "sha256": "23443a41853b86de1c514ea76d729d08e75ba923d9cf67d9b803a821ec1431a1"
+    },
+    {
+      "id": "street-3429",
+      "kind": "street",
+      "title": "City street with trolleybus at night",
+      "sourcePage": "https://mixkit.co/free-stock-video/city-street-with-trolleybus-at-night-3429/",
+      "downloadUrl": "https://assets.mixkit.co/videos/3429/3429-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-3429.mp4",
+      "duration": 8.0,
+      "sha256": "30e80582b0629e3de4e760143999da3b9af66b15369142ba7b1b8c1e6b6d5ee8"
+    },
+    {
+      "id": "street-4231",
+      "kind": "street",
+      "title": "Pedestrian walk in Tokyo",
+      "sourcePage": "https://mixkit.co/free-stock-video/pedestrian-walk-in-tokyo-4231/",
+      "downloadUrl": "https://assets.mixkit.co/videos/4231/4231-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-4231.mp4",
+      "duration": 8.0,
+      "sha256": "2878635fb57110433bea1da9c37148b6950a052942567a877f313142bc64203d"
+    },
+    {
+      "id": "street-4332",
+      "kind": "street",
+      "title": "Times Square during a rainy night",
+      "sourcePage": "https://mixkit.co/free-stock-video/times-square-during-a-rainy-night-4332/",
+      "downloadUrl": "https://assets.mixkit.co/videos/4332/4332-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-4332.mp4",
+      "duration": 8.0,
+      "sha256": "54c3183bf9866a0106b22d4288cbb5e0cbfa074120da605df540b25742eccc1d"
+    },
+    {
+      "id": "street-4348",
+      "kind": "street",
+      "title": "A calm street in Paris",
+      "sourcePage": "https://mixkit.co/free-stock-video/a-calm-street-in-paris-4348/",
+      "downloadUrl": "https://assets.mixkit.co/videos/4348/4348-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-4348.mp4",
+      "duration": 8.0,
+      "sha256": "5577a5bf3cdae75a67465fb23bd1b2012c6c4a1ac7057dc9ef6ee0c6eeba13e4"
+    },
+    {
+      "id": "street-4401",
+      "kind": "street",
+      "title": "Crowds of people cross a street junction",
+      "sourcePage": "https://mixkit.co/free-stock-video/crowds-of-people-cross-a-street-junction-4401/",
+      "downloadUrl": "https://assets.mixkit.co/videos/4401/4401-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-4401.mp4",
+      "duration": 8.0,
+      "sha256": "51763a5465870ce7efaf7da2e0f8bebffaa83a2342da88995cc79eb25a4c2f21"
+    },
+    {
+      "id": "street-4451",
+      "kind": "street",
+      "title": "Quiet Tokyo street at night",
+      "sourcePage": "https://mixkit.co/free-stock-video/quiet-tokyo-street-at-night-4451/",
+      "downloadUrl": "https://assets.mixkit.co/videos/4451/4451-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-4451.mp4",
+      "duration": 8.0,
+      "sha256": "4f41a779077d6348a2e7f6fbb090c53959156092699058e3ae9a1750645fe302"
+    },
+    {
+      "id": "street-4600",
+      "kind": "street",
+      "title": "Narrow and old alley in Venice",
+      "sourcePage": "https://mixkit.co/free-stock-video/narrow-and-old-alley-in-venice-4600/",
+      "downloadUrl": "https://assets.mixkit.co/videos/4600/4600-720.mp4",
+      "license": "Mixkit Stock Video Free License",
+      "file": "Assets/StreamingAssets/Distractions/Streets/street-4600.mp4",
+      "duration": 8.0,
+      "sha256": "0ce8b28d984b1a190c0e5e6f6cae23407fa809a37e29e35f1cb4535e822a8ac1"
+    },
+    {
+      "id": "conversation-01",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-01.wav",
+      "duration": 6.07475,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "Did you leave the notebook upstairs?",
+        "Yes, it is on the table beside the window."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "3A5C624CAB838F9A70726AC07D461897B258D18747AB75B87EF868EF0D8BD003"
+    },
+    {
+      "id": "conversation-02",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-02.wav",
+      "duration": 6.135063,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "Would you like a cup of tea?",
+        "That sounds good. I will meet you in the kitchen."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "95F1A1C15E5DC19B8E94295CB536A4A951B791A49134965733E2DD0E85683C5F"
+    },
+    {
+      "id": "conversation-03",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-03.wav",
+      "duration": 7.109708,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "What time does the next bus arrive?",
+        "It should be here soon. We can wait by the entrance."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "747DAFF94F3F3A09FB5BDAE9233916FFBF1B8DF6681AA2707089B2B99B18AE1E"
+    },
+    {
+      "id": "conversation-04",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-04.wav",
+      "duration": 5.674646,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "Have you seen the keys for the cupboard?",
+        "I think they are on the shelf beside the books."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "F97B1C33674B90B0906C7A828FDF75E98379D0AD3F879D1A525D7891B7E04696"
+    },
+    {
+      "id": "conversation-05",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-05.wav",
+      "duration": 7.684667,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "Shall we take a walk after lunch?",
+        "Yes, the weather looks nice. We could go through the park."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "AAF6E7200AB2AB35B223AFA1A7EA9F9029B80DBB3CE8FF82852F7915664D6AB9"
+    },
+    {
+      "id": "conversation-06",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-06.wav",
+      "duration": 6.959646,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "Is this the room for the afternoon meeting?",
+        "The meeting is next door. I can show you the way."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "9A179FDFD53480AAE4EB0B58609BD5E267327CA5AB79345FE603CDC3FF78DAD6"
+    },
+    {
+      "id": "conversation-07",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-07.wav",
+      "duration": 6.839604,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "Did the package arrive this morning?",
+        "Yes, someone left it at the front desk about an hour ago."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "E8D38CC5040BD5043756443B9663E86A4A88AF3942AFE5A6A4E4C5D1578F417D"
+    },
+    {
+      "id": "conversation-08",
+      "kind": "conversation",
+      "file": "Assets/TaskPlatform/Media/Conversation/conversation-08.wav",
+      "duration": 6.974833,
+      "voices": [
+        "Microsoft David Desktop",
+        "Microsoft Zira Desktop"
+      ],
+      "text": [
+        "Are these chairs needed in the other room?",
+        "Only two of them. The rest can stay here for now."
+      ],
+      "provenance": "Original English script, local Windows speech synthesis; not a recording of real people",
+      "sha256": "E485AA0A467FD353143E76BF3E4930B7551060366DF9D15A3597F402D148185C"
+    }
+  ]
+}

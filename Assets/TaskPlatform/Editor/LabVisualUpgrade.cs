@@ -76,10 +76,11 @@ namespace EvidenceVR.Editor
             v.actionHint.text="Complete all three checks to continue"; v.pauseHint.text="SEATED TASK  /  NO MOVEMENT REQUIRED";
             v.matchKey.text="A"; v.nonmatchKey.text="B";
             ConfigureSpatialTask(c);
-            PlayerSettings.bundleVersion="1.3.1-stage1"; PlayerSettings.Android.bundleVersionCode=6;
+            DistractionSceneSetup.Apply(c);
+            PlayerSettings.bundleVersion="1.4.0-stage1"; PlayerSettings.Android.bundleVersionCode=7;
             EditorUtility.SetDirty(c); EditorUtility.SetDirty(v);
             EditorSceneManager.MarkSceneDirty(c.gameObject.scene); EditorSceneManager.SaveScene(c.gameObject.scene); AssetDatabase.SaveAssets();
-            Debug.Log("Spatial lab v1.3.1 applied: satin stimulus with fixed lighting and unchanged response timing.");
+            Debug.Log("Spatial lab v1.4 applied: satin stimulus and balanced formal-only environmental distractions.");
         }
         static void ConfigureSpatialTask(TaskPlatformController c)
         {

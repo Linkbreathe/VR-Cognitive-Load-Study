@@ -1,8 +1,8 @@
 # Quiet laboratory / presentation v1.1
 
-Current v1.5: a fixed 0.72 m seated desk and a minimal running HUD with no large backplates. Compact stage/mode/color count and comparison text sit above the sphere; a small countdown sits to its right. Practice correctness uses green/red countdown text. The sphere stays visible throughout the four-second response interval. Earlier layout notes below are historical.
+Current v1.6: a fixed 0.65 m seated desk and a minimal running HUD with no large backplates. Compact stage/mode/color count and comparison text sit above the sphere; a small countdown sits to its right. Practice correctness uses green/red countdown text. The sphere stays visible throughout the four-second response interval. Earlier layout notes below are historical.
 
-Current v1.4 approved experiment extension: temporary silent street-video windows on both side walls, rear door sounds, and quiet English two-speaker conversation beyond the rear wall. These scheduled formal-block distractions explicitly supersede the historical no-extra-audio/animated-scenery baseline below. Neutral room lighting, task stimuli and response feedback remain unchanged.
+Current v1.6 approved experiment extension: one temporary silent street-video window at a seeded center/corner front-wall position, with distractions every three or four trials, rear door sounds, and quiet English two-speaker conversation beyond the rear wall. These scheduled formal-block distractions explicitly supersede the historical no-extra-audio/animated-scenery baseline below. Neutral room lighting, task stimuli and response feedback remain unchanged.
 
 Current v1.3.1 stimulus refinement: user-approved satin finish using URP Lit, metallic 0 and smoothness 0.42 under the existing fixed lighting. A 64-segment, 32-ring smooth sphere preserves the radius and visual angle while removing coarse surface faceting. Base palette values are retained; shaded pixel values now vary across the surface. This supersedes the historical unlit-sphere choice below.
 

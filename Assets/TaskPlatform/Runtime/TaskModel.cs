@@ -9,7 +9,7 @@ namespace EvidenceVR
     [Serializable]
     public sealed class TaskConfig
     {
-        public string version = "stage1-v1.5-visible4s";
+        public string version = "stage1-v1.6-front-distractions";
         public int seed = 20261101;
         public int colorCount = 4;
         public int targetColor = 0;
@@ -25,7 +25,7 @@ namespace EvidenceVR
         public float onsetCueVolume = .12f;
         public bool distractionsEnabled = true;
         public int distractionSeed;
-        public int distractionsPerTypePerBlock = 2;
+        public int distractionsPerTypePerBlock = 3;
         public float distractionMasterVolume = 1;
         public float doorVolume = .35f;
         public float conversationVolume = .3f;

@@ -77,10 +77,10 @@ namespace EvidenceVR.Editor
             v.matchKey.text="A"; v.nonmatchKey.text="B";
             ConfigureSpatialTask(c);
             DistractionSceneSetup.Apply(c);
-            PlayerSettings.bundleVersion="1.5.0-stage1"; PlayerSettings.Android.bundleVersionCode=8;
+            PlayerSettings.bundleVersion="1.6.0-stage1"; PlayerSettings.Android.bundleVersionCode=9;
             EditorUtility.SetDirty(c); EditorUtility.SetDirty(v);
             EditorSceneManager.MarkSceneDirty(c.gameObject.scene); EditorSceneManager.SaveScene(c.gameObject.scene); AssetDatabase.SaveAssets();
-            Debug.Log("Spatial lab v1.5 applied: seated desk, minimal task HUD and four-second visible stimulus.");
+            Debug.Log("Spatial lab v1.6 applied: lower seated desk, corrected XR origin and front-wall distraction positions.");
         }
         static void ConfigureSpatialTask(TaskPlatformController c)
         {

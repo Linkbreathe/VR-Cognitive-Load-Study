@@ -15,14 +15,14 @@ public static class SeatedMinimalProbe
         var engineProperty=typeof(TaskPlatformController).GetProperty("Engine");
         var render=typeof(TaskPlatformController).GetMethod("Render",BindingFlags.Instance|BindingFlags.NonPublic);
         var original=c.Engine;bool enabled=c.enabled;var anchorPosition=c.taskAnchor.position;
-        const string folder="Evidence/Visuals-v1.5";Directory.CreateDirectory(folder);int checks=0;
+        const string folder="Evidence/Visuals-v1.6";Directory.CreateDirectory(folder);int checks=0;
         try
         {
             c.enabled=false;
             foreach(float eyeHeight in new[]{1.05f,1.2f,1.65f})
             {
                 var position=c.taskAnchor.position;position.y=eyeHeight;c.taskAnchor.position=position;view.PlaceSupports(c.taskAnchor);
-                Check(Mathf.Abs(view.bench.Find("WorkSurface").GetComponent<Renderer>().bounds.max.y-.72f)<.001f,"Fixed tabletop");
+                Check(Mathf.Abs(view.bench.Find("WorkSurface").GetComponent<Renderer>().bounds.max.y-.65f)<.001f,"Fixed tabletop");
                 Check(Mathf.Abs(view.leftLeg.GetComponent<Renderer>().bounds.min.y)<.001f && Mathf.Abs(view.rightLeg.GetComponent<Renderer>().bounds.min.y)<.001f,"Grounded supports");
             }
             var seated=c.taskAnchor.position;seated.y=1.2f;c.taskAnchor.position=seated;view.PlaceSupports(c.taskAnchor);
@@ -50,8 +50,8 @@ public static class SeatedMinimalProbe
             int textCount=0;foreach(var text in view.taskCanvas.GetComponentsInChildren<TMP_Text>())if(text.isActiveAndEnabled)textCount++;
             Check(textCount==4,"Only four active running text elements");
             Check(!view.taskCanvas.transform.Find("StageSign").GetComponent<RoundedSurface>().enabled && !view.taskCanvas.transform.Find("CountdownCard").GetComponent<RoundedSurface>().enabled,"No large running panels");
-            var report="PASS: "+checks+" checks; 0.72 m tabletop at three calibrated eye heights, grounded legs, sphere visible through 3.999 s including early response, hidden at 4 s, pause-adjusted offset, green/red practice feedback, neutral reset and no formal correctness feedback. Four active HUD text elements; screenshots inspected separately.\nIsolated synthetic engine; not participant or headset evidence.\n";
-            File.WriteAllText("Evidence/seated-minimal-v1.5.txt",report);Debug.Log(report);return report;
+            var report="PASS: "+checks+" checks; 0.65 m tabletop at three calibrated eye heights, grounded legs, sphere visible through 3.999 s including early response, hidden at 4 s, pause-adjusted offset, green/red practice feedback, neutral reset and no formal correctness feedback. Four active HUD text elements; screenshots inspected separately.\nIsolated synthetic engine; not participant or headset evidence.\n";
+            File.WriteAllText("Evidence/seated-minimal-v1.6.txt",report);Debug.Log(report);return report;
             void Show(double time,string name)
             {
                 render.Invoke(c,null);view.Refresh(c,time);Canvas.ForceUpdateCanvases();

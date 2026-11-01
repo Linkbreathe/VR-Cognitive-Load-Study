@@ -25,19 +25,20 @@ namespace EvidenceVR.Editor
             component.player=player;
             var screenMaterial=Material("StreetWindowScreen","Universal Render Pipeline/Unlit",Color.white);
             var frameMaterial=Material("StreetWindowFrame","Universal Render Pipeline/Lit",LabPalette.Trim);
-            component.windowRoots=new GameObject[2];component.windowScreens=new Renderer[2];
+            foreach(string legacyName in new[]{"StreetWindowLeft","StreetWindowRight"})
+            {var legacy=root.transform.Find(legacyName);if(legacy!=null)legacy.gameObject.SetActive(false);}
+            var window=Child(root.transform,"StreetWindowFront");
+            window.localPosition=EnvironmentalDistractions.FrontWindowPosition(0);window.localRotation=Quaternion.identity;window.localScale=Vector3.one*.62f;
+            var screen=Primitive(window,"VideoSurface",PrimitiveType.Quad,Vector3.zero,new Vector3(2.4f,1.35f,1),screenMaterial);
+            Primitive(window,"TopFrame",PrimitiveType.Cube,new Vector3(0,.71f,0),new Vector3(2.54f,.07f,.07f),frameMaterial);
+            Primitive(window,"BottomFrame",PrimitiveType.Cube,new Vector3(0,-.71f,0),new Vector3(2.54f,.07f,.07f),frameMaterial);
+            Primitive(window,"LeftFrame",PrimitiveType.Cube,new Vector3(-1.235f,0,0),new Vector3(.07f,1.35f,.07f),frameMaterial);
+            Primitive(window,"RightFrame",PrimitiveType.Cube,new Vector3(1.235f,0,0),new Vector3(.07f,1.35f,.07f),frameMaterial);
+            component.windowRoots=new[]{window.gameObject};component.windowScreens=new[]{screen};window.gameObject.SetActive(false);
             component.doorSources=new AudioSource[2];component.conversationSources=new AudioSource[2];
             for(int side=0;side<2;side++)
             {
                 string suffix=side==0 ? "Left" : "Right"; float sign=side==0 ? -1 : 1;
-                var window=Child(root.transform,"StreetWindow"+suffix);
-                window.localPosition=new Vector3(sign*2.92f,1.65f,.65f);window.localRotation=Quaternion.Euler(0,sign*90,0);
-                var screen=Primitive(window,"VideoSurface",PrimitiveType.Quad,Vector3.zero,new Vector3(2.4f,1.35f,1),screenMaterial);
-                Primitive(window,"TopFrame",PrimitiveType.Cube,new Vector3(0,.71f,0),new Vector3(2.54f,.07f,.07f),frameMaterial);
-                Primitive(window,"BottomFrame",PrimitiveType.Cube,new Vector3(0,-.71f,0),new Vector3(2.54f,.07f,.07f),frameMaterial);
-                Primitive(window,"LeftFrame",PrimitiveType.Cube,new Vector3(-1.235f,0,0),new Vector3(.07f,1.35f,.07f),frameMaterial);
-                Primitive(window,"RightFrame",PrimitiveType.Cube,new Vector3(1.235f,0,0),new Vector3(.07f,1.35f,.07f),frameMaterial);
-                component.windowRoots[side]=window.gameObject; component.windowScreens[side]=screen; window.gameObject.SetActive(false);
                 component.doorSources[side]=Source(root.transform,"RearDoor"+suffix,new Vector3(sign*2.4f,1.35f,-2.65f),.35f,false);
                 component.conversationSources[side]=Source(root.transform,"OutsideConversation"+suffix,new Vector3(sign*1.9f,1.55f,-3.35f),.3f,true);
             }

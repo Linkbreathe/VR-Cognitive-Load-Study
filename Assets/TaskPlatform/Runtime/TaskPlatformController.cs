@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using TMPro;
@@ -36,6 +37,7 @@ namespace EvidenceVR
         bool simultaneousLatch;
         double lastTime;
         string setupError;
+        bool floorTracking, calibrationPending;
         readonly List<XRDisplaySubsystem> displays = new List<XRDisplaySubsystem>();
         TaskPhase lastPhase = (TaskPhase)(-1);
         int lastTrial = -2;
@@ -48,9 +50,7 @@ namespace EvidenceVR
                 string overridePath = Path.Combine(Application.persistentDataPath, "task-config.json");
                 if (File.Exists(overridePath)) config = JsonUtility.FromJson<TaskConfig>(File.ReadAllText(overridePath));
                 config.Validate();
-                var inputSubsystems = new List<XRInputSubsystem>();
-                SubsystemManager.GetSubsystems(inputSubsystems);
-                foreach (var input in inputSubsystems) if (input.running) input.TrySetTrackingOriginMode(TrackingOriginModeFlags.Device);
+                ConfigureTrackingSpace();
                 match = inputActions.FindAction(config.matchAction, true);
                 nonmatch = inputActions.FindAction(config.nonmatchAction, true);
                 advance = inputActions.FindAction(config.advanceAction, true);
@@ -82,10 +82,57 @@ namespace EvidenceVR
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
             Recenter(false); Render(); presentation?.Refresh();
+            StartCoroutine(PlaceAfterTrackingReady(Engine));
+        }
+        IEnumerator PlaceAfterTrackingReady(TaskEngine owner)
+        {
+            yield return null;yield return null;
+            if(Engine==owner && Engine.Phase==TaskPhase.Preparation && !calibrated && !calibrationPending)
+            {ConfigureTrackingSpace();PlaceTask(false);}
         }
         public void Recenter(bool confirm = true)
         {
             if (Engine != null && Engine.Phase != TaskPhase.Preparation) return;
+            if(confirm)
+            {
+                if(!calibrationPending)StartCoroutine(CalibrateSeatedPose());
+                return;
+            }
+            PlaceTask(false);
+        }
+        void ConfigureTrackingSpace()
+        {
+            floorTracking=false;
+            var inputs=new List<XRInputSubsystem>();SubsystemManager.GetSubsystems(inputs);
+            foreach(var input in inputs)if(input.running)
+            {
+                if((input.GetSupportedTrackingOriginModes() & TrackingOriginModeFlags.Floor)!=0)
+                    floorTracking=input.TrySetTrackingOriginMode(TrackingOriginModeFlags.Floor);
+                if(!floorTracking)input.TrySetTrackingOriginMode(TrackingOriginModeFlags.Device);
+                break;
+            }
+            var position=head.parent.position;
+            position.y=TrackingRigHeight(floorTracking,head.localPosition.y);head.parent.position=position;
+        }
+        public static float TrackingRigHeight(bool floorMode,float localEyeHeight)=>floorMode ? 0 : 1.2f-localEyeHeight;
+        IEnumerator CalibrateSeatedPose()
+        {
+            var owner=Engine;
+            calibrationPending=true;ConfigureTrackingSpace();
+            // Let a requested tracking-origin change reach the tracked pose before placement.
+            yield return null;yield return null;
+            if(Engine==owner && Engine!=null && Engine.Phase==TaskPhase.Preparation)
+            {
+                var inputs=new List<XRInputSubsystem>();SubsystemManager.GetSubsystems(inputs);
+                foreach(var input in inputs)if(input.running){floorTracking=input.GetTrackingOriginMode()==TrackingOriginModeFlags.Floor;break;}
+                var position=head.parent.position;position.y=TrackingRigHeight(floorTracking,head.localPosition.y);head.parent.position=position;
+                Engine.Note("tracking_calibration","origin="+(floorTracking ? "floor" : "seated_device_fallback")+";local_eye_y="+head.localPosition.y+";rig_y="+head.parent.position.y,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                PlaceTask(true);
+            }
+            calibrationPending=false;
+        }
+        void PlaceTask(bool confirm)
+        {
             Vector3 forward = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
             if (forward.sqrMagnitude < .1f) forward = Vector3.forward;
             taskAnchor.position = head.position + forward * config.distance;

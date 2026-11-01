@@ -1,5 +1,5 @@
 {
-  "version": "stage1-v1.5-visible4s",
+  "version": "stage1-v1.6-front-distractions",
   "seed": 20261101,
   "colorCount": 4,
   "targetColor": 0,
@@ -15,7 +15,7 @@
   "onsetCueVolume": 0.12,
   "distractionsEnabled": true,
   "distractionSeed": 0,
-  "distractionsPerTypePerBlock": 2,
+  "distractionsPerTypePerBlock": 3,
   "distractionMasterVolume": 1.0,
   "doorVolume": 0.35,
   "conversationVolume": 0.3,

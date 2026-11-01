@@ -9,7 +9,7 @@ namespace EvidenceVR
         public Canvas instructions, taskCanvas;
         public TMP_Text stage, rule, progress, comparison, timer, timerLabel, controls, feedback;
         public Transform bench, leftLeg, rightLeg;
-        public const float TabletopHeight=.72f;
+        public const float TabletopHeight=.65f;
         public static readonly Color CorrectColor=LabPalette.Hex("70D69A"), IncorrectColor=LabPalette.Hex("F27D7D");
         public void Refresh(TaskPlatformController controller,double now)
         {

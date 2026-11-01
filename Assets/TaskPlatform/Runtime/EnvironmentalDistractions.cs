@@ -35,6 +35,20 @@ namespace EvidenceVR
         bool started,initializing,callbacksBound;
         double began,requestElapsed,lastBlockElapsed;
 
+        public static string FrontWindowName(int position)=>new[]{"center","upper_left","upper_right","lower_left","lower_right"}[position];
+        public static Vector3 FrontWindowPosition(int position)
+        {
+            switch(position)
+            {
+                case 0:return new Vector3(0,1.5f,2.92f);
+                case 1:return new Vector3(-1.45f,2.1f,2.92f);
+                case 2:return new Vector3(1.45f,2.1f,2.92f);
+                case 3:return new Vector3(-1.45f,1.1f,2.92f);
+                case 4:return new Vector3(1.45f,1.1f,2.92f);
+                default:throw new ArgumentOutOfRangeException(nameof(position));
+            }
+        }
+
         public void Bind(TaskEngine nextEngine,TaskConfig nextConfig,string dataPath)
         {
             Cancel("session_reset");
@@ -157,6 +171,7 @@ namespace EvidenceVR
             engine.Note("distraction_requested",Describe(item),now,Time.frameCount,now-requestElapsed+item.start);
             if(item.kind==DistractionKind.Street)
             {
+                windowRoots[0].transform.localPosition=FrontWindowPosition(item.windowPosition);
                 if(!MediaReady){End("local_media_not_ready",now);return;}
                 Prepare(item.mediaIndex);
                 if(player.isPrepared)player.Play();
@@ -217,7 +232,7 @@ namespace EvidenceVR
         {
             string asset=item.kind==DistractionKind.Street ? streetFiles[item.mediaIndex] : (item.kind==DistractionKind.Door ? doorClips : conversationClips)[item.mediaIndex].name;
             float volume=item.kind==DistractionKind.Door ? config.doorVolume : item.kind==DistractionKind.Conversation ? config.conversationVolume : 0;
-            return "index="+item.index+";kind="+item.kind+";asset="+asset+";side="+(item.kind==DistractionKind.Street ? "both" : item.side==0 ? "left" : "right")+";planned_block_s="+F(item.start)+";duration_s="+F(item.duration)+";gain="+F(volume*config.distractionMasterVolume);
+            return "index="+item.index+";kind="+item.kind+";asset="+asset+";side="+(item.kind==DistractionKind.Street ? "front" : item.side==0 ? "left" : "right")+";window_position="+(item.kind==DistractionKind.Street ? FrontWindowName(item.windowPosition) : "none")+";planned_block_s="+F(item.start)+";duration_s="+F(item.duration)+";gain="+F(volume*config.distractionMasterVolume);
         }
         static string F(double value)=>value.ToString("R",CultureInfo.InvariantCulture);
         void OnDestroy()

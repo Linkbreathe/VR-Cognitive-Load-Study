@@ -1,6 +1,6 @@
 # Stage 1 acceptance record
 
-Date: 2026-11-01. Software implementation and desktop validation are available; full physical-headset acceptance remains pending. The current presentation is spatial-lab-v1.5-seated-minimal-ui, application version 1.5.0-stage1.
+Date: 2026-11-01. Software implementation and desktop validation are available; full physical-headset acceptance remains pending. The current presentation is spatial-lab-v1.6-seated-front-windows, application version 1.6.0-stage1.
 
 ## Verified software evidence
 
@@ -20,12 +20,14 @@ Date: 2026-11-01. Software implementation and desktop validation are available; 
 | Prior v1.3 APK | v1.3.0-stage1, version code 5; Android build succeeded in 121.0 seconds with zero errors; ARM64 and APK v2 signature verified; 41,831,962 bytes |
 | Prior v1.3.1 APK | v1.3.1-stage1, version code 6; Android build succeeded in 55.2 seconds with zero errors; ARM64 and APK v2 signature verified; 41,874,802 bytes |
 | Prior v1.4 APK | v1.4.0-stage1, version code 7; Android build succeeded in 266.1 seconds with zero errors; ARM64 and APK v2 signature verified; 70,020,954 bytes; all eight packaged videos match their catalog SHA256 values |
-| Current v1.5 APK | v1.5.0-stage1, version code 8; Android build succeeded in 116.0 seconds with zero errors; ARM64 and APK v2 signature verified; 70,022,502 bytes |
-| Visual refinement | See `SeatedMinimalReview.md` for current v1.5; prior refinements remain in `EnvironmentalDistractions.md`, `StimulusMaterialReview.md`, `SpatialTaskReview.md`, `VisualReview.md` and `SequenceGuidanceReview.md` |
-| Seated minimal presentation | 63 checks: tabletop 0.72 m at three eye heights, sphere visible through 3.999 s and hidden at 4 s, practice colors/reset, neutral formal feedback, four active text elements and no overflow; `Evidence/seated-minimal-v1.5.txt` |
-| Current live timing | 14-second Editor run verified persistent sphere visibility, hidden gap, green practice feedback, four cues and a saved 3.2-second response; `Evidence/response-window-live-v1.5.txt` |
-| Distraction scheduling | 37,004 checks over 1,000 seeds: formal-only, balanced frequency, no overlap, reproducible seeds and media selection; `Evidence/distraction-validation-v1.4.txt` |
-| Distraction playback | 127.47-second isolated Editor run: six completed exposures, no skips or decoder errors, video pause/hide/resume and clock freeze verified; `Evidence/distraction-playback-v1.4.txt` |
+| Prior v1.5 APK | v1.5.0-stage1, version code 8; Android build succeeded in 116.0 seconds with zero errors; ARM64 and APK v2 signature verified; 70,022,502 bytes |
+| Current v1.6 APK | v1.6.0-stage1, version code 9; Android build succeeded in 139.7 seconds with zero errors; ARM64 and APK v2 signature verified; 70,027,606 bytes |
+| Visual refinement | See `FrontWallCalibrationReview.md` for current v1.6; v1.5 is recorded in `SeatedMinimalReview.md`; prior refinements remain in `EnvironmentalDistractions.md`, `StimulusMaterialReview.md`, `SpatialTaskReview.md`, `VisualReview.md` and `SequenceGuidanceReview.md` |
+| Seated minimal presentation | 63 checks: tabletop 0.65 m at three eye heights, sphere visible through 3.999 s and hidden at 4 s, practice colors/reset, neutral formal feedback, four active text elements and no overflow; `Evidence/seated-minimal-v1.6.txt` |
+| Prior v1.5 live timing | 14-second Editor run verified persistent sphere visibility, hidden gap, green practice feedback, four cues and a saved 3.2-second response; `Evidence/response-window-live-v1.5.txt` |
+| Seated calibration | Actual coroutine corrected simulated 2.22 m combined height to 1.20 m, repeated calibration stable, fixed 0.65 m tabletop; `Evidence/seated-calibration-v1.6.txt`; no live headset connected during probe |
+| Distraction scheduling | 66,013 checks over 1,000 seeds: nine events per block, 3/4-trial gaps, balanced types, no overlap, deterministic replay, six distinct videos and five front-wall positions without consecutive repeats; `Evidence/distraction-validation-v1.6.txt` |
+| Distraction playback | 138.73-second isolated Editor run: nine completed exposures, no skips or decoder errors, video pause/hide/resume and clock freeze verified; `Evidence/distraction-playback-v1.6.txt` |
 | Spatial audio | Both sides' door and conversation sources advanced; mono, gain multiplication, pause/resume, cancellation and abort verified; `Evidence/distraction-audio-v1.4.txt` |
 | Local media | Eight silent H.264 videos, eight door clips and eight synthesized English dialogues; 28,004,343 prepared bytes; source and hash catalog saved in `Assets/TaskPlatform/Media/distraction-media-manifest.json` |
 | Satin sphere | Four colors and a close-up rendered and visually reviewed; supported Lit material verified; sphere radius preserved with smoother mesh; `Evidence/stimulus-material-v1.3.1.txt` |
@@ -35,9 +37,9 @@ Date: 2026-11-01. Software implementation and desktop validation are available; 
 | Quest Link initialization | Standalone OpenXR configuration added after diagnosing missing Editor XR settings; Oculus runtime, a running XR display subsystem and head-tracking device observed in Play Mode. See `Evidence/quest-link-runtime.json`. Visual confirmation and physical input remain separate checks. |
 | Quest 3 Link visual confirmation | On 2026-11-01, the user confirmed that the experiment scene was visible inside Quest 3 while Unity Play Mode was running through Link. This confirms Editor preview, not standalone APK operation or complete task/input acceptance. |
 
-Synthetic data under `Evidence/SyntheticSessions/` and editor probes are not participant or device-test evidence. Historical live input probes remain as provenance; core validation and export verification were refreshed for v1.5. The response-window probe is explicitly marked editor-test, uses programmatic input, and does not establish physical sound onset or headset audibility. Distraction and seated-layout probes use isolated engines and store their data under `Evidence/`.
+Synthetic data under `Evidence/SyntheticSessions/` and editor probes are not participant or device-test evidence. Historical live input probes remain as provenance; core validation and export verification were refreshed for v1.6. The response-window probe is explicitly marked editor-test, uses programmatic input, and does not establish physical sound onset or headset audibility. Distraction and seated-layout probes use isolated engines and store their data under `Evidence/`.
 
-The official Unity OpenJDK 17.0.18+8 module was installed during initial delivery after the first build found it missing. The current build has one warning: crash diagnostics lack debug symbols. Current build outcome is in `Evidence/android-build-report-v1.5.json`; package inspection and checksum are in `Evidence/apk-inspection-v1.5.txt`. SHA256: `4B1D90CFEAE810217D4D646AA1AD4D1724431A883FAFC4CDBCFEC1CBB47EBEB6`. Older versioned reports remain historical. The latest observed ADB connection required debugging authorization for APK installation; Quest Link preview is a separate connection. Final Editor checks found zero console errors, no compilation failure, Play Mode stopped and the scene saved.
+The official Unity OpenJDK 17.0.18+8 module was installed during initial delivery after the first build found it missing. The current build has one warning: crash diagnostics lack debug symbols. Current build outcome is in `Evidence/android-build-report-v1.6.json`; package inspection and checksum are in `Evidence/apk-inspection-v1.6.txt`. SHA256: `969ADC842DA99BF4E19EEB726A96C0D42B435A0655C36426A1C37BC91BD8EB21`. Older versioned reports remain historical. The latest observed ADB connection required debugging authorization for APK installation; Quest Link preview is a separate connection. Final Editor checks found zero console errors, no compilation failure, Play Mode stopped and the scene saved.
 
 ## Required physical-device checks
 

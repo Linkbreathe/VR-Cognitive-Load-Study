@@ -5,7 +5,8 @@ import tempfile
 import unittest
 
 import numpy as np
-from controller import BaselineAdaptiveController, VERSION, physiology_status, POLICY
+from controller import BaselineAdaptiveController, physiology_status, POLICY
+VERSION = "2.0.0-stage2-dev4"  # Preserve historical block-policy regression coverage.
 from features import extract_features, condition_coverage
 from service import StudyService
 from replay import replay

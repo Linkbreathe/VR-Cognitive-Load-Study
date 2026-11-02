@@ -1,6 +1,26 @@
 # Current acceptance record
 
-Updated: 2026-11-02. Application: `2.0.0-stage2-dev4` (Android code 16). **Stage 2 engineering implementation and software checks are available; final Stage 2 physiological/device acceptance is not complete.** Stage 1 remains the default when the adaptive override is absent. Historical Stage 1 evidence is retained below.
+Updated: 2026-11-02. Application `2.0.0-stage2-dev6` (Android code 18); training configuration/controller remain dev5. **Engineering gaze highlight is software-verified; dev6 Android candidate built and signature-verified. Final physiological/device acceptance remains incomplete.** Historical evidence is retained below.
+
+## Engineering gaze highlight (dev6)
+
+Implemented: default-off engineering sphere/movie outlines, Editor menu switch, participant lockout, real-eye-only input, shared visible-target classifier, invalid/stale/pause/end clearing and explicit ROI/debug metadata. No effect on task timing, original colors/media, scoring or adaptation. See [gaze-debug review](GazeDebugReview.md).
+
+Verified: Unity C# / shader compilation, 2,033 synthetic model checks, 19 live Editor checks and 48,128 adaptive regression assertions passed. A separately labeled synthetic visual fixture exercised a sphere and an actual decoded practice movie. Participant/default-off renderers were absent, invalid/stale/pause handling passed, and base colors were unchanged. The 302 production gaze samples were all invalid; no synthetic ray was saved as genuine eye data. Metadata, screenshots and original Editor configuration restoration were inspected. Evidence: `Evidence/GazeDebug/`.
+
+Delivery verified: Android build succeeded in 246.8 seconds, zero errors, one diagnostics-symbol warning. `Builds/Quest/EvidenceVR-Stage2-dev6.apk` is 88,798,578 bytes; ARM64/code 18/APK v2 verified. SHA-256: `FE133AB65257E579FF82C48184B7A9DF2F542794E13453FB871BA64D38AE7334`. The 51,446,740-byte media ZIP passed integrity/unchanged-content checks and defaults to no gaze highlight. No ADB device was connected. Final console errors: zero, Editor stopped, local configuration restored.
+
+Pending: real eye acquisition/calibration and Quest stereo/comfort/performance checks. Quest 3 still has no genuine eye input in this setup. Existing media-review, participant calibration and physiological/device gates remain pending. No participant-facing highlight was enabled.
+
+## Rolling control and decimal countdown (dev5)
+
+Implemented: ten eligible trials per rolling window, updates every two trials; 108-second statistics retained; safe trial-boundary execution after active media, reset/transition rules, revised short-window omissions/class checks, unique auditable decision IDs, current-condition physiology gates, mixed-level exports and two-decimal countdown in both task modes. See [review](RollingAdaptationReview.md).
+
+Software verified: Unity compiled without errors; 48,128 adaptive model assertions across 1,000 schedule seeds and 30 complete synthetic sessions; 92 focused rolling/countdown/migration/reset checks; 194,113 Stage 1 assertions; 47 Python tests. The real-time Editor probe passed 7,332 checks with an actual HTTP-driven upgrade at 71.98 seconds, Level 2 candidate completion queued, four media starts/clean ends and no failures or interruptions. Countdown text fit was checked and the screenshot inspected. Both probes' 14 controller decisions replayed exactly; mixed-level statistics were independently summarized. Evidence is under `Evidence/RollingAdaptation/`. The initial 150-second test harness timeout is preserved and explained in the project log; it is not a participant/device failure.
+
+Delivery verified: Android build succeeded in 122.5 seconds with zero errors and one diagnostics-symbol warning. `Builds/Quest/EvidenceVR-Stage2-dev5.apk` is 88,762,808 bytes, ARM64, version code 17 and APK v2 signed. SHA-256: `67E9AC87979E91551CA1C8ABB35F80B9A9A8C4E04B1572DB04E78EB4295E5BF3`. The 51,446,723-byte media ZIP passed integrity and unchanged-media hash checks. Final dev5 Editor smoke verified version/configuration/display metadata and the preserved OFF setting. Final console errors: zero; no headset was connected and XR audio fallback warnings are not audio-device acceptance. Editor and test service stopped.
+
+Pending: hardware timing, Quest 3 standalone operation/readability/comfort, human media review, real physiology calibration and empirical short-window threshold validation. Existing `volumeReviewed=false` participant gates remain. Quest Pro remains unverified.
 
 ## Expanded media library (dev4)
 

@@ -1,6 +1,6 @@
 # Stage 2 operator guide
 
-Application: `2.0.0-stage2-dev4`, 2026-11-02. Training configuration version is `2.0.0-stage2-dev4`. Read [implementation boundaries](Stage2Implementation.md) before participant use. Default startup remains Stage 1 until an adaptive override is explicitly enabled.
+Application: `2.0.0-stage2-dev6`, 2026-11-02. Training configuration version is `2.0.0-stage2-dev5`. Read the [current rolling-policy review](RollingAdaptationReview.md) and [historical implementation boundaries](Stage2Implementation.md) before participant use. Default startup remains Stage 1 until an adaptive override is explicitly enabled.
 
 ## Read the mode and status display
 
@@ -11,7 +11,7 @@ Menu changes take effect on the next Play session. The menu-created configuratio
 ## Start the software
 
 1. In Unity, use **Evidence VR > Stage 2 > Create Editor Engineering Configuration**. The command creates `adaptive-training-config.json` under `Application.persistentDataPath` and refuses to overwrite an existing override. Edit that file before entering Play Mode. Use **Disable Editor Adaptive Mode** to preserve the override under a dated disabled name and return to Stage 1.
-2. Choose `protocol: "calibration"` for two silent baseline blocks and two counterbalanced fixed distraction blocks, or `"training"` for baseline/pretest/training/posttest. Choose OFF for manual control, SHADOW for recommendations only, or ACTIVE for boundary execution. Keep `sessionType: "engineering"` while testing. Editor sessions are always stored separately as `editor-test`.
+2. Choose `protocol: "calibration"` for two silent baseline blocks and two counterbalanced fixed distraction blocks, or `"training"` for baseline/pretest/training/posttest. Choose OFF for manual control, SHADOW for recommendations only, or ACTIVE for rolling decisions executed at safe trial boundaries. Keep `sessionType: "engineering"` while testing. Editor sessions are always stored separately as `editor-test`.
 3. Start the computer service from the project root:
 
 ```powershell
@@ -25,9 +25,25 @@ The local development environment uses Python 3.10.4, NumPy 1.24.3, SciPy 1.14.1
 
 Default practice lasts 63 seconds and now includes three random 10–12-second movie clips, beginning around 10, 28 and 46 seconds. Keep responding to the sphere. Films appear on the front wall center (3.2 x 1.8 m); the rectangle disappears between clips. Practice draws three of nine AV-assigned training clips, counts prior exposures and excludes reserved test clips. Six other AV clips remain unseen for subsequent training, while nine audio-only clips are assigned separately. Least-exposed-first scheduling delays repeats. OFF mode can play these practice films without a physiology service. Baseline starts without film distractions after practice; it is therefore a post-familiarization baseline. Pausing cancels remaining practice exposures.
 
-**Controls:** A = match; B = nonmatch; Y / P = immediate pause. After pausing, Y resumes with two observe-only warmups; X / Enter stops and preserves the incomplete session. C restarts as a new session. Escape also stops in desktop testing. In OFF/SHADOW training, desktop keys 0/1/2 queue a level for the next boundary; callers can use `AdaptiveRuntime.RequestLevel`. ACTIVE rejects manual level requests. End ratings use A/B to decrease/increase and X to save.
+**Controls:** A = match; B = nonmatch; Y / P = immediate pause. After pausing, Y resumes with two observe-only warmups; X / Enter stops and preserves the incomplete session. C restarts as a new session. Escape also stops in desktop testing. In OFF/SHADOW training, desktop keys 0/1/2 queue a level for the next 108-second statistics boundary; callers can use `AdaptiveRuntime.RequestLevel`. ACTIVE rejects manual level requests. End ratings use A/B to decrease/increase and X to save.
 
 The config snapshot freezes seed, group, protocol, mode, control basis, caps, slots, display geometry and gains. Supported first-revision bounds intentionally constrain counts/timing/geometry. Changing an unsupported protocol requires an explicit versioned implementation change, rather than silently modifying task comparability. `TaskPlatform/Config/adaptive-training-config.json` is the complete disabled template.
+
+## Optional engineering gaze highlight
+
+Default off. Stop Play Mode, then use **Evidence VR > Stage 2 > Engineering Gaze Highlight > Enable** with an enabled engineering configuration. Start Play Mode with valid tracked eyes; the looked-at sphere gains a subtle white outline and a playing movie gains a thin white border. Use the matching **Disable** menu before the next session to switch it off. Device configurations use `engineeringGazeHighlight: true` with `sessionType: "engineering"`; this does not enable automatic adaptation.
+
+Participant sessions never show this overlay, even if the flag is requested. No tracked eye input means no highlight; the current Quest 3 setup does not provide genuine gaze. There is no head-direction substitute. Pause, stale/invalid samples and hidden targets clear the overlay. Visibility-aware ROI logging and session debug revisions are described in [GazeDebugReview.md](GazeDebugReview.md). This is an engineering display, not evidence of attention or validated eye tracking.
+
+## Rolling training control and countdown
+
+Training evaluates the most recent ten eligible trials every two new trials (about nine seconds). Two adjacent qualifying windows can promote a level; severe difficulty can downgrade after one window. BA requires at least three match and three nonmatch trials. UP permits at most one omission per ten trials; two difficult windows with at least two omissions each, or a single window with at least four, can downgrade. The baseline-relative accuracy/RT rules and full limits are in [RollingAdaptationReview.md](RollingAdaptationReview.md). Thresholds are engineering candidates, not participant-validated standards.
+
+The first two scored trials after a level change are excluded from control, giving a nominal earliest upgrade of 63 seconds after a change (54 seconds from the first eligible trial). Requests are evaluated after response closure and executed at trial boundaries without changing the 4.5-second task cycle. Active media delays execution; future slots retain their original times and are replanned for the new level. Pauses/failed media reset the window. A same-level 108-second statistics boundary does not reset it. Level 2 candidate completion waits for the statistics boundary; stop/pause remains immediate.
+
+OFF/SHADOW/ACTIVE retain their distinct meanings. Automatic control is not enabled just by entering Stage 2. The local user's mode is preserved during configuration migration. The new `rolling_evaluations.jsonl` contains each window; mixed-level statistics rows use `level=-1` with an explicit levels list. Keep these rows and actual per-trial levels when analyzing exposures.
+
+The response countdown now displays two decimals, for example `3.27` and `0.00`. Its four-second deadline, feedback colors and early-answer behavior are unchanged; displayed precision does not imply centisecond hardware timing accuracy. Session metadata records the countdown revision in both modes.
 
 ## Run the P007 recorded-data demo
 
@@ -67,14 +83,14 @@ Pre/post tests use one held-out pair per modality/block because the plan reserve
 
 ## Quest deployment
 
-The candidate APK is `Builds/Quest/EvidenceVR-Stage2-dev4.apk`. The package identifier remains `com.evidencevr.taskplatform`. The application's persistent root on Quest is `/sdcard/Android/data/com.evidencevr.taskplatform/files/`.
+The candidate APK is `Builds/Quest/EvidenceVR-Stage2-dev6.apk`. The package identifier remains `com.evidencevr.taskplatform`. The application's persistent root on Quest is `/sdcard/Android/data/com.evidencevr.taskplatform/files/`.
 
 Install the candidate, push an enabled complete adaptive config and the prepared manifest/media to that root, and restart the app. With a single connected, developer-enabled Quest, the following uses the installed SDK:
 
 ```powershell
 $adb = 'D:/Tool/6000.3.27f2/Editor/Data/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb.exe'
 & $adb devices
-& $adb install -r Builds/Quest/EvidenceVR-Stage2-dev4.apk
+& $adb install -r Builds/Quest/EvidenceVR-Stage2-dev6.apk
 & $adb shell mkdir -p /sdcard/Android/data/com.evidencevr.taskplatform/files/AdaptiveMedia
 & $adb push Builds/Stage2MediaRelease/adaptive-training-config.json /sdcard/Android/data/com.evidencevr.taskplatform/files/
 & $adb push Builds/Stage2MediaRelease/adaptive-media-manifest.json /sdcard/Android/data/com.evidencevr.taskplatform/files/
@@ -105,11 +121,12 @@ Unity writes `AdaptiveTrainingData/<sessionType>/<sessionId>/` beneath the persi
 | File | Meaning |
 |---|---|
 | `adaptive-training-config.json`, `adaptive-media-manifest.json` | Frozen runtime protocol and selected provenance/hashes |
-| `training_blocks.csv` | Stage/level, eligible counts, balanced accuracy, correct RT median, omissions, transition counts and validity |
+| `training_blocks.csv` | Fixed 108-second summaries; actual levels list and explicit mixed-level flag (`level=-1`), class counts, BA, RT, omissions and validity |
+| `rolling_evaluations.jsonl` | Ten-trial windows, evaluation/epoch IDs, timestamps, class coverage and control metrics |
 | `media_events.csv` | Scheduled/requested/started/ended/interrupted/failed slots, modality, previous exposure count and world position |
-| `gaze_samples.csv`, `gaze_trials.csv` | Real gaze pose validity and task/video ROI sample fractions; no head-gaze proxy |
+| `gaze_samples.csv`, `gaze_trials.csv` | Real gaze pose validity and visible-target ROI sample fractions; appended visibility/source/revision fields; no head-gaze proxy |
 | `physio_features.csv` | Timestamped JSON feature packets mirrored from the computer; empty/header-only when there is no data |
-| `controller_decisions.jsonl` | Input snapshots, recommendations, acceptance/rejection events and boundary execution |
+| `controller_decisions.jsonl` | Input snapshots, recommendations, acceptance/rejection, media deferrals and trial-boundary execution |
 | `clock_sync.jsonl`, `calibration.json` | Clock observations and latest calibration/baseline snapshot |
 | `subjective_ratings.csv` | End-session perceived distraction and workload (1–7) |
 
@@ -118,7 +135,7 @@ The service's output directory has the same session ID and session type. It hold
 ```powershell
 & 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' Tools/AdaptiveTraining/replay.py StudyData/participant/SESSION_ID
 & 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' Tools/AdaptiveTraining/analyze.py EXPORTED_UNITY_SESSION_FOLDER
-& 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' -m unittest discover -s Tools/AdaptiveTraining -p test_stage2.py -v
+& 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' -m unittest discover -s Tools/AdaptiveTraining -p 'test_*.py' -v
 ```
 
 Replay operates on the **service** directory. Descriptive analysis operates on the **Unity** directory. The summary reports actual missing/invalid conditions; it does not invent absent transfer data. Changes in accuracy/RT do not establish training efficacy. Use [the calibration and acceptance worksheet](Stage2CalibrationReport.md) for the required real study records.

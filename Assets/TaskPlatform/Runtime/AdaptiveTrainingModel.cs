@@ -7,7 +7,9 @@ namespace EvidenceVR
     [Serializable]
     public sealed class AdaptiveTrainingConfig
     {
-        public string version = "2.0.0-stage2-dev4";
+        public string version = "2.0.0-stage2-dev5";
+        public string evaluationPolicy = "rolling10-stride2-v1";
+        public int rollingWindowTrials=10, rollingStrideTrials=2;
         public string mode = "OFF";
         public string protocol = "training";
         public string controllerUrl = "http://127.0.0.1:8765";
@@ -17,6 +19,7 @@ namespace EvidenceVR
         public int seed = 20261102, counterbalanceGroup, scoredTrials = 24;
         public int baselineBlocks = 2, maxTrainingBlocks = 8, maxConsecutiveBlocks = 3;
         public bool enabled, includeTransferTests = true, allowMediaRepeats = true;
+        public bool engineeringGazeHighlight;
         public float mediaVolume = .25f, onsetJitterSeconds = 1;
         public float[] mediaOnsets = { 19, 51, 83 };
         public float videoAngle = 0, videoWidth = 3.2f, videoHeight = 1.8f;
@@ -26,13 +29,14 @@ namespace EvidenceVR
         public string mediaManifest = "adaptive-media-manifest.json";
         public bool UpgradeLegacyPresentation()
         {
-            if(version!="2.0.0-stage2-dev1" && version!="2.0.0-stage2-dev3")return false;
-            version="2.0.0-stage2-dev4";videoAngle=0;videoWidth=3.2f;videoHeight=1.8f;videoPlacement="front_wall_center";
+            if(version!="2.0.0-stage2-dev1" && version!="2.0.0-stage2-dev3" && version!="2.0.0-stage2-dev4")return false;
+            version="2.0.0-stage2-dev5";evaluationPolicy="rolling10-stride2-v1";rollingWindowTrials=10;rollingStrideTrials=2;
+            videoAngle=0;videoWidth=3.2f;videoHeight=1.8f;videoPlacement="front_wall_center";
             practiceMediaOnsets=new[]{10f,28f,46f};practiceOnsetJitterSeconds=.5f;return true;
         }
         public void Validate()
         {
-            if (version != "2.0.0-stage2-dev4" || !new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) ||
+            if (version != "2.0.0-stage2-dev5" || evaluationPolicy!="rolling10-stride2-v1" || rollingWindowTrials!=10 || rollingStrideTrials!=2 || !new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) ||
                 !new[]{"training","calibration"}.Contains(protocol) ||
                 !new[]{"behavioral_fallback","physiological"}.Contains(controlBasis) ||
                 !new[]{"engineering","participant"}.Contains(sessionType) || string.IsNullOrWhiteSpace(participantCode) ||
@@ -57,7 +61,8 @@ namespace EvidenceVR
     {
         public int block, level, eligible, matches, nonmatches, omissions, transitionTrials;
         public string stage, sessionId, configVersion;
-        public bool valid;
+        public bool valid, mixedLevel;
+        public int[] levels;
         public double start, end, balancedAccuracy = -1, medianCorrectRt = -1;
         public static TrainingBlock Summarize(IEnumerable<TrialResult> records, int block, int level, string stage)
         {
@@ -66,7 +71,8 @@ namespace EvidenceVR
             var m = clean.Where(t=>t.expectedMatch).ToList();
             var n = clean.Where(t=>!t.expectedMatch).ToList();
             var rt = clean.Where(t=>t.responded && t.correct && t.reactionTime>=0).Select(t=>t.reactionTime).OrderBy(t=>t).ToList();
-            return new TrainingBlock { block=block,level=level,stage=stage,eligible=clean.Count,matches=m.Count,nonmatches=n.Count,
+            var levels=all.Select(t=>t.level).Distinct().OrderBy(x=>x).ToArray();
+            return new TrainingBlock { block=block,level=levels.Length>1?-1:levels.Length==1?levels[0]:level,levels=levels,mixedLevel=levels.Length>1,stage=stage,eligible=clean.Count,matches=m.Count,nonmatches=n.Count,
                 omissions=clean.Count(t=>!t.responded),transitionTrials=all.Count(t=>t.transition),
                 valid=all.Count==24 && !all.Any(t=>t.interrupted||t.aborted) && clean.Count>=20 && m.Count>=4 && n.Count>=4,
                 start=all.Count>0?all[0].plannedOnset:0,end=all.Count>0?all.Last().plannedOnset+4.5:0,
@@ -79,6 +85,7 @@ namespace EvidenceVR
     {
         public string sessionId, requestId, action, reason, basis, configVersion;
         public int block, level;
+        public int evaluationId, epoch, lastTrial;
         public bool physiologicalEligible;
     }
 
@@ -98,7 +105,23 @@ namespace EvidenceVR
         public string LastAction { get; private set; } = "HOLD";
         public string LastReason { get; private set; } = "initial";
         int stageCount;
+        string trainingEndRequested;
         public AdaptiveTrainingState(AdaptiveTrainingConfig config) { config.Validate(); Config=config; }
+        public bool ApplyRollingDecision()
+        {
+            if(Stage!="training" || Finished || Config.mode!="ACTIVE" || Pending==null)return false;
+            var decision=Pending;Pending=null;int before=Level;
+            LastAction=decision.action;LastReason=decision.reason;
+            if(decision.action=="REST")Finish("rest_requested:"+decision.reason);
+            else if(decision.action=="DOWN")
+            {if(Level==0)Finish("difficulty_at_level_zero");else Level--;}
+            else if(decision.action=="UP")
+            {if(Level==2)trainingEndRequested="candidate_mastery";else Level++;}
+            if(Level!=before){ConsecutiveCount=0;Transition=true;}
+            return Level!=before || Finished;
+        }
+        public bool TrainingEndRequested=>trainingEndRequested!=null;
+        public void InvalidatePendingAttainment(){trainingEndRequested=null;}
         public void CompleteBlock(TrainingBlock summary)
         {
             Blocks.Add(summary); stageCount++; int before=Level;
@@ -120,22 +143,11 @@ namespace EvidenceVR
             else if (Stage=="training")
             {
                 TrainingCount++;ConsecutiveCount++;
-                bool usable=Pending!=null && Pending.block==summary.block && Pending.level==Level;
-                if (Config.mode=="ACTIVE" && usable)
-                {
-                    LastAction=Pending.action;LastReason=Pending.reason;
-                    if (Pending.action=="REST") { Finish("rest_requested:"+Pending.reason); Pending=null;return; }
-                    if (Pending.action=="UP")
-                    {
-                        if (Level==2) EndTraining("candidate_mastery");
-                        else Level++;
-                    }
-                    else if (Pending.action=="DOWN") { if(Level==0) { Finish("difficulty_at_level_zero");return; } Level--; }
-                }
-                else LastReason=Config.mode=="ACTIVE"?"controller_unavailable_hold":Config.mode.ToLowerInvariant();
-                if (Config.mode!="ACTIVE" && ManualLevel.HasValue)
+                LastReason="statistics_boundary";
+                if(trainingEndRequested!=null)EndTraining(trainingEndRequested);
+                if (Stage=="training" && Config.mode!="ACTIVE" && ManualLevel.HasValue)
                 { Level=ManualLevel.Value;LastAction="MANUAL";LastReason="operator_boundary_request"; }
-                if(Stage=="training" && (TrainingCount>=Config.maxTrainingBlocks || (Level==before && ConsecutiveCount>=Config.maxConsecutiveBlocks)))
+                if(!Finished && Stage=="training" && (TrainingCount>=Config.maxTrainingBlocks || (Level==before && ConsecutiveCount>=Config.maxConsecutiveBlocks)))
                     EndTraining(TrainingCount>=Config.maxTrainingBlocks?"training_cap":"level_cap");
             }
             Transition=Level!=before;

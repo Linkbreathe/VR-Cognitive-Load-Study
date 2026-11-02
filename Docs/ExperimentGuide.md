@@ -1,6 +1,6 @@
 # Experiment guide: current modes
 
-Updated 2026-11-02 for application `2.0.0-stage2-dev4`. The project now contains two separately configured protocols. With no adaptive override, startup remains the preserved Stage 1 fixed-block task described below.
+Updated 2026-11-02 for application `2.0.0-stage2-dev6`. The project now contains two separately configured protocols. With no adaptive override, startup remains the preserved Stage 1 fixed-block task described below.
 
 For **Stage 2 graded 2-back training**, use the [Stage 2 operator guide](Stage2Guide.md). It covers the prepared 22-pair film library, OFF/SHADOW/ACTIVE modes, the P007 recorded-replay launcher, controller/LSL setup, Quest deployment and export/replay. The quick Editor engineering demo is:
 
@@ -9,6 +9,10 @@ For **Stage 2 graded 2-back training**, use the [Stage 2 operator guide](Stage2G
 ```
 
 Then enter Play Mode. This demonstrates behavioral adaptation alongside explicitly simulated P007 physiology. It is not a validated physiological training session. Ctrl+C restores the previous Editor configuration for the next Play session. Use the [acceptance record](AcceptanceRecord.md) and [project log](ProjectLog.md) for current evidence and pending physical checks.
+
+An optional engineering-only gaze outline/border is now available through the Stage 2 Editor menu. It defaults off, requires valid tracked eyes and is blocked in all participant sessions. See [gaze-debug review](GazeDebugReview.md). Training configuration/controller policy remain dev5.
+
+Stage 2 now uses ten-trial rolling control updated every two eligible trials while retaining 108-second statistical segments. The response countdown displays two decimals in both modes, without changing timing or feedback. See [rolling-control review](RollingAdaptationReview.md) for thresholds, resets, media deferral and mixed-level exports.
 
 The preparation panel and running HUD now explicitly identify Stage 1/Stage 2, automatic-control mode, service availability and physiological source. The library now has 18 training pairs and four reserved pairs; practice draws three of nine AV clips, leaving six unseen AV clips for training. See [expanded-library review](ExpandedMediaReview.md). The running layout is now two compact rows; Stage 2 practice automatically includes three random films on a centered 3.2 x 1.8 m front-wall display, about 18 seconds apart. See [current wall/practice revision](WallPracticeReview.md) and the [historical mode/status display](ModeStatusReview.md). `STEP 1/4` refers to a session step, not the project stage.
 
@@ -59,7 +63,7 @@ For 0-back, always compare with the named target color (BLUE by default). For 2-
 
 ## Timing, sequence and analysis
 
-Each trial has a fixed 4.5-second cycle: show the sphere and accept responses for 0–4 s, then hide the sphere and close the response window for 0.5 s until the next onset. The countdown displays 4, 3, 2, 1, then 0. An onset tone is requested once per color, including warmups. Early responses never hide the sphere, advance the trial or stop the countdown. Warmups reject responses and display Observe only. Pause freezes remaining visibility and response time; resume does not replay the tone. Each formal block has exactly ten match and twenty non-match scored trials.
+Each trial has a fixed 4.5-second cycle: show the sphere and accept responses for 0–4 s, then hide the sphere and close the response window for 0.5 s until the next onset. The current shared countdown displays two decimals (for example 4.00, 3.27, then 0.00); the deadline is unchanged. An onset tone is requested once per color, including warmups. Early responses never hide the sphere, advance the trial or stop the countdown. Warmups reject responses and display Observe only. Pause freezes remaining visibility and response time; resume does not replay the tone. Each formal block has exactly ten match and twenty non-match scored trials.
 
 Each block has its own memory history and seed. The generator uses a fixed xorshift32 implementation and Fisher–Yates shuffle; block seed = session seed + block index × 104729, using 32-bit arithmetic. Identical configuration and seed reproduce the colors and answers. Randomization does not forbid all coincidental runs or impose an unspecified maximum streak length.
 

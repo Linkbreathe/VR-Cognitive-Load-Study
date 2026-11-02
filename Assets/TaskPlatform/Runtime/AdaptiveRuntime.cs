@@ -22,6 +22,8 @@ namespace EvidenceVR
             public double gazeValidFraction,gazeTaskFraction,gazeVideoFraction;
             public AdaptiveTrainingConfig config;
             public TrainingBlock[] blocks;
+            public RollingEvaluation[] evaluations;
+            public int evaluationId, epoch, lastTrial;
             public TaskEvent[] events;
         }
         [Serializable] sealed class Reply
@@ -35,6 +37,7 @@ namespace EvidenceVR
         TaskEngine engine;
         AdaptiveTrainingConfig config;
         public AdaptiveMedia Media {get;private set;}
+        public GazeDebugHighlighter GazeDebug {get;private set;}
         public bool CanStart=>config.sessionType!="participant" || (Media!=null && Media.Ready);
         public PhysiologyDisplayStatus PhysiologyStatus {get;private set;}
         double lastServiceReply=double.NegativeInfinity;
@@ -56,18 +59,24 @@ namespace EvidenceVR
             countdown.anchoredPosition=new Vector2(-220,originalCountdownPosition.y);
             File.WriteAllText(Path.Combine(owner.DataPath,"adaptive-training-config.json"),JsonUtility.ToJson(config,true));
             File.WriteAllText(Path.Combine(owner.DataPath,"calibration.json"),"{\"status\":\"not_calibrated\",\"physiological_features\":[],\"control_basis\":\""+config.controlBasis+"\"}");
-            Open("training_blocks.csv","session_id,config_version,block,stage,level,start_s,end_s,eligible,matches,nonmatches,balanced_accuracy,median_correct_rt_s,omissions,transition_trials,valid");
+            Open("training_blocks.csv","session_id,config_version,block,stage,level,start_s,end_s,eligible,matches,nonmatches,balanced_accuracy,median_correct_rt_s,omissions,transition_trials,valid,mixed_level,levels");
             Open("media_events.csv","session_id,config_version,block,stage,level,media_id,modality,status,planned_s,actual_s,duration_s,prior_exposures,x,y,z,detail");
             Open("gaze_trials.csv","session_id,config_version,block,trial,level,samples,valid_samples,task_samples,video_samples,valid_fraction,task_fraction_valid,video_fraction_valid");
-            Open("gaze_samples.csv","session_id,config_version,time_s,block,trial,level,valid,origin_x,origin_y,origin_z,direction_x,direction_y,direction_z,task_roi,video_roi");
+            Open("gaze_samples.csv","session_id,config_version,time_s,block,trial,level,valid,origin_x,origin_y,origin_z,direction_x,direction_y,direction_z,task_roi,video_roi,task_visible,video_visible,roi_revision,gaze_source");
             Open("physio_features.csv","session_id,config_version,received_s,payload_json");
             Open("controller_decisions.jsonl",null);Open("clock_sync.jsonl",null);
+            Open("rolling_evaluations.jsonl",null);
             Open("subjective_ratings.csv","session_id,config_version,time_s,item,rating_1_to_7");
             var mediaObject=new GameObject("Adaptive media runtime");mediaObject.transform.SetParent(transform,false);
             Media=mediaObject.AddComponent<AdaptiveMedia>();Media.OnMedia+=RecordMedia;Media.Bind(owner,config);
+            var debugObject=new GameObject("Engineering gaze debug");debugObject.transform.SetParent(transform,false);
+            GazeDebug=debugObject.AddComponent<GazeDebugHighlighter>();GazeDebug.Bind(owner,config);GazeDebug.OnStateChanged+=OnGazeVisualChanged;
+            engine.CanApplyAdaptiveChange=()=>!Media.IsPlaying;
             engine.OnEvent+=OnEvent;engine.OnTrial+=OnTrial;engine.OnTrainingBlock+=OnBlock;
-            Debug.Log("Stage 2 initialized: fixed 2-back; mode="+config.mode+"; basis="+config.controlBasis+"; data="+owner.DataPath);
+            engine.Note("gaze_debug_configuration",GazeDebugHighlighter.Revision+";requested="+config.engineeringGazeHighlight+";effective="+GazeDebug.Allowed+";roi="+GazeRegions.Revision+";source=tracked_eyes_only",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            Debug.Log("Stage 2 initialized: rolling10-stride2-v1; 108-second statistics; countdown F2; mode="+config.mode+"; basis="+config.controlBasis+"; data="+owner.DataPath);
         }
+        void OnGazeVisualChanged(string target)=>engine.Note("gaze_debug_visual",GazeDebugHighlighter.Revision+";target="+target,Time.realtimeSinceStartupAsDouble,Time.frameCount);
         void Open(string file,string header){var writer=new StreamWriter(Path.Combine(owner.DataPath,file),false,new UTF8Encoding(false)){AutoFlush=true};writers[file]=writer;if(header!=null)writer.WriteLine(header);}
         static string Cell(object value)=>"\""+Convert.ToString(value,CultureInfo.InvariantCulture).Replace("\"","\"\"")+"\"";
         void Row(string file,params object[] values){if(!disposed)writers[file].WriteLine(string.Join(",",values.Select(Cell)));}
@@ -81,11 +90,15 @@ namespace EvidenceVR
         void OnEvent(TaskEvent e)
         {
             if(disposed)return;
+            if(e.type=="pause" || e.type=="session_complete" || e.type=="session_aborted" || e.type=="block_complete")GazeDebug?.Clear();
             if(events.Count<2048)events.Add(e);
             else {events.Clear();engine.Pause(e.actual,e.frame,"telemetry_queue_full");}
-            if(e.type=="response_close" && engine.IsEvaluationClosing && config.mode!="OFF")
-                StartCoroutine(Send(true));
-            if(e.type=="adaptive_execution")Json("controller_decisions.jsonl",e);
+            if(e.type=="rolling_evaluation")
+            {
+                Json("rolling_evaluations.jsonl",engine.LatestRolling);
+                if(config.mode!="OFF")StartCoroutine(Send(true));
+            }
+            if(e.type=="adaptive_execution" || e.type=="adaptive_rolling_execution" || e.type=="rolling_execution_deferred" || e.type=="rolling_decision_rejected")Json("controller_decisions.jsonl",e);
         }
         void OnTrial(TrialResult t)
         {
@@ -97,17 +110,17 @@ namespace EvidenceVR
         {
             b.sessionId=sessionId;b.configVersion=config.version;
             if(Media.BlockFailed)b.valid=false;
-            Row("training_blocks.csv",sessionId,config.version,b.block,b.stage,b.level,b.start,b.end,b.eligible,b.matches,b.nonmatches,b.balancedAccuracy,b.medianCorrectRt,b.omissions,b.transitionTrials,b.valid);
-            if(!b.valid && engine.Adaptive.Pending?.action=="UP")engine.Adaptive.Pending=null;
+            Row("training_blocks.csv",sessionId,config.version,b.block,b.stage,b.level,b.start,b.end,b.eligible,b.matches,b.nonmatches,b.balancedAccuracy,b.medianCorrectRt,b.omissions,b.transitionTrials,b.valid,b.mixedLevel,string.Join("|",b.levels??new int[0]));
         }
         Packet Snapshot(bool decision)
         {
             var blocks=new List<TrainingBlock>(engine.Adaptive.Blocks);
-            if(decision){var b=engine.CurrentEvaluation();if(Media.BlockFailed)b.valid=false;blocks.Add(b);}
+            var evaluation=engine.LatestRolling;
             return new Packet{sessionId=sessionId,configVersion=config.version,sessionType=Application.isEditor?"editor-test":config.sessionType,
-                participantCode=config.participantCode,requestId=sessionId+":"+engine.Block,stage=engine.Practice?"practice":engine.Adaptive.Stage,
+                participantCode=config.participantCode,requestId=sessionId+":rolling:"+(evaluation?.evaluationId??0),stage=engine.Practice?"practice":engine.Adaptive.Stage,
                 mediaId=Media.ActiveId,block=engine.Block,level=engine.Practice?2:engine.Adaptive.Level,trial=engine.TrialIndex,now=Time.realtimeSinceStartupAsDouble,
                 clockOffset=offset,clockUncertainty=uncertainty,config=config,blocks=blocks.ToArray(),events=events.ToArray(),
+                evaluations=engine.RollingHistory.ToArray(),evaluationId=evaluation?.evaluationId??0,epoch=engine.RollingEpoch,lastTrial=evaluation?.lastTrial??-1,
                 gazeValidFraction=gazeSamples>0?(double)gazeValid/gazeSamples:0,gazeTaskFraction=gazeValid>0?(double)gazeTask/gazeValid:-1,gazeVideoFraction=gazeValid>0?(double)gazeVideo/gazeValid:-1};
         }
         IEnumerator Send(bool decision)
@@ -136,14 +149,16 @@ namespace EvidenceVR
                     if(decision && reply.decision!=null)
                     {
                         var d=reply.decision;Json("controller_decisions.jsonl",d);
-                        bool accept=engine.Phase==TaskPhase.Running && engine.Block==d.block && d.sessionId==sessionId && d.requestId==packet.requestId &&
+                        bool accept=engine.Phase==TaskPhase.Running && !engine.Practice && engine.Adaptive.Stage=="training" && engine.TrialIndex==packet.trial &&
+                            received-packet.now<.5 && !Media.BlockFailed && d.evaluationId==engine.LatestRolling?.evaluationId && d.epoch==engine.RollingEpoch && d.lastTrial==packet.lastTrial &&
+                            engine.Block==d.block && d.sessionId==sessionId && d.requestId==packet.requestId &&
                             d.configVersion==config.version && d.level==engine.Adaptive.Level && new[]{"UP","HOLD","DOWN","REST"}.Contains(d.action) &&
                             (config.controlBasis!="physiological"||d.action!="UP"||d.physiologicalEligible);
                         if(accept && config.mode=="ACTIVE")engine.Adaptive.Pending=d;
                         engine.Note("controller_reply",accept?(config.mode=="SHADOW"?"shadow_not_executed":"accepted_for_boundary"):"rejected_stale_or_invalid",received,Time.frameCount);
                     }
                 }
-                else if(decision)engine.Note("controller_unavailable","boundary_fallback=HOLD;"+request.error,received,Time.frameCount);
+                else if(decision)engine.Note("controller_unavailable","rolling_fallback=HOLD;"+request.error,received,Time.frameCount);
             }
             if(!decision)busy=false;
         }
@@ -172,6 +187,7 @@ namespace EvidenceVR
                 if(Keyboard.current.escapeKey.wasPressedThisFrame)StopNow();
             }
             if(now>=nextGaze && engine.Phase==TaskPhase.Running){nextGaze=now+1.0/30;SampleGaze(now);}
+            else if(engine.Phase!=TaskPhase.Running)GazeDebug?.Clear();
             if(now>=nextTelemetry){nextTelemetry=now+1;StartCoroutine(Send(false));}
         }
         void SampleGaze(double now)
@@ -181,18 +197,16 @@ namespace EvidenceVR
             foreach(var device in eyeDevices)
                 if(device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.isTracked,out bool tracked)&&tracked &&
                     device.TryGetFeatureValue(new InputFeatureUsage<Vector3>("gazePosition"),out position)&&
-                    device.TryGetFeatureValue(new InputFeatureUsage<Quaternion>("gazeRotation"),out rotation)){valid=true;break;}
+                    device.TryGetFeatureValue(new InputFeatureUsage<Quaternion>("gazeRotation"),out rotation) && GazeRegions.ValidRotation(rotation)){valid=true;break;}
             var origin=valid?owner.head.parent.TransformPoint(position):Vector3.zero;
             var direction=valid?owner.head.parent.TransformDirection(rotation*Vector3.forward):Vector3.zero;
-            bool task=valid && Vector3.Angle(direction,owner.stimulus.transform.position-origin)<=3;
-            bool video=false;
-            if(valid && !task && Media.Screen!=null)
-            {
-                var plane=new Plane(Media.Screen.forward,Media.Screen.position);var ray=new Ray(origin,direction);
-                if(plane.Raycast(ray,out float distance)){var hit=Media.Screen.InverseTransformPoint(ray.GetPoint(distance));video=Math.Abs(hit.x)<=.5f && Math.Abs(hit.y)<=.5f;}
-            }
-            gazeSamples++;if(valid)gazeValid++;if(task)gazeTask++;if(video)gazeVideo++;
-            Row("gaze_samples.csv",sessionId,config.version,now,engine.Block,engine.TrialIndex,engine.Practice?2:engine.Adaptive.Level,valid,origin.x,origin.y,origin.z,direction.x,direction.y,direction.z,task,video);
+            bool taskVisible=engine.StimulusVisible && owner.stimulus.enabled,videoVisible=Media.IsVideoVisible;
+            var sample=GazeRegions.Classify(valid,origin,direction,owner.stimulus.transform.position,taskVisible,Media.Screen,videoVisible);
+            gazeSamples++;if(sample.valid)gazeValid++;if(sample.task)gazeTask++;if(sample.video)gazeVideo++;
+            Row("gaze_samples.csv",sessionId,config.version,now,engine.Block,engine.TrialIndex,engine.Practice?2:engine.Adaptive.Level,sample.valid,
+                sample.origin.x,sample.origin.y,sample.origin.z,sample.direction.x,sample.direction.y,sample.direction.z,sample.task,sample.video,
+                taskVisible,videoVisible,GazeRegions.Revision,"tracked_eyes");
+            GazeDebug?.Present(sample,now);
         }
         public void Render()
         {
@@ -227,7 +241,8 @@ namespace EvidenceVR
         public void Shutdown()
         {
             if(disposed)return;
-            StopAllCoroutines();engine.OnEvent-=OnEvent;engine.OnTrial-=OnTrial;engine.OnTrainingBlock-=OnBlock;
+            StopAllCoroutines();engine.CanApplyAdaptiveChange=null;engine.OnEvent-=OnEvent;engine.OnTrial-=OnTrial;engine.OnTrainingBlock-=OnBlock;
+            if(GazeDebug!=null){GazeDebug.Clear();GazeDebug.OnStateChanged-=OnGazeVisualChanged;Destroy(GazeDebug.gameObject);}
             if(Media!=null){Media.OnMedia-=RecordMedia;Destroy(Media.gameObject);}
             foreach(var writer in writers.Values)writer.Dispose();disposed=true;
             if(countdown!=null)countdown.anchoredPosition=originalCountdownPosition;

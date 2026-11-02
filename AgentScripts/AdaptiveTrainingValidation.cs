@@ -46,8 +46,8 @@ public static class AdaptiveTrainingValidation
         }
         for(int seed=0;seed<30;seed++)RunSession(seed);
         PauseTest(false);PauseTest(true);
-        string report="PASS: "+assertions+" Stage 2 model assertions; 1,000 schedule seeds; 30 complete simulated sessions; uninterrupted cross-level 2-back, 24 scored trials per block, fixed 4.5-second cycles, transition flags, caps, memory rewarm and media history. Synthetic only.";
-        Directory.CreateDirectory("Evidence/Stage2");File.WriteAllText("Evidence/Stage2/model-validation.txt",report);Debug.Log(report);return report;
+        string report="PASS: "+assertions+" Stage 2 rolling model assertions; 1,000 schedule seeds; 30 complete simulated sessions; uninterrupted cross-level 2-back, 24 scored trials per block, fixed 4.5-second cycles, transition flags, caps, memory rewarm and media history. Synthetic only.";
+        Directory.CreateDirectory("Evidence/RollingAdaptation");File.WriteAllText("Evidence/RollingAdaptation/model-validation.txt",report);Debug.Log(report);return report;
     }
     static void RunSession(int seed)
     {
@@ -55,10 +55,10 @@ public static class AdaptiveTrainingValidation
         var e=new TaskEngine(new TaskConfig(),config);
         e.OnEvent+=item=>
         {
-            if(item.type=="response_close" && e.IsEvaluationClosing && e.Adaptive.Stage=="training")
+            if(item.type=="rolling_evaluation" && e.Adaptive.Stage=="training")
             {
-                int atLevel=e.Adaptive.Blocks.Count(b=>b.stage=="training" && b.level==e.Adaptive.Level);
-                e.Adaptive.Pending=new AdaptiveDecision{block=e.Block,level=e.Adaptive.Level,action=atLevel>=1?"UP":"HOLD",reason="synthetic_policy"};
+                var r=e.LatestRolling;bool passes=e.RollingHistory.Count==2 && e.RollingHistory.All(w=>w.valid);
+                e.Adaptive.Pending=new AdaptiveDecision{block=e.Block,level=e.Adaptive.Level,action=passes?"UP":"HOLD",reason="synthetic_policy",evaluationId=r.evaluationId,epoch=r.epoch,lastTrial=r.lastTrial};
             }
         };
         double now=0;int frame=0;
@@ -72,7 +72,7 @@ public static class AdaptiveTrainingValidation
         }
         Check(e.Phase==TaskPhase.Complete,"bounded complete session");
         Check(e.Adaptive.Outcome=="candidate_mastery","success requires level two passes");
-        Check(e.Adaptive.Blocks.Count==10,"two baseline, two pretest, four training, two posttest");
+        Check(e.Adaptive.Blocks.Count>=7 && e.Adaptive.Blocks.Count<=14,"fixed tests and bounded rolling training");
         Check(e.Adaptive.Blocks.All(b=>b.valid && b.balancedAccuracy==1),"valid perfect summaries");
         var rows=e.Results.Where(t=>!t.practice).ToList();
         Check(rows.Count(t=>!t.scored)==2,"only two initial memory warmups across evaluations");

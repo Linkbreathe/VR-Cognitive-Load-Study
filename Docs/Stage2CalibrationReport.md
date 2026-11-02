@@ -1,10 +1,10 @@
 # Stage 2 calibration and integration record
 
-Revision: `2.0.0-stage2-dev1`. Prepared 2026-11-02. **No participant calibration study has been run.** This is the working report template, not a completed result.
+Current protocol: `2.0.0-stage2-dev5`; use [rolling-policy review](RollingAdaptationReview.md). The original worksheet was prepared for dev1. The candidate library now contains 22 pairs. All individual calibration must explicitly match dev5; shorter control windows and thresholds require real-participant validation. Prepared 2026-11-02. **No participant calibration study has been run.** This is the working report template, not a completed result.
 
 ## Film-pair readiness
 
-All ten requested candidate pairs have been downloaded, paired, normalized and software-audited; see [media catalog](Stage2MediaCatalog.md). Human semantic review, content/emotion matching and headset volume review remain pending. Record title/version, exact source interval, duration, audio/video hashes, content/emotion, background music/effects, source/usage record, fixed gain and observed visibility/intelligibility. Record rejection reasons as well as accepted clips. The nominal 3/3/2/2 title allocation is a starting point, not a matched final stimulus set.
+All 22 current candidate pairs have been downloaded, paired, normalized and software-audited; see [media catalog](Stage2MediaCatalog.md). Human semantic review, content/emotion matching and headset volume review remain pending. Record title/version, exact source interval, duration, audio/video hashes, content/emotion, background music/effects, source/usage record, fixed gain and observed visibility/intelligibility. Record rejection reasons as well as accepted clips. The nominal 3/3/2/2 title allocation is a starting point, not a matched final stimulus set.
 
 ## Fixed-condition pilot
 

@@ -12,6 +12,8 @@ namespace EvidenceVR
         public const float TabletopHeight=.65f;
         public const float InstructionForwardOffset=-.25f, HudForwardOffset=-.22f;
         public static readonly Color CorrectColor=LabPalette.Hex("70D69A"), IncorrectColor=LabPalette.Hex("F27D7D");
+        public const string CountdownRevision="response-countdown-v2-centiseconds";
+        public static string FormatCountdown(double remaining)=>Math.Max(0,remaining).ToString("F2",System.Globalization.CultureInfo.InvariantCulture);
         public void Refresh(TaskPlatformController controller,double now)
         {
             var engine=controller.Engine;
@@ -25,7 +27,7 @@ namespace EvidenceVR
             rule.text=!engine.Current.scored ? "Observe only" : engine.Mode==TaskMode.Easy ? "Match "+TaskPlatformController.ColorNames[config.targetColor] : "Compare #"+position+" with #"+(position-2);
             feedback.text="";
             double remaining=engine.ResponseRemaining(now);
-            timer.text=remaining>0 ? Math.Ceiling(remaining).ToString() : "0";
+            timer.text=FormatCountdown(remaining);
             timerLabel.text=remaining>0 ? "" : "Next";
             timer.color=LabPalette.Text;timerLabel.color=LabPalette.Muted;
             var result=engine.CurrentResult;

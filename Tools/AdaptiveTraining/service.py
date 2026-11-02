@@ -111,11 +111,11 @@ class StudyService:
                     continue
                 session["seen_events"].add(key)
                 append_json(session["path"]/"events.jsonl",event)
-                if event["type"] in ("block_start", "pause", "resume", "session_complete", "session_aborted"):
+                if event["type"] in ("block_start", "adaptive_level_changed", "pause", "resume", "session_complete", "session_aborted"):
                     detail = dict(part.split("=",1) for part in event.get("detail","").split(";") if "=" in part)
                     condition = {"time":event["actual"], "level":int(detail.get("level", packet["level"])),
                                  "stage":detail.get("stage", packet["stage"]),
-                                 "running":event["type"] in ("block_start", "resume")}
+                                 "running":event["type"] in ("block_start", "adaptive_level_changed", "resume")}
                     session["conditions"].append(condition)
                     if event["type"] in ("session_complete","session_aborted"):
                         metadata_path=session["path"]/"session.json"

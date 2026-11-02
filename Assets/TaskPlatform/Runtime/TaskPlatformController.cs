@@ -88,14 +88,15 @@ namespace EvidenceVR
             if(adaptiveConfig!=null)config=Engine.Config;
             recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, adaptiveConfig==null?"TaskPlatformData":"AdaptiveTrainingData"), Engine.Config,
                 participant:adaptiveConfig?.participantCode??"anonymous",kind:Application.isEditor?"editor-test":adaptiveConfig?.sessionType??"participant",
-                presentationVersion:adaptiveConfig==null?null:"adaptive-lab-v2.0-front-wall-practice");
+                presentationVersion:adaptiveConfig==null?null:"adaptive-lab-v2.0-rolling-countdown",
+                gazeDebugRequested:adaptiveConfig?.engineeringGazeHighlight??false,gazeDebugEnabled:GazeDebugHighlighter.IsAllowed(adaptiveConfig));
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
             onsetCue?.Bind(Engine,config);
             if(adaptiveConfig==null)distractions?.Bind(Engine,Engine.Config,DataPath);
             else {distractions?.Cancel("adaptive_mode");AdaptiveRuntime=gameObject.AddComponent<AdaptiveRuntime>();AdaptiveRuntime.Bind(this,Engine.Adaptive.Config);}
             Engine.Note("session_start", "configuration frozen; generator=xorshift32-v1", Time.realtimeSinceStartupAsDouble, Time.frameCount);
-            if(adaptiveConfig!=null && adaptiveConfigUpgraded)Engine.Note("adaptive_config_upgrade","legacy_to_dev4;front_wall_center;practice_av;expanded_pool_support;source_override_retained",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            if(adaptiveConfig!=null && adaptiveConfigUpgraded)Engine.Note("adaptive_config_upgrade","legacy_to_dev5;rolling10_stride2;countdown_centiseconds;source_override_retained",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
             Recenter(false); Render(); presentation?.Refresh();

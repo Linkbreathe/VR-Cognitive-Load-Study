@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import math
 
-VERSION = "2.0.0-stage2-dev4"
-SUPPORTED_VERSIONS = ("2.0.0-stage2-dev1", "2.0.0-stage2-dev3", VERSION)
+VERSION = "2.0.0-stage2-dev5"
+SUPPORTED_VERSIONS = ("2.0.0-stage2-dev1", "2.0.0-stage2-dev3", "2.0.0-stage2-dev4", VERSION)
 POLICY = {
     "baseline_margin": 0.10, "accuracy_floor": 0.75, "rt_ratio": 1.20,
     "max_omissions": 2, "difficulty_accuracy": 0.65, "difficulty_rt_ratio": 1.5,
@@ -12,6 +12,9 @@ POLICY = {
     "consecutive_passes": 2, "consecutive_failures": 2,
     "max_feature_age": 5.0, "min_quality": 0.8, "max_clock_uncertainty": 0.1,
 }
+LEGACY_POLICY = dict(POLICY)
+POLICY.update(rolling_max_omissions=1, rolling_difficulty_omissions=2,
+              rolling_severe_omissions=4, rolling_min_class=3)
 
 
 def finite(value):
@@ -58,7 +61,7 @@ def physiology_status(features, calibration, packet, policy):
                     or not finite(f.get("quality")) or f["quality"] < policy["min_quality"] or f.get("synthetic", True)
                     or f.get("levels") != [packet["level"]] or f.get("stages") != [packet["stage"]]
                     or not f.get("coverage_complete") or not finite(f.get("clock_uncertainty")) or f["clock_uncertainty"] > policy["max_clock_uncertainty"]
-                    or f.get("window_start", -1) < packet["blocks"][-1]["start"]
+                    or f.get("window_start", -1) < (packet["evaluations"][-1]["conditionStart"] if packet["configVersion"] == VERSION else packet["blocks"][-1]["start"])
                     or not 0 <= packet["now"] - f.get("window_end", -999) <= policy["max_feature_age"]):
                 continue
             candidates.append(f)
@@ -76,10 +79,12 @@ def physiology_status(features, calibration, packet, policy):
 class BaselineAdaptiveController:
     def __init__(self, policy=None):
         self.policy = dict(POLICY if policy is None else policy)
-        if set(self.policy) != set(POLICY) or not all(finite(v) and v > 0 for v in self.policy.values()):
+        if set(self.policy) not in (set(POLICY), set(LEGACY_POLICY)) or not all(finite(v) and v > 0 for v in self.policy.values()):
             raise ValueError("Invalid policy parameters")
 
     def decide(self, packet, features=(), calibration=None):
+        if packet.get("configVersion") == VERSION:
+            return self.decide_rolling(packet, features, calibration)
         p = self.policy
         out = {key: packet[key] for key in ("sessionId", "requestId", "block", "level", "configVersion")}
         out.update(action="HOLD", reason="insufficient_data", basis=packet["config"]["controlBasis"], physiologicalEligible=False)
@@ -130,3 +135,65 @@ class BaselineAdaptiveController:
         if len(recent) >= passes and all(passed(b) for b in recent[:passes]):
             return finish("UP", "two_valid_passes" if packet["level"] < 2 else "level_two_candidate_mastery")
         return finish("HOLD", "practice_opportunity")
+
+    def decide_rolling(self, packet, features=(), calibration=None):
+        p = self.policy
+        out = {key: packet[key] for key in ("sessionId", "requestId", "block", "level", "configVersion", "evaluationId", "epoch", "lastTrial")}
+        out.update(action="HOLD", reason="insufficient_rolling_data", basis=packet["config"]["controlBasis"], physiologicalEligible=False)
+        def finish(action, reason):
+            return dict(out, action=action, reason=reason)
+        if packet["config"]["mode"] == "OFF":
+            return finish("HOLD", "controller_off")
+        if packet.get("stop_requested") or packet.get("discomfort"):
+            return finish("REST", "participant_stop_or_discomfort")
+        if packet["stage"] != "training":
+            return finish("HOLD", "fixed_protocol_stage")
+        if packet["config"].get("evaluationPolicy") != "rolling10-stride2-v1" or set(p) != set(POLICY):
+            return finish("HOLD", "rolling_policy_mismatch")
+        ref = baseline(packet.get("blocks", []))
+        if ref is None:
+            return finish("REST", "baseline_unstable_or_missing")
+        rows = packet.get("evaluations", [])
+        if not rows:
+            return finish("HOLD", "insufficient_rolling_data")
+        current = rows[-1]
+        if (any(current.get(k) != packet[k] for k in ("evaluationId", "epoch", "lastTrial", "level", "block"))
+                or current.get("stage") != "training" or current.get("eligible") != 10
+                or current.get("matches", 0) + current.get("nonmatches", 0) != 10
+                or not finite(current.get("end")) or not 0 <= packet["now"] - current["end"] < .5):
+            return finish("HOLD", "stale_or_invalid_rolling_evaluation")
+        down = "DOWN" if packet["level"] > 0 else "REST"
+        # Omissions remain actionable when no correct response exists to estimate RT.
+        if current.get("omissions", 0) >= p["rolling_severe_omissions"]:
+            return finish(down, "severe_rolling_omissions")
+        def valid(row):
+            return (row.get("valid") is True and row.get("eligible") == 10
+                    and row.get("matches", 0) >= p["rolling_min_class"] and row.get("nonmatches", 0) >= p["rolling_min_class"]
+                    and finite(row.get("balancedAccuracy")) and 0 <= row["balancedAccuracy"] <= 1)
+        if not valid(current):
+            return finish("HOLD", "insufficient_response_class_coverage")
+        if current["balancedAccuracy"] < p["severe_accuracy"]:
+            return finish(down, "severe_rolling_difficulty")
+        consecutive = (len(rows) >= 2 and valid(rows[-2])
+                       and all(rows[-2].get(k) == current[k] for k in ("epoch", "level", "stage"))
+                       and rows[-2]["evaluationId"] + 1 == current["evaluationId"]
+                       and rows[-2]["lastTrial"] + 2 == current["lastTrial"])
+        def difficult(row):
+            return (row["balancedAccuracy"] < p["difficulty_accuracy"]
+                    or row["omissions"] >= p["rolling_difficulty_omissions"]
+                    or finite(row.get("medianCorrectRt")) and row["medianCorrectRt"] > ref["median_correct_rt"] * p["difficulty_rt_ratio"])
+        if consecutive and all(difficult(r) for r in rows[-2:]):
+            return finish(down, "two_difficult_rolling_evaluations")
+        if out["basis"] == "physiological":
+            eligible, adverse, reason = physiology_status(features, calibration or {}, packet, p)
+            out["physiologicalEligible"] = eligible
+            if not eligible or adverse:
+                return finish("HOLD", reason)
+        def passed(row):
+            return (row["balancedAccuracy"] >= max(p["accuracy_floor"], ref["balanced_accuracy"] - p["baseline_margin"])
+                    and finite(row.get("medianCorrectRt")) and 0 < row["medianCorrectRt"] < 4
+                    and row["medianCorrectRt"] <= ref["median_correct_rt"] * p["rt_ratio"]
+                    and row["omissions"] <= p["rolling_max_omissions"])
+        if consecutive and all(passed(r) for r in rows[-2:]):
+            return finish("UP", "two_valid_rolling_evaluations" if packet["level"] < 2 else "level_two_candidate_mastery")
+        return finish("HOLD", "rolling_practice_opportunity")

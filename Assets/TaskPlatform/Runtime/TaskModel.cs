@@ -128,6 +128,14 @@ namespace EvidenceVR
         public event Action<TrialResult> OnTrial;
         public event Action<TrainingBlock> OnTrainingBlock;
         public AdaptiveTrainingState Adaptive { get; }
+        public readonly List<RollingEvaluation> RollingHistory=new List<RollingEvaluation>();
+        readonly List<TrialResult> rollingTrials=new List<TrialResult>();
+        public RollingEvaluation LatestRolling {get;private set;}
+        public int RollingEpoch {get;private set;}
+        public Func<bool> CanApplyAdaptiveChange;
+        public bool AdaptiveEvaluationBlocked;
+        int rollingCount, evaluationSerial, transitionRemaining;
+        double conditionStart;
         int scoredInBlock, resumeGeneration;
         List<TrialSpec> sequence;
         double origin, pauseStart, pausedTotal, restEnd;
@@ -150,6 +158,48 @@ namespace EvidenceVR
             var rows=new List<TrialResult>(Results);
             if(CurrentResult!=null && !rows.Contains(CurrentResult))rows.Add(CurrentResult);
             return TrainingBlock.Summarize(rows,Block,Adaptive.Level,Adaptive.Stage);
+        }
+        public void ResetRolling(double now,int frame,string reason)
+        {
+            if(Adaptive==null)return;
+            rollingTrials.Clear();RollingHistory.Clear();LatestRolling=null;rollingCount=0;RollingEpoch++;
+            conditionStart=now;Adaptive.Pending=null;
+            Adaptive.InvalidatePendingAttainment();
+            Emit("rolling_reset",now,frame,now,"epoch="+RollingEpoch+";reason="+reason);
+        }
+        void CollectRolling(double now,int frame)
+        {
+            if(Adaptive==null || Practice || Adaptive.Stage!="training" || Adaptive.TrainingEndRequested || !Current.scored)return;
+            var row=CurrentResult;
+            if(AdaptiveEvaluationBlocked || row.interrupted || row.aborted){ResetRolling(now,frame,"invalid_trial_or_media");return;}
+            if(row.transition)return;
+            rollingTrials.Add(row);rollingCount++;
+            if(rollingTrials.Count>10)rollingTrials.RemoveAt(0);
+            if(rollingCount<10 || (rollingCount-10)%2!=0)return;
+            LatestRolling=RollingEvaluation.Summarize(rollingTrials,++evaluationSerial,RollingEpoch,conditionStart);
+            RollingHistory.Add(LatestRolling);if(RollingHistory.Count>2)RollingHistory.RemoveAt(0);
+            Adaptive.Pending=null;
+            Emit("rolling_evaluation",now,frame,now,UnityEngine.JsonUtility.ToJson(LatestRolling));
+        }
+        bool ApplyRolling(double now,int frame)
+        {
+            if(Adaptive==null || Practice || Adaptive.Stage!="training" || Adaptive.Pending==null)return false;
+            var d=Adaptive.Pending;
+            if(d.epoch!=RollingEpoch || LatestRolling==null || d.evaluationId!=LatestRolling.evaluationId || d.level!=Adaptive.Level || AdaptiveEvaluationBlocked)
+            {Adaptive.Pending=null;Emit("rolling_decision_rejected",now,frame,now,"stale_epoch_or_evaluation");return false;}
+            if(CanApplyAdaptiveChange!=null && !CanApplyAdaptiveChange())
+            {Emit("rolling_execution_deferred",now,frame,now,"media_active;evaluation="+d.evaluationId);return false;}
+            int before=Adaptive.Level;
+            Adaptive.ApplyRollingDecision();
+            Emit("adaptive_rolling_execution",now,frame,now,"evaluation="+d.evaluationId+";action="+d.action+";reason="+d.reason+";level="+Adaptive.Level+";stage="+Adaptive.Stage);
+            if(before!=Adaptive.Level)
+            {
+                transitionRemaining=2;ResetRolling(now,frame,"level_change");
+                Emit("adaptive_level_changed",now,frame,now,"level="+Adaptive.Level+";stage="+Adaptive.Stage+";previous_level="+before);
+            }
+            if(!Adaptive.Finished)return false;
+            var partial=TrainingBlock.Summarize(Results,Block,Adaptive.Level,Adaptive.Stage);partial.valid=false;OnTrainingBlock?.Invoke(partial);
+            Phase=TaskPhase.Complete;StimulusVisible=false;Emit("session_complete",now,frame,now,Adaptive.Outcome);return true;
         }
         void Emit(string type, double now, int frame, double planned, string detail = "") => OnEvent?.Invoke(new TaskEvent { type = type, actual = now, planned = planned, deviation = now - planned, frame = frame, block = Block, trial = TrialIndex, detail = detail });
         public void Note(string type, string detail, double now, int frame, double? planned = null) => Emit(type, now, frame, planned ?? now, detail);
@@ -190,7 +240,7 @@ namespace EvidenceVR
         {
             closed = false; StimulusVisible = true;
             CurrentResult = new TrialResult { block = Block, trial = TrialIndex, color = Current.color, mode = (int)Mode, seed = unchecked(config.seed + Block * 104729), practice = Practice, scored = Current.scored, expectedMatch = Current.expectedMatch, plannedOnset = Planned, actualOnset = now, onsetFrame = frame };
-            if(Adaptive!=null){CurrentResult.level=Practice?2:Adaptive.Level;CurrentResult.trainingStage=Practice?"practice":Adaptive.Stage;CurrentResult.transition=!Practice && Adaptive.Transition && Current.scored && scoredInBlock<2;}
+            if(Adaptive!=null){CurrentResult.level=Practice?2:Adaptive.Level;CurrentResult.trainingStage=Practice?"practice":Adaptive.Stage;CurrentResult.transition=!Practice && Current.scored && transitionRemaining>0;if(CurrentResult.transition)transitionRemaining--;}
             Emit("stimulus_on", now, frame, Planned, "color=" + Current.color);
             Emit("trial_countdown_start",now,frame,Planned,"seconds="+config.responseSeconds.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+";response_allowed="+Current.scored);
         }
@@ -206,12 +256,16 @@ namespace EvidenceVR
                 FinishTrial();
                 if(scored)scoredInBlock++;
                 TrialIndex++;
+                if(ApplyRolling(now,frame))return;
                 if(Adaptive!=null && !Practice && scoredInBlock>=config.scoredTrials)
                 {
                     var summary=TrainingBlock.Summarize(Results,Block,Adaptive.Level,Adaptive.Stage);
                     Emit("block_complete",now,frame,Planned);
                     OnTrainingBlock?.Invoke(summary);
+                    int oldLevel=Adaptive.Level;string oldStage=Adaptive.Stage;
                     Adaptive.CompleteBlock(summary);
+                    if(oldLevel!=Adaptive.Level || oldStage!=Adaptive.Stage)
+                    {ResetRolling(now,frame,"protocol_boundary");if(oldLevel!=Adaptive.Level)transitionRemaining=2;}
                     Emit("adaptive_execution",now,frame,now,"action="+Adaptive.LastAction+";reason="+Adaptive.LastReason+";next_level="+Adaptive.Level+";next_stage="+Adaptive.Stage);
                     if(Adaptive.Finished){Phase=TaskPhase.Complete;StimulusVisible=false;Emit("session_complete",now,frame,now,Adaptive.Outcome);return;}
                     Block++;scoredInBlock=0;
@@ -253,6 +307,7 @@ namespace EvidenceVR
         {
             closed = true; CurrentResult.closeTime = now;
             CurrentResult.timeout = !CurrentResult.responded;
+            CollectRolling(now,frame);
             Emit("response_close", now, frame, Planned + config.responseSeconds);
         }
         void FinishTrial() { if (CurrentResult == null) return; Results.Add(CurrentResult); OnTrial?.Invoke(CurrentResult); CurrentResult = null; }
@@ -271,7 +326,7 @@ namespace EvidenceVR
         {
             if (Phase != TaskPhase.Running && Phase != TaskPhase.Rest && Phase != TaskPhase.Instructions) return;
             resumePhase = Phase; Phase = TaskPhase.Paused; pauseStart = freezeAt ?? now;
-            if(Adaptive!=null)Adaptive.Pending=null;
+            if(Adaptive!=null)ResetRolling(now,frame,"pause");
             if (CurrentResult != null) CurrentResult.interrupted = true;
             Emit("pause", now, frame, now, reason + (freezeAt.HasValue ? ";frozen_since=" + pauseStart.ToString("R", System.Globalization.CultureInfo.InvariantCulture) : ""));
         }

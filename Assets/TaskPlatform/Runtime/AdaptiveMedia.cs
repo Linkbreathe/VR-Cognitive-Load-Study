@@ -105,6 +105,8 @@ namespace EvidenceVR
         bool firstFrame,started;
         public bool Ready {get;private set;}
         public bool BlockFailed {get;private set;}
+        public bool IsPlaying=>active!=null;
+        public bool IsVideoVisible=>active!=null && active.level==2 && started && firstFrame && screen!=null && screen.enabled && player!=null && player.isPlaying;
         public string ActiveId=>active?.mediaId??"none";
         public Transform Screen=>screen?.transform;
         public double PlannedOnset(AdaptiveExposure e)=>blockStart+e.onset;
@@ -166,7 +168,7 @@ namespace EvidenceVR
         {
             if(e.type=="block_start")
             {
-                Stop("interrupted","block_boundary");next=0;BlockFailed=false;
+                Stop("interrupted","block_boundary");next=0;BlockFailed=false;engine.AdaptiveEvaluationBlocked=false;
                 blockStart=e.planned+(!engine.Practice && engine.Block==1?9:0);
                 plan=scheduler==null?new List<AdaptiveExposure>():engine.Practice?
                     scheduler.PlanPractice((owner.SessionConfig.hardPracticeTrials+owner.SessionConfig.warmupTrials)*owner.SessionConfig.trialSeconds):
@@ -174,11 +176,22 @@ namespace EvidenceVR
                 foreach(var slot in plan)OnMedia?.Invoke(slot,"planned",blockStart+slot.onset,"");
                 PrepareNext();
             }
+            if(e.type=="adaptive_level_changed")
+            {
+                var replacement=scheduler==null?new List<AdaptiveExposure>():scheduler.Plan(engine.Block,engine.Adaptive.Level,engine.Adaptive.Stage);
+                for(int i=next;i<plan.Count;i++)
+                {
+                    var old=plan[i];OnMedia?.Invoke(old,"cancelled",e.actual,"level_change_replan");
+                    var slot=replacement[i];slot.onset=old.onset;
+                    plan[i]=slot;OnMedia?.Invoke(slot,"planned",e.actual,"level_change;original_slot_time_retained");
+                }
+                PrepareNext();
+            }
             if(e.type=="block_complete"){Stop("interrupted","block_complete");plan.Clear();next=0;}
             if(e.type=="pause" || e.type=="session_aborted" || e.type=="session_complete")Stop("interrupted",e.type);
             if(e.type=="pause")
             {
-                BlockFailed=true;
+                BlockFailed=true;engine.AdaptiveEvaluationBlocked=true;
                 for(int i=next;i<plan.Count;i++)OnMedia?.Invoke(plan[i],"skipped",e.actual,"remaining_slot_cancelled_by_pause");
                 next=plan.Count;
             }
@@ -212,8 +225,16 @@ namespace EvidenceVR
         }
         void Stop(string status,string detail)
         {
-            if(active!=null){if(status!="ended")BlockFailed=true;OnMedia?.Invoke(active,status,Time.realtimeSinceStartupAsDouble,detail);}
-            active=null;source?.Stop();player?.Stop();if(screen!=null){screen.sharedMaterial=neutral;screen.enabled=false;}
+            if(active!=null)
+            {
+                if(status!="ended")
+                {
+                    BlockFailed=true;engine.AdaptiveEvaluationBlocked=true;
+                    engine.ResetRolling(Time.realtimeSinceStartupAsDouble,Time.frameCount,"media_"+status);
+                }
+                OnMedia?.Invoke(active,status,Time.realtimeSinceStartupAsDouble,detail);
+            }
+            active=null;if(source!=null)source.Stop();if(player!=null)player.Stop();if(screen!=null){screen.sharedMaterial=neutral;screen.enabled=false;}
         }
         void OnDestroy()
         {

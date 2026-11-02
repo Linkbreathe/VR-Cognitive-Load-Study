@@ -25,11 +25,25 @@ namespace EvidenceVR.Editor
             if(File.Exists(path))File.Move(path,path+".disabled-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"));
             return "Stage 1 will run on the next Play session.";
         }
+        [MenuItem("Evidence VR/Stage 2/Engineering Gaze Highlight/Enable")]
+        public static string EnableGazeHighlight()=>SetGazeHighlight(true);
+        [MenuItem("Evidence VR/Stage 2/Engineering Gaze Highlight/Disable")]
+        public static string DisableGazeHighlight()=>SetGazeHighlight(false);
+        static string SetGazeHighlight(bool enabled)
+        {
+            if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play Mode before changing the frozen debug configuration.");
+            string path=Path.Combine(Application.persistentDataPath,"adaptive-training-config.json");
+            if(!File.Exists(path))throw new InvalidOperationException("Create an Editor engineering configuration first.");
+            var c=JsonUtility.FromJson<AdaptiveTrainingConfig>(File.ReadAllText(path));c.UpgradeLegacyPresentation();
+            if(enabled && (!c.enabled || c.sessionType!="engineering"))throw new InvalidOperationException("Gaze highlighting requires an enabled engineering session. Participant sessions never highlight.");
+            c.engineeringGazeHighlight=enabled;c.Validate();File.WriteAllText(path,JsonUtility.ToJson(c,true));
+            return "Engineering gaze highlight "+(enabled?"enabled":"disabled")+" for the next Play session. Valid tracked eyes are required.";
+        }
         [MenuItem("Evidence VR/Stage 2/Configure Build Support")]
         public static string Configure()
         {
-            PlayerSettings.bundleVersion="2.0.0-stage2-dev4";
-            PlayerSettings.Android.bundleVersionCode=Math.Max(16,PlayerSettings.Android.bundleVersionCode);
+            PlayerSettings.bundleVersion="2.0.0-stage2-dev6";
+            PlayerSettings.Android.bundleVersionCode=Math.Max(18,PlayerSettings.Android.bundleVersionCode);
             PlayerSettings.Android.forceInternetPermission=true;
             PlayerSettings.insecureHttpOption=InsecureHttpOption.AlwaysAllowed;
             foreach(var group in new[]{BuildTargetGroup.Standalone,BuildTargetGroup.Android})
@@ -46,7 +60,7 @@ namespace EvidenceVR.Editor
         {
             Configure();Directory.CreateDirectory("Builds/Quest");Directory.CreateDirectory("Evidence/Stage2");
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{TaskPlatformBuilder.ScenePath},target=BuildTarget.Android,
-                locationPathName="Builds/Quest/EvidenceVR-Stage2-dev4.apk",options=BuildOptions.None});
+                locationPathName="Builds/Quest/EvidenceVR-Stage2-dev6.apk",options=BuildOptions.None});
             string result="Result: "+report.summary.result+"\nErrors: "+report.summary.totalErrors+"\nWarnings: "+report.summary.totalWarnings+"\nBytes: "+report.summary.totalSize+"\nDuration: "+report.summary.totalTime;
             File.WriteAllText("Evidence/Stage2/android-build.txt",result);
             if(report.summary.result!=BuildResult.Succeeded)throw new Exception(result);

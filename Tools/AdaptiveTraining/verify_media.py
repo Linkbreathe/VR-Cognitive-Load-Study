@@ -37,7 +37,11 @@ def audit(folder):
         assert abs(matched+24)<.15,"Runtime pair gain must match -24 LUFS within 0.15 LU"
         rows.append(dict(id=item["id"],duration=duration,paired_pcm_identical=True,peak_dbfs=round(20*np.log10(peak),2),
             integrated_lufs=float(loudness["input_i"]),true_peak_dbtp=float(loudness["input_tp"]),runtime_gain=item["gain"],matched_lufs=matched,hashes_match=True))
-    assert len(rows)==10
+    training=sum(i["split"]=="train" for i in manifest["items"])
+    assert training>=6 and training%2==0
+    assert sorted(i["split"] for i in manifest["items"])==sorted(["train"]*training+["test_a"]*2+["test_b"]*2)
+    assert len({i["id"] for i in manifest["items"]})==len(rows)
+    assert len({i["videoSha256"] for i in manifest["items"]})==len(rows),"Duplicate video content"
     return dict(status="pass",pairs=rows,scope="Software codec/hash/pair consistency only; human semantic and headset listening review pending")
 
 

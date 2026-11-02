@@ -95,7 +95,7 @@ namespace EvidenceVR
             if(adaptiveConfig==null)distractions?.Bind(Engine,Engine.Config,DataPath);
             else {distractions?.Cancel("adaptive_mode");AdaptiveRuntime=gameObject.AddComponent<AdaptiveRuntime>();AdaptiveRuntime.Bind(this,Engine.Adaptive.Config);}
             Engine.Note("session_start", "configuration frozen; generator=xorshift32-v1", Time.realtimeSinceStartupAsDouble, Time.frameCount);
-            if(adaptiveConfig!=null && adaptiveConfigUpgraded)Engine.Note("adaptive_config_upgrade","dev1_to_dev3;front_wall_center;practice_av;source_override_retained",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            if(adaptiveConfig!=null && adaptiveConfigUpgraded)Engine.Note("adaptive_config_upgrade","legacy_to_dev4;front_wall_center;practice_av;expanded_pool_support;source_override_retained",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
             Recenter(false); Render(); presentation?.Refresh();

@@ -7,7 +7,7 @@ namespace EvidenceVR
     [Serializable]
     public sealed class AdaptiveTrainingConfig
     {
-        public string version = "2.0.0-stage2-dev3";
+        public string version = "2.0.0-stage2-dev4";
         public string mode = "OFF";
         public string protocol = "training";
         public string controllerUrl = "http://127.0.0.1:8765";
@@ -26,13 +26,13 @@ namespace EvidenceVR
         public string mediaManifest = "adaptive-media-manifest.json";
         public bool UpgradeLegacyPresentation()
         {
-            if(version!="2.0.0-stage2-dev1")return false;
-            version="2.0.0-stage2-dev3";videoAngle=0;videoWidth=3.2f;videoHeight=1.8f;videoPlacement="front_wall_center";
+            if(version!="2.0.0-stage2-dev1" && version!="2.0.0-stage2-dev3")return false;
+            version="2.0.0-stage2-dev4";videoAngle=0;videoWidth=3.2f;videoHeight=1.8f;videoPlacement="front_wall_center";
             practiceMediaOnsets=new[]{10f,28f,46f};practiceOnsetJitterSeconds=.5f;return true;
         }
         public void Validate()
         {
-            if (version != "2.0.0-stage2-dev3" || !new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) ||
+            if (version != "2.0.0-stage2-dev4" || !new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) ||
                 !new[]{"training","calibration"}.Contains(protocol) ||
                 !new[]{"behavioral_fallback","physiological"}.Contains(controlBasis) ||
                 !new[]{"engineering","participant"}.Contains(sessionType) || string.IsNullOrWhiteSpace(participantCode) ||

@@ -19,7 +19,8 @@ public static class WallPracticeValidation
             var a=new AdaptiveMediaScheduler(c,manifest);var b=new AdaptiveMediaScheduler(c,manifest);
             var practice=a.PlanPractice(63);var repeat=b.PlanPractice(63);
             Check(practice.Count==3 && practice.Select(x=>x.mediaId).Distinct().Count()==3,"Three distinct practice clips");
-            var av=a.Plan(4,2,"training").Select(x=>x.mediaId).ToArray();
+            var av=manifest.items.Where(x=>x.split=="train").OrderBy(x=>x.id,StringComparer.Ordinal)
+                .Where((x,i)=>i%2==(1+group)%2).Select(x=>x.id).ToArray();
             for(int i=0;i<practice.Count;i++)
             {
                 var p=practice[i];Check(av.Contains(p.mediaId),"Only AV-assigned training content");
@@ -29,7 +30,8 @@ public static class WallPracticeValidation
                 if(i>0)Check(practice[i-1].onset+practice[i-1].duration<p.onset,"No overlap");
                 a.Presented(p.mediaId);
             }
-            Check(a.Plan(4,2,"training").All(x=>x.previousExposures==1),"Practice familiarity retained");
+            int assigned=manifest.items.Count(x=>x.split=="train")/2;
+            Check(a.Plan(4,2,"training").All(x=>x.previousExposures==(assigned==3?1:0)),"Least-exposed content follows practice");
             Check(a.Plan(4,1,"training").All(x=>x.previousExposures==0),"Audio assignment untouched");
             Check(a.Plan(5,2,"pretest").All(x=>x.previousExposures==0),"Pretest content unseen");
             Check(a.Plan(6,2,"posttest").All(x=>x.previousExposures==0),"Posttest content unseen");

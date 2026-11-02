@@ -32,8 +32,10 @@ class ControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             self.assertEqual(StudyService(folder).receive(self.p,True)["decision"]["action"],"UP")
     def test_old_calibration_cannot_promote_new_presentation(self):
-        c,f=self.fixture();c["configVersion"]="2.0.0-stage2-dev1"
-        self.assertEqual(self.c.decide(self.p,[f],c)["action"],"HOLD")
+        c,f=self.fixture()
+        for version in ("2.0.0-stage2-dev1","2.0.0-stage2-dev3"):
+            c["configVersion"]=version
+            self.assertEqual(self.c.decide(self.p,[f],c)["action"],"HOLD")
     def test_one_pass_holds(self):
         self.p["blocks"].pop(-2);self.assertEqual(self.c.decide(self.p)["action"],"HOLD")
     def test_two_difficult_blocks_reduce(self):

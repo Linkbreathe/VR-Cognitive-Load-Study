@@ -1,8 +1,16 @@
 # Current acceptance record
 
-Updated: 2026-11-02. Application: `2.0.0-stage2-dev3` (Android code 15). **Stage 2 engineering implementation and software checks are available; final Stage 2 physiological/device acceptance is not complete.** Stage 1 remains the default when the adaptive override is absent. Historical Stage 1 evidence is retained below.
+Updated: 2026-11-02. Application: `2.0.0-stage2-dev4` (Android code 16). **Stage 2 engineering implementation and software checks are available; final Stage 2 physiological/device acceptance is not complete.** Stage 1 remains the default when the adaptive override is absent. Historical Stage 1 evidence is retained below.
 
-## Front-wall films, compact UI and practice update (dev3)
+## Expanded media library (dev4)
+
+Implemented: 22 pairs / 44 media files, including 12 new nonoverlapping source cuts, with the original ten entries and bytes unchanged. The training pool is 18 clips (nine per modality); practice uses three AV clips and least-exposed-first selection can use six other AV clips before repeating them. The four reserved clips and all exposure/task timing remain unchanged. Legacy library layouts remain supported; dev4 requires matching physiology calibration. See [expanded-media review](ExpandedMediaReview.md).
+
+Verified: all 22 pairs passed codec/hash/PCM/loudness/duration checks, and every added clip was visually inspected. 100,004 expanded-library model assertions, 51,068 adaptive assertions and 31 Python tests passed. Thirty live Editor checks passed: all 22 pairs loaded, all 12 new clips prepared and decoded offscreen, and a full 63-second practice played pair_22, pair_20 and pair_02 through the normal wall/audio system with three clean ends and no media failures. Offscreen decoding did not exercise audio; it is not a headset test. Logs retained 12 correct programmatic answers, 14 practice rows and the 4.5-second cycle. Evidence: `Evidence/MediaExpansion/`. The remote tool response timed out at 60 seconds, but the Editor probe completed; its saved result, runtime state and media/trial CSVs were independently checked.
+
+Android build passed in 93.8 seconds with zero errors and one diagnostics-symbol warning. `Builds/Quest/EvidenceVR-Stage2-dev4.apk` is 88,757,512 bytes; ARM64, code 16 and APK v2 signature verified. The release ZIP passed integrity checks with 44 media files and dev4 config. Migration of the actual saved dev3 override preserved mode/seed. Build/signature/hash evidence is in `Evidence/MediaExpansion/`. Current local config remains enabled/OFF; the release config remains SHADOW engineering. Human content/volume review and Quest 3 physical acceptance remain pending. All `volumeReviewed` flags remain false.
+
+## Historical front-wall films, compact UI and practice update (dev3)
 
 Implemented: fixed centered 3.2 x 1.8 m front-wall screen, no idle rectangle, two compact running status rows, and three randomized AV-assigned training clips during default 63-second practice (10/28/46 s plus up to 0.5 s jitter). Practice is separately attributed and counted in familiarity history; held-out pre/post clips remain unused. Configuration and presentation are versioned. See [wall/practice review](WallPracticeReview.md).
 

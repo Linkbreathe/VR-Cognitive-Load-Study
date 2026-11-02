@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import math
 
-VERSION = "2.0.0-stage2-dev3"
-SUPPORTED_VERSIONS = ("2.0.0-stage2-dev1", VERSION)
+VERSION = "2.0.0-stage2-dev4"
+SUPPORTED_VERSIONS = ("2.0.0-stage2-dev1", "2.0.0-stage2-dev3", VERSION)
 POLICY = {
     "baseline_margin": 0.10, "accuracy_floor": 0.75, "rt_ratio": 1.20,
     "max_omissions": 2, "difficulty_accuracy": 0.65, "difficulty_rt_ratio": 1.5,

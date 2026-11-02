@@ -1,6 +1,6 @@
 # Stage 2 operator guide
 
-Application: `2.0.0-stage2-dev3`, 2026-11-02. Training configuration version is `2.0.0-stage2-dev3`. Read [implementation boundaries](Stage2Implementation.md) before participant use. Default startup remains Stage 1 until an adaptive override is explicitly enabled.
+Application: `2.0.0-stage2-dev4`, 2026-11-02. Training configuration version is `2.0.0-stage2-dev4`. Read [implementation boundaries](Stage2Implementation.md) before participant use. Default startup remains Stage 1 until an adaptive override is explicitly enabled.
 
 ## Read the mode and status display
 
@@ -23,7 +23,7 @@ The local development environment uses Python 3.10.4, NumPy 1.24.3, SciPy 1.14.1
 4. Open `http://127.0.0.1:8765/` on the study computer for the monitor. It displays level/stage, current media, block metrics, gaze fractions, sensor connection/quality, last sample/feature timestamps and recent decisions. Compare timestamps with the displayed monotonic clock; old values are not current measurements.
 5. In VR, calibrate seated position with left trigger / C, check A and B, then X / Enter to begin the 2-back practice. X starts the baseline after practice instructions. Training then proceeds continuously according to the configured protocol.
 
-Default practice lasts 63 seconds and now includes three random 10–12-second movie clips, beginning around 10, 28 and 46 seconds. Keep responding to the sphere. Films appear on the front wall center (3.2 x 1.8 m); the rectangle disappears between clips. Practice uses only AV-assigned training content, counts prior exposures and excludes reserved test clips. OFF mode can play these practice films without a physiology service. Baseline starts without film distractions after practice; it is therefore a post-familiarization baseline. Pausing cancels remaining practice exposures.
+Default practice lasts 63 seconds and now includes three random 10–12-second movie clips, beginning around 10, 28 and 46 seconds. Keep responding to the sphere. Films appear on the front wall center (3.2 x 1.8 m); the rectangle disappears between clips. Practice draws three of nine AV-assigned training clips, counts prior exposures and excludes reserved test clips. Six other AV clips remain unseen for subsequent training, while nine audio-only clips are assigned separately. Least-exposed-first scheduling delays repeats. OFF mode can play these practice films without a physiology service. Baseline starts without film distractions after practice; it is therefore a post-familiarization baseline. Pausing cancels remaining practice exposures.
 
 **Controls:** A = match; B = nonmatch; Y / P = immediate pause. After pausing, Y resumes with two observe-only warmups; X / Enter stops and preserves the incomplete session. C restarts as a new session. Escape also stops in desktop testing. In OFF/SHADOW training, desktop keys 0/1/2 queue a level for the next boundary; callers can use `AdaptiveRuntime.RequestLevel`. ACTIVE rejects manual level requests. End ratings use A/B to decrease/increase and X to save.
 
@@ -47,33 +47,34 @@ Outputs are in `Evidence/Stage2/ReplayDemo-TIMESTAMP/`: replay source/provenance
 
 ## Prepared film pairs
 
-Ten candidate pairs have been downloaded and prepared: Titanic (3), Little Women (3), The Lord of the Rings (2), and Harry Potter (2). The **current deliverable is `Builds/Stage2MediaRelease/`**. Earlier `Stage2Media` and `Stage2MediaFinal` folders are superseded cut/normalization intermediates. See [film provenance and review](Stage2MediaCatalog.md) for sources, exact cuts and limitations.
+Twenty-two candidate pairs are prepared: Titanic (6), Little Women (6), The Lord of the Rings (5), and Harry Potter (5). Twelve additional cuts use previously downloaded sources. See [expanded-library review](ExpandedMediaReview.md). The **current deliverable is `Builds/Stage2MediaRelease/`**. Earlier `Stage2Media` and `Stage2MediaFinal` folders are superseded cut/normalization intermediates. See [film provenance and review](Stage2MediaCatalog.md) for sources, exact cuts and limitations.
 
-The release contains ten H.264/AAC videos, ten mono WAVs, a hash/provenance manifest and an enabled SHADOW engineering config. All clips are 10–12 seconds, 1280 × 720 at 30 fps. WAV bytes exactly match PCM decoded from the corresponding video soundtrack. Two-pass mono normalization targets -23 LUFS, with peak limiting; per-pair runtime attenuation matches the encoded clips to -24 LUFS without boosting, and measured output is retained in `Evidence/Stage2/film-pair-audit.json`. Volume/intelligibility still require actual headset listening. `volumeReviewed` intentionally remains false, so these candidates cannot silently enter participant mode.
+The release contains 22 H.264/AAC videos, 22 mono WAVs, a hash/provenance manifest and an enabled SHADOW engineering config. All clips are 10–12 seconds, 1280 × 720 at 30 fps. WAV bytes exactly match PCM decoded from the corresponding video soundtrack. Two-pass mono normalization targets -23 LUFS, with peak limiting; per-pair runtime attenuation matches the encoded clips to -24 LUFS without boosting, and measured output is retained in `Evidence/MediaExpansion/pair-audit.json`. Volume/intelligibility still require actual headset listening. `volumeReviewed` intentionally remains false, so these candidates cannot silently enter participant mode.
 
 To reproduce from the downloaded source files:
 
 ```powershell
 & 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' Tools/AdaptiveTraining/prepare_media.py Tools/AdaptiveTraining/media-sources.stage2.json prepared/AdaptiveMedia
+& 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' Tools/AdaptiveTraining/prepare_media.py Tools/AdaptiveTraining/media-sources.expansion.json prepared/AdaptiveMedia --append-to prepared/adaptive-media-manifest.json
 & 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' Tools/AdaptiveTraining/verify_media.py prepared --output media-audit.json
 ```
 
 Preparation refuses to overwrite existing pairs. Complete short dialogue units use at most two seconds of explicitly logged final-frame/silence padding. No music or other sound is added; incidental source score/effects remain and require content review. Original source files and download metadata remain under ignored `MediaSources/Stage2/`.
 
-Copy the release manifest and enabled config into the application's persistent root and the twenty media files into its `AdaptiveMedia/` directory. The launcher performs this for the Editor, preserving prior config/manifest. Participant mode requires all ten valid, hash-matching, reviewed, nonsynthetic pairs. Engineering mode logs failed exposures and excludes interrupted/failed blocks from attainment.
+Copy the release manifest and enabled config into the application's persistent root and the 44 media files into its `AdaptiveMedia/` directory. The launcher performs this for the Editor, preserving prior config/manifest. Participant mode requires all 22 valid, hash-matching, reviewed, nonsynthetic pairs. Engineering mode logs failed exposures and excludes interrupted/failed blocks from attainment.
 
 Pre/post tests use one held-out pair per modality/block because the plan reserves only four unique pairs; training/calibration use three. Some reserved excerpts share a scene with training excerpts, so they are unseen clips, not fully novel narrative contexts. Review matching/familiarity before recruitment; see [implementation choices](Stage2Implementation.md).
 
 ## Quest deployment
 
-The candidate APK is `Builds/Quest/EvidenceVR-Stage2-dev3.apk`. The package identifier remains `com.evidencevr.taskplatform`. The application's persistent root on Quest is `/sdcard/Android/data/com.evidencevr.taskplatform/files/`.
+The candidate APK is `Builds/Quest/EvidenceVR-Stage2-dev4.apk`. The package identifier remains `com.evidencevr.taskplatform`. The application's persistent root on Quest is `/sdcard/Android/data/com.evidencevr.taskplatform/files/`.
 
 Install the candidate, push an enabled complete adaptive config and the prepared manifest/media to that root, and restart the app. With a single connected, developer-enabled Quest, the following uses the installed SDK:
 
 ```powershell
 $adb = 'D:/Tool/6000.3.27f2/Editor/Data/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb.exe'
 & $adb devices
-& $adb install -r Builds/Quest/EvidenceVR-Stage2-dev3.apk
+& $adb install -r Builds/Quest/EvidenceVR-Stage2-dev4.apk
 & $adb shell mkdir -p /sdcard/Android/data/com.evidencevr.taskplatform/files/AdaptiveMedia
 & $adb push Builds/Stage2MediaRelease/adaptive-training-config.json /sdcard/Android/data/com.evidencevr.taskplatform/files/
 & $adb push Builds/Stage2MediaRelease/adaptive-media-manifest.json /sdcard/Android/data/com.evidencevr.taskplatform/files/

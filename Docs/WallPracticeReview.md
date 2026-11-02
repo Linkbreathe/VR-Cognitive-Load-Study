@@ -1,5 +1,7 @@
 # Front-wall films, compact UI and practice familiarization
 
+Historical dev3 presentation review. The wall/UI/timing remain current; dev4 expands the training pool and changes content familiarity. See [expanded-library revision](ExpandedMediaReview.md).
+
 Date: 2026-11-02. Application/configuration: `2.0.0-stage2-dev3`, Android code 15. Presentation: `adaptive-lab-v2.0-front-wall-practice`; status display: `mode-status-v2-compact`. This supersedes the dev1 right-side display and silent practice, and the dev2 three-line status layout.
 
 ## Requested changes

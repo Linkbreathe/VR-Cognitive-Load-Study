@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0-stage2-dev3",
+  "version": "2.0.0-stage2-dev4",
   "enabled": false,
   "mode": "OFF",
   "controllerUrl": "http://127.0.0.1:8765",

@@ -31,8 +31,16 @@ public static class AdaptiveTrainingValidation
             var audio=a.Plan(5,1,"training");var video=a.Plan(5,2,"training");
             Check(!audio.Select(x=>x.mediaId).Intersect(video.Select(x=>x.mediaId)).Any(),"modality content separation");
             foreach(var item in audio)a.Presented(item.mediaId);
-            Check(a.Plan(6,1,"training").All(x=>x.previousExposures==1),"exposure history");
+            int assigned=manifest.items.Count(x=>x.split=="train")/2;
+            Check(a.Plan(6,1,"training").All(x=>x.previousExposures==(assigned==3?1:0)),"least-exposed content first");
             c.allowMediaRepeats=false;
+            int consumed=3;
+            while(consumed<assigned)
+            {
+                var more=a.Plan(6,1,"training").Where(x=>x.mediaId!="unavailable").ToArray();
+                Check(more.Length>0 && more.All(x=>x.previousExposures==0),"unseen content remains available");
+                foreach(var item in more)a.Presented(item.mediaId);consumed+=more.Length;
+            }
             Check(a.Plan(7,1,"training").All(x=>x.mediaId=="unavailable"),"no-repeat exhaustion explicit");
             Check(a.Plan(8,1,"pretest")[0].mediaId!=a.Plan(9,1,"posttest")[0].mediaId,"new posttest content");
         }

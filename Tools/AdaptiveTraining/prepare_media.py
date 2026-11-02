@@ -1,4 +1,4 @@
-"""Create ten paired, identically mixed local clips from an explicit source manifest.
+"""Create paired, identically mixed local clips from an explicit source manifest.
 
 Downloads are separate from this reproducible preparation step. Every cut retains source provenance.
 """
@@ -18,15 +18,25 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare(source_manifest, output, ffmpeg="ffmpeg", ffprobe="ffprobe"):
+def prepare(source_manifest, output, ffmpeg="ffmpeg", ffprobe="ffprobe", append_to=None):
     catalog=json.loads(Path(source_manifest).read_text(encoding="utf-8-sig"))
+    if catalog.get("videoProfile","default") not in ("default","baseline"):
+        raise ValueError("Unknown video profile")
     items=catalog["items"]
-    if len(items)!=10 or len({i["id"] for i in items})!=10:
-        raise ValueError("Expected exactly ten unique pairs")
-    if sorted(i["split"] for i in items)!=sorted(["train"]*6+["test_a"]*2+["test_b"]*2):
-        raise ValueError("Expected six training pairs and two pairs per transfer set")
+    previous=json.loads(Path(append_to).read_text(encoding="utf-8"))["items"] if append_to else []
+    combined=previous+items
+    if not items or len({i["id"] for i in combined})!=len(combined):
+        raise ValueError("Expected unique pair IDs across existing and new content")
+    training=sum(i["split"]=="train" for i in combined)
+    if training<6 or training%2 or sorted(i["split"] for i in combined)!=sorted(["train"]*training+["test_a"]*2+["test_b"]*2):
+        raise ValueError("Expected an even training pool of at least six pairs and two pairs per transfer set")
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
-    completed=[]
+    completed=list(previous)
+    for item in previous:
+        for kind in ("audio","video"):
+            path=output/Path(item[kind+"File"]).name
+            if not path.is_file() or sha(path)!=item[kind+"Sha256"]:
+                raise ValueError(f"Existing release pair is missing or changed: {path}")
     for item in items:
         if not item["id"].replace("-","").replace("_","").isalnum():
             raise ValueError("Media IDs must be safe filenames")
@@ -53,6 +63,7 @@ def prepare(source_manifest, output, ffmpeg="ffmpeg", ffprobe="ffprobe"):
         run([ffmpeg,"-nostdin","-v","error","-ss",str(item["startSeconds"]),"-t",str(source_duration),"-i",str(source),"-t",str(duration),
             "-map","0:v:0","-map","0:a:0","-vf",f"scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration={pad}",
             "-af",f"{normalization},apad=pad_dur={pad}","-ac","1","-ar","48000","-c:v","libx264","-pix_fmt","yuv420p",
+            *( ["-profile:v","baseline","-bf","0"] if catalog.get("videoProfile")=="baseline" else [] ),
             "-r","30","-colorspace","bt709","-color_primaries","bt709","-color_trc","bt709","-c:a","aac","-b:a","192k","-movflags","+faststart",str(video)])
         run([ffmpeg,"-nostdin","-v","error","-i",str(video),"-vn","-acodec","pcm_s16le",str(audio)])
         info=json.loads(run([ffprobe,"-v","error","-show_format","-show_streams","-of","json",str(video)]))
@@ -71,11 +82,13 @@ def prepare(source_manifest, output, ffmpeg="ffmpeg", ffprobe="ffprobe"):
             startSeconds=item["startSeconds"],sourceDuration=source_duration,endPaddingSeconds=pad,sourceSha256=sha(source),
             normalization="two-pass mono -23 LUFS target, -3 dBTP target, pre-encode -3 dBFS limiter; AAC output measured separately")
         completed.append(row)
+        print(f"Prepared {item['id']}: {actual:.2f}s, paired PCM, gain {matched_gain:.4f}",flush=True)
     target=output.parent/"adaptive-media-manifest.json"
-    target.write_text(json.dumps({"version":"stage2-paired-media-v1-matched","items":completed},indent=2),encoding="utf-8")
+    target.write_text(json.dumps({"version":catalog.get("outputVersion","stage2-paired-media-v1-matched"),"items":completed},indent=2),encoding="utf-8")
     return target
 
 
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("manifest");p.add_argument("output");p.add_argument("--ffmpeg",default=shutil.which("ffmpeg") or "ffmpeg");p.add_argument("--ffprobe",default=shutil.which("ffprobe") or "ffprobe")
-    a=p.parse_args();print(prepare(a.manifest,a.output,a.ffmpeg,a.ffprobe))
+    p.add_argument("--append-to",help="Existing manifest; existing pairs in output are hash-verified and retained")
+    a=p.parse_args();print(prepare(a.manifest,a.output,a.ffmpeg,a.ffprobe,a.append_to))

@@ -9,7 +9,7 @@ import urllib.request
 def main():
     p=argparse.ArgumentParser();p.add_argument("--url",default="http://127.0.0.1:8766");p.add_argument("--duration",type=float,default=75);p.add_argument("--output",type=Path,default=Path("Evidence/Stage2/p007-bridge-validation.json"));a=p.parse_args()
     began=time.perf_counter();sid="p007_replay_fixture_"+str(time.time_ns())
-    packet=dict(sessionId=sid,configVersion="2.0.0-stage2-dev3",sessionType="engineering",participantCode="P007-recorded-replay",
+    packet=dict(sessionId=sid,configVersion="2.0.0-stage2-dev4",sessionType="engineering",participantCode="P007-recorded-replay",
         requestId=sid+":1",stage="replay_fixture",level=0,block=1,trial=0,clockOffset=0,clockUncertainty=0,
         config=dict(mode="OFF",controlBasis="behavioral_fallback",data_origin="recorded_xdf_replay",task_context="synthetic_telemetry_fixture_not_VR"),blocks=[],
         events=[dict(type="block_start",actual=began,planned=began,frame=0,block=1,trial=0,detail="level=0;stage=replay_fixture")])

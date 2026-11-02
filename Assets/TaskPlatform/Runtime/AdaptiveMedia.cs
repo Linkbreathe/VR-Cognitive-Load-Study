@@ -16,7 +16,18 @@ namespace EvidenceVR
         public float duration, gain = 1;
         public bool ready, volumeReviewed, synthetic;
     }
-    [Serializable] public sealed class AdaptiveMediaManifest { public string version; public AdaptiveMediaItem[] items; }
+    [Serializable] public sealed class AdaptiveMediaManifest
+    {
+        public string version;
+        public AdaptiveMediaItem[] items;
+        public bool HasValidLayout()
+        {
+            if(items==null || items.Any(m=>m==null || string.IsNullOrWhiteSpace(m.id)))return false;
+            int training=items.Count(m=>m.split=="train");
+            return training>=6 && training%2==0 && items.Length==training+4 && items.Select(m=>m.id).Distinct().Count()==items.Length &&
+                items.Count(m=>m.split=="test_a")==2 && items.Count(m=>m.split=="test_b")==2;
+        }
+    }
     [Serializable] public sealed class AdaptiveExposure
     {
         public string mediaId, modality, stage;
@@ -130,8 +141,7 @@ namespace EvidenceVR
             else {var asset=Resources.Load<TextAsset>("adaptive-media-manifest");ManifestJson=asset!=null?asset.text:"{\"items\":[]}";}
             manifest=JsonUtility.FromJson<AdaptiveMediaManifest>(ManifestJson);
             scheduler=new AdaptiveMediaScheduler(config,manifest);
-            Ready=manifest.items.Length==10 && manifest.items.Select(m=>m.id).Distinct().Count()==10 &&
-                manifest.items.Count(m=>m.split=="train")==6 && manifest.items.Count(m=>m.split=="test_a")==2 && manifest.items.Count(m=>m.split=="test_b")==2 &&
+            Ready=manifest.HasValidLayout() &&
                 manifest.items.All(m=>m.ready && m.volumeReviewed && (config.sessionType!="participant"||!m.synthetic) && m.gain>=0 && m.gain<=1 &&
                 !string.IsNullOrEmpty(m.source) && !string.IsNullOrEmpty(m.rightsRecord) && m.duration>=10 && m.duration<=12 && !string.IsNullOrEmpty(m.audioSha256) && !string.IsNullOrEmpty(m.videoSha256));
             foreach(var item in manifest.items.Where(m=>m.ready))

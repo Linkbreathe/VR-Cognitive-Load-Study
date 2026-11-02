@@ -57,7 +57,7 @@ namespace EvidenceVR
                 case TaskPhase.Rest:
                     controller.badge.text="BREAK  /  MAIN BLOCK 1 OF 2 COMPLETE";
                     controller.heading.text="Take a short break.";
-                    controller.body.text="Relax your hands and remain seated.\nNext: STAGE 4/4  /  MAIN BLOCK 2/2\n\n"+(c.hardFirst ? "0-back / Match "+TaskPlatformController.ColorNames[c.targetColor] : "2-back / Remember two positions ago");
+                    controller.body.text="Relax your hands and remain seated.\nNext: STEP 4/4  /  MAIN BLOCK 2/2\n\n"+(c.hardFirst ? "0-back / Match "+TaskPlatformController.ColorNames[c.targetColor] : "2-back / Remember two positions ago");
                     double remaining=e.RestRemaining(Time.realtimeSinceStartupAsDouble);
                     actionHint.text=remaining>0 ? Math.Ceiling(remaining)+" seconds remaining" : next+"   Review next rule"; break;
                 case TaskPhase.Paused:
@@ -66,7 +66,7 @@ namespace EvidenceVR
                     if(e.Current!=null) controller.footer.text=Progress(e,c);
                     actionHint.text=Key(c.pauseAction)+"   Resume session"; break;
                 case TaskPhase.Complete:
-                    controller.badge.text="SESSION COMPLETE  /  ALL 4 STAGES FINISHED";
+                    controller.badge.text="SESSION COMPLETE  /  ALL 4 STEPS FINISHED";
                     controller.heading.text="All done. Thank you.";
                     controller.body.text="Your responses have been saved.\nPlease wait for the experimenter\nbefore removing the headset.";
                     actionHint.text=next+"   Start a new session"; pauseHint.text="SESSION COMPLETE"; break;
@@ -79,7 +79,7 @@ namespace EvidenceVR
         void SetStep(int index,bool done,string title,string control)
         { setupLabels[index].text=title+"\n<size=26>"+(done ? "READY" : control)+"</size>"; setupLabels[index].color=done ? LabPalette.Accent : LabPalette.Muted; }
         static string Key(string name) => name=="RightPrimary" ? "A" : name=="RightSecondary" ? "B" : name=="LeftPrimary" ? "X / ENTER" : name=="LeftSecondary" ? "Y / P" : name;
-        static string Stage(TaskEngine e) => "STAGE "+(e.Block+1)+"/4  /  "+(e.Practice ? "PRACTICE "+(e.Block+1)+"/2" : "MAIN BLOCK "+(e.Block-1)+"/2");
+        static string Stage(TaskEngine e) => "STEP "+(e.Block+1)+"/4  /  "+(e.Practice ? "PRACTICE "+(e.Block+1)+"/2" : "MAIN BLOCK "+(e.Block-1)+"/2");
         static string Progress(TaskEngine e,TaskConfig c)
         {
             int count=e.Practice ? (e.Mode==TaskMode.Easy ? c.easyPracticeTrials : c.hardPracticeTrials) : c.scoredTrials;

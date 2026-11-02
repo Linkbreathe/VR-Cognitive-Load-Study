@@ -1,4 +1,22 @@
-# Stage 1 experiment guide
+# Experiment guide: current modes
+
+Updated 2026-11-02 for application `2.0.0-stage2-dev3`. The project now contains two separately configured protocols. With no adaptive override, startup remains the preserved Stage 1 fixed-block task described below.
+
+For **Stage 2 graded 2-back training**, use the [Stage 2 operator guide](Stage2Guide.md). It covers the prepared ten-pair film library, OFF/SHADOW/ACTIVE modes, the P007 recorded-replay launcher, controller/LSL setup, Quest deployment and export/replay. The quick Editor engineering demo is:
+
+```powershell
+& 'Tools/AdaptiveTraining/.venv/Scripts/python.exe' Tools/AdaptiveTraining/launch_replay_demo.py --editor --mode ACTIVE
+```
+
+Then enter Play Mode. This demonstrates behavioral adaptation alongside explicitly simulated P007 physiology. It is not a validated physiological training session. Ctrl+C restores the previous Editor configuration for the next Play session. Use the [acceptance record](AcceptanceRecord.md) and [project log](ProjectLog.md) for current evidence and pending physical checks.
+
+The preparation panel and running HUD now explicitly identify Stage 1/Stage 2, automatic-control mode, service availability and physiological source. The running layout is now two compact rows; Stage 2 practice automatically includes three random films on a centered 3.2 x 1.8 m front-wall display, about 18 seconds apart. See [current wall/practice revision](WallPracticeReview.md) and the [historical mode/status display](ModeStatusReview.md). `STEP 1/4` refers to a session step, not the project stage.
+
+---
+
+## Preserved Stage 1 experiment guide
+
+For project progress and major changes, see [Project status and update log](ProjectLog.md).
 
 Open `Assets/TaskPlatform/Scenes/NBackExperiment.unity` in Unity 6000.3.27f2 and enter Play mode. All participant-facing and project-authored content uses English. The available test device is Quest 3; the build also declares Quest Pro support.
 

@@ -1,4 +1,53 @@
-# Stage 1 acceptance record
+# Current acceptance record
+
+Updated: 2026-11-02. Application: `2.0.0-stage2-dev3` (Android code 15). **Stage 2 engineering implementation and software checks are available; final Stage 2 physiological/device acceptance is not complete.** Stage 1 remains the default when the adaptive override is absent. Historical Stage 1 evidence is retained below.
+
+## Front-wall films, compact UI and practice update (dev3)
+
+Implemented: fixed centered 3.2 x 1.8 m front-wall screen, no idle rectangle, two compact running status rows, and three randomized AV-assigned training clips during default 63-second practice (10/28/46 s plus up to 0.5 s jitter). Practice is separately attributed and counted in familiarity history; held-out pre/post clips remain unused. Configuration and presentation are versioned. See [wall/practice review](WallPracticeReview.md).
+
+Software verified: 80,003 new schedule/config assertions across 1,000 seeds x four groups, 49,068 existing adaptive assertions, 31 Python tests, and 157 real-time Editor checks. All three actual practice films started and ended without failure, then the baseline was silent; 12 programmatic scored answers were correctly logged and the 4.5-second cycle was retained. A separate Stage 1 Play Mode check verified compact status and warmup reminders. Screenshots and a CSV audit are under `Evidence/WallPractice/`. Initial harness failures and observed decoder warnings are documented in the detailed review.
+
+Android build passed in 127.7 seconds with zero errors and one diagnostics-symbol warning. `Builds/Quest/EvidenceVR-Stage2-dev3.apk` is 88,752,896 bytes; ARM64, version code 15 and APK v2 signature were verified. The media ZIP now includes the dev3 config while preserving the film bytes and archive root structure; ZIP integrity passed. Build/signature/hash evidence is in `Evidence/WallPractice/`. Physical acceptance remains pending: centered video occlusion/readability/comfort, newly positioned sound source, Quest decoding/performance, and genuine physiological integration. Practice familiarity now differs between AV and audio-only training; review this design before participant recruitment. Prior dev1 physiology calibration is not accepted for dev3 control.
+
+## Historical mode/status display update (dev2)
+
+Persistent Stage 1/Stage 2, controller OFF/SHADOW/ACTIVE, automatic-control state, bridge availability, control basis and source provenance are implemented. Actual Editor checks passed for both task modes, preparation/running/pause layouts, metadata, P007 replay receiving and service dropout. Twenty-nine Python tests and six additional label/layout checks pass. Evidence is in `Evidence/Stage2Status/`; see [status review](ModeStatusReview.md). Physical-headset readability remains pending.
+
+The dev2 APK was `Builds/Quest/EvidenceVR-Stage2-dev2.apk`. Its build succeeded with zero errors and one diagnostics-symbol warning; ARM64, version code 14 and APK v2 signature were verified. Build/signature/hash evidence is under `Evidence/Stage2Status/`. At dev2, the film package and training/controller configuration version were unchanged. The dev1 evidence below remains historical evidence for the underlying protocol.
+
+## Stage 2 software evidence (dev1 protocol)
+
+| Check | Result and evidence |
+|---|---|
+| Compilation and model | No current compiler errors. 49,068 adaptive assertions; 1,000 schedule seeds and 30 complete synthetic sessions; practice/formal pause rewarm included. `Evidence/Stage2/model-validation.txt` |
+| Stage 1 regression | 194,113 task assertions and 96,013 distraction schedule assertions passed. Existing fixed-mode timing/scoring/presentation retained. |
+| Python controller and quality | 27 tests passed, including calibrated/unvalidated/missing/stale/mixed/synthetic inputs, severe omissions, idempotence/restart, known-frequency EEG and known-RR ECG fixtures. `Evidence/Stage2/python-tests.txt` |
+| ACTIVE boundary integration | Real local HTTP recommendations executed at Unity boundaries; two programmatic baselines plus four programmatic training evaluations reached candidate completion. Six ACTIVE and three SHADOW decision records replayed exactly. This was an accelerated engineering probe. |
+| Actual film library | Ten candidate pairs (20 files), 10–12 s, H.264 720p/30 fps, identical decoded mono audio. Hash/codec/duration/loudness matching audit passed. Source, cut, padding and gain recorded. `film-pair-audit.json` and [media catalog](Stage2MediaCatalog.md) |
+| Actual film runtime | Ten pairs loaded; audio-only playback, immediate pause, actual AV decoding, shared fixed source, running layout and bounded exposure end passed in Editor. `film-playback-probe.txt`, `film-runtime.png` |
+| P007 recorded replay | Existing external XDF scheduler used read-only. Isolated receiver: 267 feature rows, 84 windows recomputed. Unity-connected Editor session: EEG/ECG/HRV received, 646 rows all synthetic, 156 windows recomputed. `p007-offline-recompute.json`, `unity-p007-offline-recompute.json`, `film-and-p007-unity-probe.txt` |
+| Isolation and restoration | Editor data under `editor-test`; recorded LSL data rejected from participant directories. Replay labels retained in source, feature and monitor data. Launcher process/config cleanup exercised; Stage 1 startup restored. |
+| Android candidate | Final build succeeded, zero errors, one diagnostics-symbol warning. ARM64, minimum SDK 29, target 36, APK v2 signature verified. `Evidence/Stage2/android-build.json`, `apk-platform.txt`, `apk-signature.txt` |
+
+All paths abbreviated in this table are beneath `Evidence/Stage2/`. The candidate APK is `Builds/Quest/EvidenceVR-Stage2-dev1.apk`; media/config package is `Builds/Stage2MediaRelease.zip`. The film files are external to the APK and must be installed separately. `delivery-artifacts.json` records SHA-256 and sizes. The sole build warning concerns debug symbols for crash-report symbolication; it is not a passed crash-reporting test.
+
+## Pending Stage 2 acceptance
+
+- Quest 3 standalone installation, full operation, physical A/B/pause/stop, actual headset volume, visibility, comfort, video performance and export; no headset was connected during this implementation. Quest Pro remains an unverified target.
+- Human semantic/content matching and listening review of all film pairs; every `volumeReviewed` flag remains false. This blocks participant mode.
+- Approximately 6–8 real fixed-condition pilot participants, individual baseline/feature calibration and validation of EEG/ECG artifacts and ECG beats. No feature is currently admitted as real physiological control evidence.
+- Genuine supported eye-tracking hardware and permissions. Quest 3 does not acquire real gaze in this setup; head orientation is not substituted.
+- Five complete real-device integration sessions, real command/sensor dropout checks and pre/post unseen-clip observations. One reserved exposure per transfer block differs from three during training; shared-scene familiarity also requires review.
+- A validated physiological feature actually contributing to control and a reviewed final configuration before freezing the Stage 3 Patent OFF baseline. Recorded P007 playback and software success do not establish physiological adaptation or training improvement.
+
+Detailed records: [implementation/review](Stage2Implementation.md), [operator guide](Stage2Guide.md), [calibration worksheet](Stage2CalibrationReport.md), [project log](ProjectLog.md).
+
+---
+
+## Historical Stage 1 acceptance record
+
+For the current project stage and major-update history, see [Project status and update log](ProjectLog.md).
 
 Date: 2026-11-01. Software implementation and desktop validation are available; full physical-headset acceptance remains pending. The current presentation is spatial-lab-v1.7.1-more-video, application version 1.7.1-stage1.
 

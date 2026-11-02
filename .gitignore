@@ -16,5 +16,7 @@
 /Assets/Resources/PerformanceTestRunSettings.json*
 /Evidence/
 /Tools/__pycache__/
+/Tools/AdaptiveTraining/.venv/
+/Tools/AdaptiveTraining/__pycache__/
 # Keep original downloaded media local; runtime assets retain provenance.
 /MediaSources/

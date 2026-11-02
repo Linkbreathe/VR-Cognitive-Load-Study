@@ -21,6 +21,10 @@ namespace EvidenceVR
         public SpatialTaskView spatialView;
         public TrialOnsetCue onsetCue;
         public EnvironmentalDistractions distractions;
+        public AdaptiveRuntime AdaptiveRuntime { get; private set; }
+        public ExperimentStatusView StatusView { get; private set; }
+        AdaptiveTrainingConfig adaptiveConfig;
+        bool adaptiveConfigUpgraded;
         public bool Calibrated => calibrated;
         public bool MatchChecked => checkedMatch;
         public bool NonmatchChecked => checkedNonmatch;
@@ -50,6 +54,13 @@ namespace EvidenceVR
                 string overridePath = Path.Combine(Application.persistentDataPath, "task-config.json");
                 if (File.Exists(overridePath)) config = JsonUtility.FromJson<TaskConfig>(File.ReadAllText(overridePath));
                 config.Validate();
+                string adaptivePath=Path.Combine(Application.persistentDataPath,"adaptive-training-config.json");
+                if(File.Exists(adaptivePath))
+                {
+                    var candidate=JsonUtility.FromJson<AdaptiveTrainingConfig>(File.ReadAllText(adaptivePath));
+                    adaptiveConfigUpgraded=candidate.UpgradeLegacyPresentation();
+                    candidate.Validate();if(candidate.enabled)adaptiveConfig=candidate;
+                }
                 ConfigureTrackingSpace();
                 match = inputActions.FindAction(config.matchAction, true);
                 nonmatch = inputActions.FindAction(config.nonmatchAction, true);
@@ -72,16 +83,24 @@ namespace EvidenceVR
             recorder?.Dispose();
             var frozen=JsonUtility.FromJson<TaskConfig>(JsonUtility.ToJson(config));
             if(frozen.distractionSeed==0)frozen.distractionSeed=BitConverter.ToInt32(Guid.NewGuid().ToByteArray(),0);
-            Engine = new TaskEngine(frozen);
-            recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, "TaskPlatformData"), Engine.Config, kind: Application.isEditor ? "editor-test" : "participant");
+            if(AdaptiveRuntime!=null){AdaptiveRuntime.Shutdown();Destroy(AdaptiveRuntime);AdaptiveRuntime=null;}
+            Engine = new TaskEngine(frozen,adaptiveConfig);
+            if(adaptiveConfig!=null)config=Engine.Config;
+            recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, adaptiveConfig==null?"TaskPlatformData":"AdaptiveTrainingData"), Engine.Config,
+                participant:adaptiveConfig?.participantCode??"anonymous",kind:Application.isEditor?"editor-test":adaptiveConfig?.sessionType??"participant",
+                presentationVersion:adaptiveConfig==null?null:"adaptive-lab-v2.0-front-wall-practice");
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
             onsetCue?.Bind(Engine,config);
-            distractions?.Bind(Engine,Engine.Config,DataPath);
+            if(adaptiveConfig==null)distractions?.Bind(Engine,Engine.Config,DataPath);
+            else {distractions?.Cancel("adaptive_mode");AdaptiveRuntime=gameObject.AddComponent<AdaptiveRuntime>();AdaptiveRuntime.Bind(this,Engine.Adaptive.Config);}
             Engine.Note("session_start", "configuration frozen; generator=xorshift32-v1", Time.realtimeSinceStartupAsDouble, Time.frameCount);
+            if(adaptiveConfig!=null && adaptiveConfigUpgraded)Engine.Note("adaptive_config_upgrade","dev1_to_dev3;front_wall_center;practice_av;source_override_retained",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
             Recenter(false); Render(); presentation?.Refresh();
+            if(StatusView==null)StatusView=gameObject.AddComponent<ExperimentStatusView>();
+            StatusView.Bind(this);
             StartCoroutine(PlaceAfterTrackingReady(Engine));
         }
         IEnumerator PlaceAfterTrackingReady(TaskEngine owner)
@@ -178,6 +197,7 @@ namespace EvidenceVR
                     if (nm) { checkedNonmatch = true; Engine.Note("input_check", "nonmatch", now, Time.frameCount); }
                     if (ma || nm) lastPhase = (TaskPhase)(-1);
                 }
+                else if(Engine.Phase==TaskPhase.Complete && AdaptiveRuntime!=null && (ma||nm))AdaptiveRuntime.AdjustRating(ma?-1:1);
                 else if (ma || nm)
                 {
                     if (simultaneousLatch) Engine.Note("button_ignored", "simultaneous", now, Time.frameCount);
@@ -186,17 +206,22 @@ namespace EvidenceVR
                 }
                 if (advance.WasPressedThisFrame())
                 {
-                    if (Engine.Phase == TaskPhase.Preparation) { if (calibrated && checkedMatch && checkedNonmatch) Engine.Advance(now, Time.frameCount); }
+                    if (Engine.Phase == TaskPhase.Preparation) { if (calibrated && checkedMatch && checkedNonmatch && (AdaptiveRuntime==null||AdaptiveRuntime.CanStart)) Engine.Advance(now, Time.frameCount); }
+                    else if (Engine.Phase == TaskPhase.Complete && AdaptiveRuntime!=null && AdaptiveRuntime.RecordRating()) { }
                     else if (Engine.Phase == TaskPhase.Complete || Engine.Phase == TaskPhase.Aborted) BeginSession();
+                    else if(Engine.Phase==TaskPhase.Paused && AdaptiveRuntime!=null)AdaptiveRuntime.StopNow();
                     else Engine.Advance(now, Time.frameCount);
                 }
                 if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame && Engine.Phase == TaskPhase.Paused) BeginSession();
                 distractions?.Tick(now);
+                AdaptiveRuntime?.Tick(now);
                 if ((Engine.Phase == TaskPhase.Complete || Engine.Phase == TaskPhase.Aborted) && !terminalRecorded)
                 {
                     recorder.Complete(Engine.Phase == TaskPhase.Complete ? "complete" : "aborted"); terminalRecorded = true;
                 }
                 Render(); presentation?.Refresh();
+                AdaptiveRuntime?.Render();
+                StatusView?.Refresh();
             }
             catch (Exception e) { Fail(e); }
         }
@@ -244,6 +269,7 @@ namespace EvidenceVR
         {
             setupError = e.Message; if (stimulus != null) stimulus.enabled = false;
             distractions?.Cancel("platform_error");
+            AdaptiveRuntime?.Shutdown();
             spatialView?.ShowError();
             heading.text = "PLATFORM ERROR"; body.text = "Please ask the experimenter for assistance.\n\n" + e.Message; Debug.LogException(e);
             recorder?.Dispose();
@@ -258,6 +284,7 @@ namespace EvidenceVR
                 catch (Exception e) { Debug.LogException(e); }
             }
             recorder?.Dispose(); inputActions?.Disable();
+            AdaptiveRuntime?.Shutdown();
             if (sphereMaterial != null) Destroy(sphereMaterial);
         }
     }

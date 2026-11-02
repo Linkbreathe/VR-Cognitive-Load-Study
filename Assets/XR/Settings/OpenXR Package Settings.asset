@@ -47,7 +47,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3cf79659a011bd419c7a2a30eb74e9a, type: 3}
   m_Name: EyeGazeInteraction Android
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.EyeGazeInteraction
-  m_enabled: 0
+  m_enabled: 1
   nameUi: Eye Gaze Interaction Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.eyetracking
@@ -180,27 +180,27 @@ MonoBehaviour:
   m_Name: Standalone
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.OpenXRSettings
   features:
-  - {fileID: 2582389101748915976}
-  - {fileID: 8352233720644592901}
-  - {fileID: 1074214471277680098}
-  - {fileID: -8082158730007003526}
-  - {fileID: -4356671605494759054}
   - {fileID: 3409030001284918566}
-  - {fileID: 7395992317626241324}
-  - {fileID: -8261822271231509733}
-  - {fileID: 1222114251577913171}
-  - {fileID: 8886319323961807064}
-  - {fileID: -8925305705993192415}
-  - {fileID: 6536558198222246258}
-  - {fileID: -8118725774796216946}
+  - {fileID: 1074214471277680098}
   - {fileID: 6317164689208074486}
-  - {fileID: 8552686286739367139}
-  - {fileID: -3188630916216463357}
-  - {fileID: 638129299489563118}
+  - {fileID: -8925305705993192415}
   - {fileID: 9150993695308870665}
+  - {fileID: 7395992317626241324}
   - {fileID: -2825538284777450282}
-  - {fileID: -5833132459285674988}
+  - {fileID: 6536558198222246258}
   - {fileID: 4600842277749572001}
+  - {fileID: -4356671605494759054}
+  - {fileID: 1222114251577913171}
+  - {fileID: -3188630916216463357}
+  - {fileID: -8261822271231509733}
+  - {fileID: 8886319323961807064}
+  - {fileID: -5833132459285674988}
+  - {fileID: 8352233720644592901}
+  - {fileID: 638129299489563118}
+  - {fileID: -8082158730007003526}
+  - {fileID: 2582389101748915976}
+  - {fileID: 8552686286739367139}
+  - {fileID: -8118725774796216946}
   customLoaderName: 
   m_renderMode: 1
   m_latencyOptimization: 0
@@ -1165,7 +1165,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3cf79659a011bd419c7a2a30eb74e9a, type: 3}
   m_Name: EyeGazeInteraction Standalone
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.EyeGazeInteraction
-  m_enabled: 0
+  m_enabled: 1
   nameUi: Eye Gaze Interaction Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.eyetracking

@@ -1,0 +1,5 @@
+# Verified on Python 3.10.4, Windows x64, 2026-11-02.
+numpy==1.24.3
+scipy==1.14.1
+pylsl==1.18.6
+pyxdf==1.16.8

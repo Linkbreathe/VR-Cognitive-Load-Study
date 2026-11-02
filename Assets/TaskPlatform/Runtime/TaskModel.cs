@@ -96,7 +96,9 @@ namespace EvidenceVR
     public sealed class TrialResult
     {
         public int block, trial, color, mode, seed;
-        public bool practice, scored, expectedMatch, responded, responseMatch, correct, timeout, interrupted, aborted;
+        public bool practice, scored, expectedMatch, responded, responseMatch, correct, timeout, interrupted, aborted, transition;
+        public int level = -1;
+        public string trainingStage;
         public double plannedOnset, actualOnset, reactionTime = -1, responseTime = -1, offsetTime = -1, closeTime = -1;
         public int onsetFrame, responseFrame = -1;
     }
@@ -124,12 +126,31 @@ namespace EvidenceVR
         public readonly List<TrialResult> Results = new List<TrialResult>();
         public event Action<TaskEvent> OnEvent;
         public event Action<TrialResult> OnTrial;
+        public event Action<TrainingBlock> OnTrainingBlock;
+        public AdaptiveTrainingState Adaptive { get; }
+        int scoredInBlock, resumeGeneration;
         List<TrialSpec> sequence;
         double origin, pauseStart, pausedTotal, restEnd;
         TaskPhase resumePhase;
         bool closed;
         TaskMode? requested;
-        public TaskEngine(TaskConfig c) { c.Validate(); config = UnityEngine.JsonUtility.FromJson<TaskConfig>(UnityEngine.JsonUtility.ToJson(c)); }
+        public TaskEngine(TaskConfig c, AdaptiveTrainingConfig adaptive = null)
+        {
+            c.Validate(); config = UnityEngine.JsonUtility.FromJson<TaskConfig>(UnityEngine.JsonUtility.ToJson(c));
+            if(adaptive!=null)
+            {
+                Adaptive=new AdaptiveTrainingState(UnityEngine.JsonUtility.FromJson<AdaptiveTrainingConfig>(UnityEngine.JsonUtility.ToJson(adaptive)));
+                config.scoredTrials=24;config.warmupTrials=2;config.trialSeconds=4.5f;config.responseSeconds=config.visibleSeconds=4;
+                config.distractionsEnabled=false;config.seed=adaptive.seed;config.version=adaptive.version;
+            }
+        }
+        public bool IsEvaluationClosing => Adaptive!=null && !Practice && Current!=null && Current.scored && scoredInBlock==23;
+        public TrainingBlock CurrentEvaluation()
+        {
+            var rows=new List<TrialResult>(Results);
+            if(CurrentResult!=null && !rows.Contains(CurrentResult))rows.Add(CurrentResult);
+            return TrainingBlock.Summarize(rows,Block,Adaptive.Level,Adaptive.Stage);
+        }
         void Emit(string type, double now, int frame, double planned, string detail = "") => OnEvent?.Invoke(new TaskEvent { type = type, actual = now, planned = planned, deviation = now - planned, frame = frame, block = Block, trial = TrialIndex, detail = detail });
         public void Note(string type, string detail, double now, int frame, double? planned = null) => Emit(type, now, frame, planned ?? now, detail);
         public double BlockElapsed(double now) => Phase==TaskPhase.Running || (Phase==TaskPhase.Paused && resumePhase==TaskPhase.Running) ? Math.Max(0,(Phase==TaskPhase.Paused ? pauseStart : now)-origin-pausedTotal) : 0;
@@ -149,6 +170,7 @@ namespace EvidenceVR
         {
             Practice = Block < 2;
             Mode = Block == 0 ? TaskMode.Easy : Block == 1 ? TaskMode.Hard : ((Block == 2) != config.hardFirst ? TaskMode.Easy : TaskMode.Hard);
+            if(Adaptive!=null){ Practice=Block==0;Mode=TaskMode.Hard; }
             if (requested.HasValue) { Mode = requested.Value; requested = null; }
             Phase = TaskPhase.Instructions; TrialIndex = -1; StimulusVisible = false;
             Emit("rules", now, frame, now, Mode.ToString());
@@ -158,8 +180,9 @@ namespace EvidenceVR
             int count = Practice ? (Mode == TaskMode.Easy ? config.easyPracticeTrials : config.hardPracticeTrials) : config.scoredTrials;
             int seed = unchecked(config.seed + Block * 104729);
             sequence = SequenceGenerator.Generate(config, Mode, count, seed);
+            scoredInBlock=0;
             Phase = TaskPhase.Running; TrialIndex = 0; origin = now; pausedTotal = 0;
-            Emit("block_start", now, frame, now, $"mode={Mode};practice={Practice};seed={seed}");
+            Emit("block_start", now, frame, now, $"mode={Mode};practice={Practice};seed={seed}"+(Adaptive==null?"":";level="+(Practice?2:Adaptive.Level)+";stage="+(Practice?"practice":Adaptive.Stage)));
             BeginTrial(now, frame);
         }
         double Planned => origin + TrialIndex * config.trialSeconds + pausedTotal;
@@ -167,6 +190,7 @@ namespace EvidenceVR
         {
             closed = false; StimulusVisible = true;
             CurrentResult = new TrialResult { block = Block, trial = TrialIndex, color = Current.color, mode = (int)Mode, seed = unchecked(config.seed + Block * 104729), practice = Practice, scored = Current.scored, expectedMatch = Current.expectedMatch, plannedOnset = Planned, actualOnset = now, onsetFrame = frame };
+            if(Adaptive!=null){CurrentResult.level=Practice?2:Adaptive.Level;CurrentResult.trainingStage=Practice?"practice":Adaptive.Stage;CurrentResult.transition=!Practice && Adaptive.Transition && Current.scored && scoredInBlock<2;}
             Emit("stimulus_on", now, frame, Planned, "color=" + Current.color);
             Emit("trial_countdown_start",now,frame,Planned,"seconds="+config.responseSeconds.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+";response_allowed="+Current.scored);
         }
@@ -178,17 +202,51 @@ namespace EvidenceVR
             if (!closed && elapsed >= config.responseSeconds) Close(now, frame);
             if (elapsed >= config.trialSeconds)
             {
+                bool scored=Current.scored;
                 FinishTrial();
+                if(scored)scoredInBlock++;
                 TrialIndex++;
+                if(Adaptive!=null && !Practice && scoredInBlock>=config.scoredTrials)
+                {
+                    var summary=TrainingBlock.Summarize(Results,Block,Adaptive.Level,Adaptive.Stage);
+                    Emit("block_complete",now,frame,Planned);
+                    OnTrainingBlock?.Invoke(summary);
+                    Adaptive.CompleteBlock(summary);
+                    Emit("adaptive_execution",now,frame,now,"action="+Adaptive.LastAction+";reason="+Adaptive.LastReason+";next_level="+Adaptive.Level+";next_stage="+Adaptive.Stage);
+                    if(Adaptive.Finished){Phase=TaskPhase.Complete;StimulusVisible=false;Emit("session_complete",now,frame,now,Adaptive.Outcome);return;}
+                    Block++;scoredInBlock=0;
+                    AppendAdaptiveBlock(false);
+                    Emit("block_start",now,frame,Planned,"level="+Adaptive.Level+";stage="+Adaptive.Stage+";continuous_memory=true");
+                    BeginTrial(now,frame);return;
+                }
                 if (TrialIndex >= sequence.Count)
                 {
                     Emit("block_complete", now, frame, origin + sequence.Count * config.trialSeconds + pausedTotal);
                     CurrentResult = null; Block++; StimulusVisible = false;
-                    if (Block >= 4) { Phase = TaskPhase.Complete; Emit("session_complete", now, frame, now); }
+                    if (Adaptive!=null) SetInstructions(now,frame);
+                    else if (Block >= 4) { Phase = TaskPhase.Complete; Emit("session_complete", now, frame, now); }
                     else if (Block == 3) { Phase = TaskPhase.Rest; restEnd = now + config.restSeconds; Emit("rest_start", now, frame, now); }
                     else SetInstructions(now, frame);
                 }
                 else BeginTrial(now, frame);
+            }
+        }
+        void AppendAdaptiveBlock(bool rewarm)
+        {
+            int remaining=(Practice?config.hardPracticeTrials:config.scoredTrials)-scoredInBlock;
+            var generated=SequenceGenerator.Generate(config,TaskMode.Hard,remaining,unchecked(config.seed+Block*104729+resumeGeneration*7919));
+            if(rewarm)
+            {
+                for(int i=0;i<generated.Count;i++){generated[i].index=sequence.Count;sequence.Add(generated[i]);}
+                return;
+            }
+            var rng=new StableRandom(unchecked(config.seed+Block*65537));
+            for(int i=2;i<generated.Count;i++)
+            {
+                int reference=sequence[sequence.Count-2].color;
+                int color=reference;
+                if(!generated[i].expectedMatch){color=rng.Next(config.colorCount-1);if(color>=reference)color++;}
+                sequence.Add(new TrialSpec{index=sequence.Count,color=color,scored=true,expectedMatch=color==reference});
             }
         }
         void Close(double now, int frame)
@@ -213,6 +271,7 @@ namespace EvidenceVR
         {
             if (Phase != TaskPhase.Running && Phase != TaskPhase.Rest && Phase != TaskPhase.Instructions) return;
             resumePhase = Phase; Phase = TaskPhase.Paused; pauseStart = freezeAt ?? now;
+            if(Adaptive!=null)Adaptive.Pending=null;
             if (CurrentResult != null) CurrentResult.interrupted = true;
             Emit("pause", now, frame, now, reason + (freezeAt.HasValue ? ";frozen_since=" + pauseStart.ToString("R", System.Globalization.CultureInfo.InvariantCulture) : ""));
         }
@@ -223,10 +282,24 @@ namespace EvidenceVR
             if (resumePhase == TaskPhase.Running) pausedTotal += duration;
             if (resumePhase == TaskPhase.Rest) restEnd += duration;
             Phase = resumePhase; Emit("resume", now, frame, now, "pause_seconds=" + duration.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+            if(Adaptive!=null && Phase==TaskPhase.Running)
+            {
+                // A real interruption invalidates the evaluation and restarts memory with two unscored colors.
+                if(CurrentResult!=null){if(Current.scored)scoredInBlock++;FinishTrial();}
+                sequence.RemoveRange(TrialIndex,sequence.Count-TrialIndex);
+                resumeGeneration++;
+                int blockCount=Practice?config.hardPracticeTrials:config.scoredTrials;
+                if(scoredInBlock>=blockCount)scoredInBlock=blockCount-1;
+                AppendAdaptiveBlock(true);
+                origin=now-TrialIndex*config.trialSeconds;pausedTotal=0;
+                Emit("adaptive_memory_rewarm",now,frame,now,"two_observe_only_colors;interrupted_evaluation_excluded");
+                BeginTrial(now,frame);
+            }
         }
         // Stage 1 accepts external requests only between blocks; never mutates an active sequence.
         public bool RequestDifficulty(TaskMode mode, double now, int frame)
         {
+            if(Adaptive!=null){Emit("difficulty_rejected",now,frame,now,"Adaptive training always uses 2-back");return false;}
             if (mode != TaskMode.Easy && mode != TaskMode.Hard) return false;
             if (Phase != TaskPhase.Instructions && Phase != TaskPhase.Rest && Phase != TaskPhase.Preparation) { Emit("difficulty_rejected", now, frame, now, "Only allowed between blocks"); return false; }
             if (Phase == TaskPhase.Instructions) { Mode = mode; Emit("rules", now, frame, now, mode.ToString()); }

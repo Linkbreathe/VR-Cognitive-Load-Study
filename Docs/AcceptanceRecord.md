@@ -1,6 +1,16 @@
 # Current acceptance record
 
-Updated: 2026-11-02. Application `2.0.0-stage2-dev6` (Android code 18); training configuration/controller remain dev5. **Engineering gaze highlight is software-verified; dev6 Android candidate built and signature-verified. Final physiological/device acceptance remains incomplete.** Historical evidence is retained below.
+Updated: 2026-11-02. Application `2.0.0-stage2-dev7` (Android code 19); training configuration/controller remain dev5. **Meta Quest Pro is the intended deployment and genuine eye-tracking target. Eye-permission handling is implemented; final physiological/device acceptance remains incomplete.** Historical evidence is retained below.
+
+## Meta Quest Pro eye permission (dev7)
+
+Implemented: explicit Android Stage 2 eye-permission request before trials, request/grant/denial events and authorization checks before accepting gaze. Existing Meta Quest Support, Quest Pro device declaration, Touch Pro controls and OpenXR Eye Gaze remain enabled. Participant highlights stay prohibited; debug remains default off. See [Quest Pro support](QuestProSupport.md).
+
+Verified: Editor C# compilation, 2,033 synthetic geometry/lockout/shader checks and a separate `editor-test` smoke session. The desktop permission route and debug-off state were read back with zero current console errors. The user's local configuration hash remains unchanged. No ADB device is connected. Android system permission interactions are not exercised by the Editor smoke.
+
+Delivery verified: Android build succeeded in 102.9 seconds with zero errors and one warning. `Builds/Quest/EvidenceVR-Stage2-dev7.apk`: 88,799,882 bytes, ARM64, version code 19, APK v2 signature verified; SHA-256 `4C409379C70CB760A2A99EAE3FE1E3A5D7A94DA1F6ACDA29D8A6071EB5B5C6F0`. Final APK inspection confirms `cambria`, `com.oculus.permission.EYE_TRACKING` and the eye-tracking feature declaration. The OpenXR-generated eye feature is marked required; a multi-device declaration does not establish eye-less-device distribution compatibility. The final dev7 Editor smoke passed; Play Mode is stopped. External media/config ZIP is unchanged. Evidence: `Evidence/QuestProSupport/`.
+
+Pending: Quest Pro grant/denial/revocation, calibration and actual eye-pose acquisition, target alignment, standalone/Link-specific behavior, controls, media, stereo comfort and exports. Earlier Quest 3 observations are historical evidence only. All physiological and participant-readiness gates remain open.
 
 ## Engineering gaze highlight (dev6)
 

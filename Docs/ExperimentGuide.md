@@ -1,6 +1,8 @@
 # Experiment guide: current modes
 
-Updated 2026-11-02 for application `2.0.0-stage2-dev6`. The project now contains two separately configured protocols. With no adaptive override, startup remains the preserved Stage 1 fixed-block task described below.
+Updated 2026-11-02 for application `2.0.0-stage2-dev7`. The project now contains two separately configured protocols. With no adaptive override, startup remains the preserved Stage 1 fixed-block task described below.
+
+Meta Quest Pro is the intended deployment and genuine eye-tracking target. Stage 2 requests Android eye permission during initialization; enable/calibrate headset eye tracking and authorize the app before engineering gaze checks. Invalid or unauthorized input never highlights; participant sessions never highlight. See [Quest Pro support and acceptance steps](QuestProSupport.md).
 
 For **Stage 2 graded 2-back training**, use the [Stage 2 operator guide](Stage2Guide.md). It covers the prepared 22-pair film library, OFF/SHADOW/ACTIVE modes, the P007 recorded-replay launcher, controller/LSL setup, Quest deployment and export/replay. The quick Editor engineering demo is:
 
@@ -22,7 +24,7 @@ The preparation panel and running HUD now explicitly identify Stage 1/Stage 2, a
 
 For project progress and major changes, see [Project status and update log](ProjectLog.md).
 
-Open `Assets/TaskPlatform/Scenes/NBackExperiment.unity` in Unity 6000.3.27f2 and enter Play mode. All participant-facing and project-authored content uses English. The available test device is Quest 3; the build also declares Quest Pro support.
+Open `Assets/TaskPlatform/Scenes/NBackExperiment.unity` in Unity 6000.3.27f2 and enter Play mode. All participant-facing and project-authored content uses English. Meta Quest Pro is the intended deployment and genuine eye-tracking target. Earlier Quest 3 checks remain historical evidence; physical Quest Pro acceptance is pending. See [Quest Pro support and eye permission](QuestProSupport.md).
 
 ## Controls
 

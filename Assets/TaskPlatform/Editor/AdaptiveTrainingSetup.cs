@@ -42,8 +42,8 @@ namespace EvidenceVR.Editor
         [MenuItem("Evidence VR/Stage 2/Configure Build Support")]
         public static string Configure()
         {
-            PlayerSettings.bundleVersion="2.0.0-stage2-dev6";
-            PlayerSettings.Android.bundleVersionCode=Math.Max(18,PlayerSettings.Android.bundleVersionCode);
+            PlayerSettings.bundleVersion="2.0.0-stage2-dev7";
+            PlayerSettings.Android.bundleVersionCode=Math.Max(19,PlayerSettings.Android.bundleVersionCode);
             PlayerSettings.Android.forceInternetPermission=true;
             PlayerSettings.insecureHttpOption=InsecureHttpOption.AlwaysAllowed;
             foreach(var group in new[]{BuildTargetGroup.Standalone,BuildTargetGroup.Android})
@@ -60,7 +60,7 @@ namespace EvidenceVR.Editor
         {
             Configure();Directory.CreateDirectory("Builds/Quest");Directory.CreateDirectory("Evidence/Stage2");
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{TaskPlatformBuilder.ScenePath},target=BuildTarget.Android,
-                locationPathName="Builds/Quest/EvidenceVR-Stage2-dev6.apk",options=BuildOptions.None});
+                locationPathName="Builds/Quest/EvidenceVR-Stage2-dev7.apk",options=BuildOptions.None});
             string result="Result: "+report.summary.result+"\nErrors: "+report.summary.totalErrors+"\nWarnings: "+report.summary.totalWarnings+"\nBytes: "+report.summary.totalSize+"\nDuration: "+report.summary.totalTime;
             File.WriteAllText("Evidence/Stage2/android-build.txt",result);
             if(report.summary.result!=BuildResult.Succeeded)throw new Exception(result);

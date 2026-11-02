@@ -1,6 +1,6 @@
 # Stage 2 operator guide
 
-Application: `2.0.0-stage2-dev6`, 2026-11-02. Training configuration version is `2.0.0-stage2-dev5`. Read the [current rolling-policy review](RollingAdaptationReview.md) and [historical implementation boundaries](Stage2Implementation.md) before participant use. Default startup remains Stage 1 until an adaptive override is explicitly enabled.
+Application: `2.0.0-stage2-dev7`, 2026-11-02. Training configuration version is `2.0.0-stage2-dev5`. Meta Quest Pro is the intended deployment and eye-tracking target; see [device and permission steps](QuestProSupport.md). Read the [current rolling-policy review](RollingAdaptationReview.md) and [historical implementation boundaries](Stage2Implementation.md) before participant use. Default startup remains Stage 1 until an adaptive override is explicitly enabled.
 
 ## Read the mode and status display
 
@@ -33,7 +33,7 @@ The config snapshot freezes seed, group, protocol, mode, control basis, caps, sl
 
 Default off. Stop Play Mode, then use **Evidence VR > Stage 2 > Engineering Gaze Highlight > Enable** with an enabled engineering configuration. Start Play Mode with valid tracked eyes; the looked-at sphere gains a subtle white outline and a playing movie gains a thin white border. Use the matching **Disable** menu before the next session to switch it off. Device configurations use `engineeringGazeHighlight: true` with `sessionType: "engineering"`; this does not enable automatic adaptation.
 
-Participant sessions never show this overlay, even if the flag is requested. No tracked eye input means no highlight; the current Quest 3 setup does not provide genuine gaze. There is no head-direction substitute. Pause, stale/invalid samples and hidden targets clear the overlay. Visibility-aware ROI logging and session debug revisions are described in [GazeDebugReview.md](GazeDebugReview.md). This is an engineering display, not evidence of attention or validated eye tracking.
+Participant sessions never show this overlay, even if the flag is requested. On Quest Pro, enable/calibrate eye tracking and grant the app's eye permission before testing. No permission or tracked eye input means no highlight. There is no head-direction substitute. Pause, stale/invalid samples and hidden targets clear the overlay. Visibility-aware ROI logging and session debug revisions are described in [GazeDebugReview.md](GazeDebugReview.md). This is an engineering display, not evidence of attention or validated eye tracking.
 
 ## Rolling training control and countdown
 
@@ -83,14 +83,14 @@ Pre/post tests use one held-out pair per modality/block because the plan reserve
 
 ## Quest deployment
 
-The candidate APK is `Builds/Quest/EvidenceVR-Stage2-dev6.apk`. The package identifier remains `com.evidencevr.taskplatform`. The application's persistent root on Quest is `/sdcard/Android/data/com.evidencevr.taskplatform/files/`.
+The candidate APK is `Builds/Quest/EvidenceVR-Stage2-dev7.apk`. The package identifier remains `com.evidencevr.taskplatform`. The application's persistent root on Quest is `/sdcard/Android/data/com.evidencevr.taskplatform/files/`.
 
 Install the candidate, push an enabled complete adaptive config and the prepared manifest/media to that root, and restart the app. With a single connected, developer-enabled Quest, the following uses the installed SDK:
 
 ```powershell
 $adb = 'D:/Tool/6000.3.27f2/Editor/Data/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb.exe'
 & $adb devices
-& $adb install -r Builds/Quest/EvidenceVR-Stage2-dev6.apk
+& $adb install -r Builds/Quest/EvidenceVR-Stage2-dev7.apk
 & $adb shell mkdir -p /sdcard/Android/data/com.evidencevr.taskplatform/files/AdaptiveMedia
 & $adb push Builds/Stage2MediaRelease/adaptive-training-config.json /sdcard/Android/data/com.evidencevr.taskplatform/files/
 & $adb push Builds/Stage2MediaRelease/adaptive-media-manifest.json /sdcard/Android/data/com.evidencevr.taskplatform/files/
@@ -100,7 +100,7 @@ $adb = 'D:/Tool/6000.3.27f2/Editor/Data/PlaybackEngines/AndroidPlayer/SDK/platfo
 
 Export any existing device configuration before replacing it. Start `launch_replay_demo.py` without `--editor` on the computer for a recorded-data Quest demo. The supplied device config is SHADOW engineering mode; edit `mode` to ACTIVE for the explicitly behavioral fallback loop, preserving engineering provenance. These commands are provided for the pending device check and were not executed against a headset. With USB development connection, `adb reverse tcp:8765 tcp:8765` allows the default `http://127.0.0.1:8765` controller URL to reach the study computer. For a local study network, explicitly bind the service to the computer's interface with `--host` and set `controllerUrl` to that computer. The build enables Internet permission and local HTTP; it does not embed a cloud service.
 
-The VR application runs in a standalone APK, while EEG/ECG analysis and control run on the separate computer as specified in the plan. No connected Quest was available during implementation; install/start/physical controls/video/audio/performance/export acceptance remains required. Quest 3 is the current test headset and has no genuine eye-tracking input in this setup. Quest Pro support is configured, not physically verified.
+The VR application runs in a standalone APK, while EEG/ECG analysis and control run on the separate computer as specified in the plan. Meta Quest Pro is the intended deployment and genuine eye-tracking target. No connected Quest Pro was available during implementation; install/start/permission/calibrated gaze/physical controls/video/audio/performance/export acceptance remains required. Support is configured, not physically verified. Earlier Quest 3 checks do not establish Quest Pro acceptance.
 
 ## Connect real sensors and admit a feature
 

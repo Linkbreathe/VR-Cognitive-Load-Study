@@ -4,7 +4,7 @@ This is the entry point for project progress and major changes. Add a dated entr
 
 ## Current status
 
-Last reviewed: 2026-11-02. Application: `2.0.0-stage2-dev6` (Android code 18); training configuration remains `2.0.0-stage2-dev5`. Policy: `rolling10-stride2-v1`; status: `mode-status-v2-compact`; countdown: `response-countdown-v2-centiseconds`. Current work: **engineering gaze highlight and existing rolling control software-verified; dev6 Android candidate built and signed; physiological/device acceptance pending**.
+Last reviewed: 2026-11-02. Application: `2.0.0-stage2-dev7` (Android code 19); training configuration remains `2.0.0-stage2-dev5`. Policy: `rolling10-stride2-v1`; status: `mode-status-v2-compact`; countdown: `response-countdown-v2-centiseconds`. Current work: **Meta Quest Pro deployment target clarified; explicit Android eye permission added; engineering gaze highlight and rolling control software-verified; physiological/device acceptance pending**.
 
 The project has separate `FixedBlockExperiment` and `AdaptiveDistractionTraining` modes. Stage 1 remains the default without an enabled adaptive override. Stage 2 preserves continuous four-color 2-back, four-second visibility/responses, the 4.5-second cycle, single onset cue and green/red feedback.
 
@@ -20,9 +20,18 @@ Current Stage 2 behavior:
 - Twenty-two candidate film pairs (18 training/four reserved). Each participant has nine clips per modality; practice uses three AV clips. Media bytes/gains remain unchanged. Only unstarted training slots are replanned after level changes; their original times are retained. Human content matching/headset listening remain pending and participant readiness is blocked.
 - Computer LSL bridge, EEG/ECG quality/feature windows, clock mapping, raw retention, decision replay and descriptive summaries. Temporary P007 recorded-XDF input remains explicitly simulated; current automatic engineering demos use `behavioral_fallback`. No feature has been admitted for real physiological control and genuine gaze is absent in the Quest 3 setup.
 
-Stage 1 scene visibility was previously confirmed through Quest Link; this does not verify Stage 2 or standalone operation. Quest 3 is the available test headset; Quest Pro remains physically unverified. VLM attribution, active probes and Patent effects are outside this revision.
+Stage 1 scene visibility was previously confirmed through Quest Link on Quest 3; this does not verify Stage 2 or standalone operation. The user has clarified Meta Quest Pro as the intended deployment and genuine eye-tracking target; Quest Pro remains physically unverified. VLM attribution, active probes and Patent effects are outside this revision.
 
 Start with the [operator guide](Stage2Guide.md), [current review](RollingAdaptationReview.md), [acceptance](AcceptanceRecord.md) and [calibration worksheet](Stage2CalibrationReport.md).
+
+## 2026-11-02 — v2.0.0-stage2-dev7: Meta Quest Pro eye permission
+
+- **Stage/version/reason:** Stage 2 engineering, application dev7 / Android code 19. The user clarified Meta Quest Pro as the intended target. Training configuration and policy remain dev5.
+- **Changes:** Audited the existing Quest Pro declaration, Touch Pro input, OpenXR eye feature and packaged eye permission. Added the missing explicit Android runtime request before Stage 2 trials, request/result events and authorization gating of gaze samples. Desktop permissions remain runtime-managed. Kept participant highlights prohibited and preserved task, media and adaptation behavior. Updated device-target guidance without rewriting historical Quest 3 evidence.
+- **Validation:** Editor compilation, 2,033 classifier/lockout/shader checks and isolated Editor permission-path smoke passed. The new runtime log was read back with debug off and no current console errors. Android build/manifest evidence is recorded in [acceptance](AcceptanceRecord.md).
+- **Delivery:** Dev7 Android candidate built in 102.9 seconds, zero errors and one warning. APK is 88,799,882 bytes, ARM64/code 19/APK v2 signed; final manifest includes Quest Pro (`cambria`) and eye-tracking permission. Final dev7 Editor initialization passed; local configuration remains byte-identical and Play Mode is stopped. Existing external media/config archive is unchanged. Source/documentation follow-up is included in the remote delivery; APK and evidence remain local under existing ignore rules.
+- **Pending:** Quest Pro system permission grant/denial/revocation, actual calibrated gaze and stereo alignment, physical controls/media/comfort/export; all existing physiology and participant readiness gates remain open.
+- **Records:** [Quest Pro support and operating steps](QuestProSupport.md), [operator guide](Stage2Guide.md), [experiment guide](ExperimentGuide.md). Restore checkpoint: `af1d08e`; local evidence: `Evidence/QuestProSupport/`.
 
 ## 2026-11-02 — Stage 2 dev5/dev6 remote checkpoint
 

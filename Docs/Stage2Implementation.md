@@ -1,5 +1,7 @@
 # Stage 2 implementation and review
 
+Current target clarification: dev7 targets Meta Quest Pro and adds the explicit Android eye-permission request; see [Quest Pro support](QuestProSupport.md).
+
 Historical review: dev6 adds [engineering-only gaze outlines and visibility-aware gaze records](GazeDebugReview.md). Dev5 rolling control and decimal countdown supersede the block-based training policy below; see [current control review](RollingAdaptationReview.md). Current dev3 presentation, practice exposure, configuration and compact status behavior supersede the corresponding details below. See [Wall and practice revision](WallPracticeReview.md).
 
 Date: 2026-11-02. Revision: `2.0.0-stage2-dev1`. Status: **engineering implementation, not final Stage 2 acceptance**.

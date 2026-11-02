@@ -47,6 +47,11 @@ namespace EvidenceVR
         readonly List<UnityEngine.XR.InputDevice> eyeDevices=new List<UnityEngine.XR.InputDevice>();
         string sessionId;
         bool disposed,busy;
+        const string QuestEyePermission="com.oculus.permission.EYE_TRACKING";
+        public string GazePermissionStatus {get;private set;}="not_initialized";
+#if UNITY_ANDROID && !UNITY_EDITOR
+        UnityEngine.Android.PermissionCallbacks gazePermissionCallbacks;
+#endif
         double nextTelemetry,nextGaze,offset,uncertainty=999;
         int gazeSamples,gazeValid,gazeTask,gazeVideo;
         int rating=3,ratingIndex;
@@ -74,7 +79,33 @@ namespace EvidenceVR
             engine.CanApplyAdaptiveChange=()=>!Media.IsPlaying;
             engine.OnEvent+=OnEvent;engine.OnTrial+=OnTrial;engine.OnTrainingBlock+=OnBlock;
             engine.Note("gaze_debug_configuration",GazeDebugHighlighter.Revision+";requested="+config.engineeringGazeHighlight+";effective="+GazeDebug.Allowed+";roi="+GazeRegions.Revision+";source=tracked_eyes_only",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            InitializeGazePermission();
             Debug.Log("Stage 2 initialized: rolling10-stride2-v1; 108-second statistics; countdown F2; mode="+config.mode+"; basis="+config.controlBasis+"; data="+owner.DataPath);
+        }
+        void InitializeGazePermission()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if(UnityEngine.Android.Permission.HasUserAuthorizedPermission(QuestEyePermission)){RecordGazePermission("granted");return;}
+            gazePermissionCallbacks=new UnityEngine.Android.PermissionCallbacks();
+            gazePermissionCallbacks.PermissionGranted+=OnGazePermissionGranted;
+            gazePermissionCallbacks.PermissionDenied+=OnGazePermissionDenied;
+            RecordGazePermission("requested");
+            // Request once during session initialization, before any task trials begin.
+            UnityEngine.Android.Permission.RequestUserPermission(QuestEyePermission,gazePermissionCallbacks);
+#else
+            RecordGazePermission("desktop_runtime_managed");
+#endif
+        }
+#if UNITY_ANDROID && !UNITY_EDITOR
+        void OnGazePermissionGranted(string permission){if(permission==QuestEyePermission)RecordGazePermission("granted");}
+        void OnGazePermissionDenied(string permission){if(permission==QuestEyePermission)RecordGazePermission("denied");}
+#endif
+        void RecordGazePermission(string status)
+        {
+            if(disposed)return;
+            GazePermissionStatus=status;
+            engine.Note("gaze_permission","quest-eye-permission-v1;status="+status,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            Debug.Log("Stage 2 eye permission: "+status+". Tracked eyes are still required; no head-direction fallback.");
         }
         void OnGazeVisualChanged(string target)=>engine.Note("gaze_debug_visual",GazeDebugHighlighter.Revision+";target="+target,Time.realtimeSinceStartupAsDouble,Time.frameCount);
         void Open(string file,string header){var writer=new StreamWriter(Path.Combine(owner.DataPath,file),false,new UTF8Encoding(false)){AutoFlush=true};writers[file]=writer;if(header!=null)writer.WriteLine(header);}
@@ -193,6 +224,10 @@ namespace EvidenceVR
         void SampleGaze(double now)
         {
             eyeDevices.Clear();UnityEngine.XR.InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.EyeTracking,eyeDevices);
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // Recheck authorization so revocation cannot leave an accepted gaze sample.
+            if(!UnityEngine.Android.Permission.HasUserAuthorizedPermission(QuestEyePermission))eyeDevices.Clear();
+#endif
             Vector3 position=Vector3.zero;Quaternion rotation=Quaternion.identity;bool valid=false;
             foreach(var device in eyeDevices)
                 if(device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.isTracked,out bool tracked)&&tracked &&
@@ -241,6 +276,14 @@ namespace EvidenceVR
         public void Shutdown()
         {
             if(disposed)return;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if(gazePermissionCallbacks!=null)
+            {
+                gazePermissionCallbacks.PermissionGranted-=OnGazePermissionGranted;
+                gazePermissionCallbacks.PermissionDenied-=OnGazePermissionDenied;
+                gazePermissionCallbacks=null;
+            }
+#endif
             StopAllCoroutines();engine.CanApplyAdaptiveChange=null;engine.OnEvent-=OnEvent;engine.OnTrial-=OnTrial;engine.OnTrainingBlock-=OnBlock;
             if(GazeDebug!=null){GazeDebug.Clear();GazeDebug.OnStateChanged-=OnGazeVisualChanged;Destroy(GazeDebug.gameObject);}
             if(Media!=null){Media.OnMedia-=RecordMedia;Destroy(Media.gameObject);}

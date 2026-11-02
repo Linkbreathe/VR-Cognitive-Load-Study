@@ -1,5 +1,7 @@
 # Engineering gaze highlight review
 
+Target clarification, 2026-11-02: Meta Quest Pro is the intended genuine eye-tracking device. Dev7 adds the explicit Android runtime permission request; see [Quest Pro support](QuestProSupport.md). The dev6 implementation and validation record below is retained as historical evidence.
+
 Date: 2026-11-02. Application: `2.0.0-stage2-dev6`, Android code 18. Training configuration/controller policy remain `2.0.0-stage2-dev5` / `rolling10-stride2-v1`. Debug presentation revision: `engineering-gaze-outline-v1`. Gaze processing revision: `gaze-roi-v2-visible-targets`.
 
 ## Authorized scope and operation

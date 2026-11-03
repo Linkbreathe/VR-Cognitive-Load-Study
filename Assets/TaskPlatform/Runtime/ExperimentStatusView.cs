@@ -1,14 +1,15 @@
 using TMPro;
 using UnityEngine;
+using System.Linq;
 
 namespace EvidenceVR
 {
     // Session identity and source provenance remain visible independently of task feedback.
     public sealed class ExperimentStatusView : MonoBehaviour
     {
-        public const string Revision = "mode-status-v2-compact";
+        public const string Revision = "mode-status-v5-blinded-personal-protocol";
         TaskPlatformController owner;
-        TMP_Text hud;
+        TMP_Text hud, eyeHud;
         string lastRecorded;
         public string DisplayText { get; private set; }
 
@@ -24,12 +25,17 @@ namespace EvidenceVR
                 hud.fontSize=24;hud.alignment=TextAlignmentOptions.Center;
                 hud.textWrappingMode=TextWrappingModes.NoWrap;hud.raycastTarget=false;
                 hud.color=LabPalette.Text;
+                hud.richText=false;hud.enableAutoSizing=true;hud.fontSizeMin=18;hud.fontSizeMax=24;
+                eyeHud=Instantiate(hud,owner.spatialView.taskCanvas.transform);
+                eyeHud.name="EngineeringEyeStatus";
+                eyeHud.rectTransform.anchoredPosition=new Vector2(0,648);
             }
             var stageSign=owner.spatialView.stage.transform.parent as RectTransform;
             if(stageSign!=null)stageSign.anchoredPosition=new Vector2(0,538);
             owner.badge.rectTransform.anchoredPosition=new Vector2(0,410);
             owner.badge.rectTransform.sizeDelta=new Vector2(1160,45);
             owner.badge.fontSize=24;owner.badge.textWrappingMode=TextWrappingModes.NoWrap;
+            owner.badge.richText=false;owner.badge.enableAutoSizing=true;owner.badge.fontSizeMin=16;owner.badge.fontSizeMax=24;
             owner.heading.rectTransform.anchoredPosition=new Vector2(0,350);
             owner.heading.rectTransform.sizeDelta=new Vector2(1160,85);
             var rule=owner.spatialView.instructions.transform.Find("HeaderRule") as RectTransform;
@@ -46,27 +52,32 @@ namespace EvidenceVR
 
         public static string PhysiologyText(PhysiologyDisplayStatus status,bool connected)
         {
-            if(!connected)
-                return "Physiology: SERVICE OFFLINE"+(status?.source=="recorded_replay"?" | Last source: RECORDED REPLAY":"");
-            if(status==null)return "Physiology: UNKNOWN - source status unavailable";
-            string source=status.source=="recorded_replay"?"RECORDED REPLAY":status.source=="synthetic"?"SIMULATED DATA":
-                status.source=="live"?"LIVE STREAM (not validated)":status.source=="mixed"?"MIXED SOURCES - includes simulation":
-                status.source=="none"?"NO SOURCE CONFIGURED":"UNKNOWN SOURCE";
-            string state=status.connection=="receiving"?"Receiving":status.connection=="partial"?"Partial / signal missing":
-                status.connection=="waiting"?"Waiting for samples":"No current samples";
-            return "Physiology: "+source+(status.source=="none"?"":" | "+state);
+            return "LSL: "+SourceLabel(status,false)+" | "+ConnectionLabel(status,connected)+
+                " | Provenance: "+(status?.source??"unknown")+" | Identity: "+JsonUtility.ToJson(status??new PhysiologyDisplayStatus());
+        }
+
+        public static string SourceLabel(PhysiologyDisplayStatus status,bool compact=true)
+        {
+            string name=status?.sourceName;
+            if(string.IsNullOrWhiteSpace(name) && status?.streams!=null)
+                name=string.Join(" + ",status.streams.Where(s=>s!=null).Select(s=>string.IsNullOrWhiteSpace(s.name)?s.sourceId:s.name).Where(s=>!string.IsNullOrWhiteSpace(s)).Distinct());
+            if(string.IsNullOrWhiteSpace(name))return status?.source=="none"?"NO SOURCE":"SOURCE UNKNOWN";
+            name=new string(name.Select(c=>char.IsControl(c)?' ':c).ToArray()).Trim();
+            return compact && name.Length>44?name.Substring(0,41)+"...":name;
+        }
+
+        static string ConnectionLabel(PhysiologyDisplayStatus status,bool connected)
+        {
+            if(!connected)return "SERVICE OFFLINE";
+            if(status==null)return "STATUS UNKNOWN";
+            return status.connection=="receiving"?"RECEIVING":status.connection=="idle"?"IDLE":status.connection=="partial"?"PARTIAL":status.connection=="waiting"?"WAITING":"LOST";
         }
 
         public static string CompactStatus(string mode,string basis,PhysiologyDisplayStatus status,bool connected)
         {
             string control=mode=="ACTIVE"?(connected?"AUTO ON: "+(basis=="physiological"?"BIO":"BEHAVIOR"):"AUTO ON / HOLD"):
                 mode=="SHADOW"?"SHADOW / AUTO OFF":"AUTO OFF";
-            string source=status?.source=="recorded_replay"?"REPLAY":status?.source=="synthetic"?"SIMULATED":
-                status?.source=="live"?"LIVE (UNVALIDATED)":status?.source=="mixed"?"MIXED / SIM":status?.source=="none"?"NO SOURCE":"UNKNOWN";
-            if(!connected)source=status?.source=="recorded_replay"?"REPLAY / OFFLINE":"PHYSIO OFFLINE";
-            else if(status!=null && status.source!="none" && status.connection!="receiving")
-                source+=status.connection=="waiting"?" / WAIT":status.connection=="partial"?" / PARTIAL":" / LOST";
-            return "STAGE 2 | "+control+" | "+source;
+            return "STAGE 2 | "+control+" | LSL: "+SourceLabel(status)+" | "+ConnectionLabel(status,connected);
         }
 
         public void Refresh()
@@ -85,8 +96,16 @@ namespace EvidenceVR
             DisplayText=mode+"\n"+controller+"\n"+physiology;
             string compact=adaptive?CompactStatus(engine.Adaptive.Config.mode,engine.Adaptive.Config.controlBasis,runtime?.PhysiologyStatus,connected):
                 "STAGE 1 | AUTO OFF | PHYSIO NOT USED";
+            if(engine.IsPersonalized && engine.Adaptive.Config.sessionType=="participant")
+                compact="STUDY | "+engine.ProtocolStageLabel;
             hud.text=compact;
-            owner.badge.text=compact+(engine.Phase==TaskPhase.Paused?" | Paused":"");
+            if(eyeHud!=null)
+            {
+                eyeHud.enabled=runtime?.GazeRay?.RayEnabled==true;
+                eyeHud.text=eyeHud.enabled?"ENGINEERING EYE RAY | "+runtime.GazeTrackingStatus+" | "+(runtime.GazeRay.Visible?"VISIBLE":"HIDDEN"):"";
+            }
+            owner.badge.text=compact+(runtime?.GazeRay?.RayEnabled==true?" | EYE: "+runtime.GazeTrackingStatus:"")+
+                (engine.Phase==TaskPhase.Paused?" | Paused":"");
             if(engine.Phase==TaskPhase.Running && engine.Current!=null)
             {
                 string hint=!engine.Current.scored?"Observe only":!adaptive && engine.Mode==TaskMode.Easy?
@@ -106,6 +125,12 @@ namespace EvidenceVR
     [System.Serializable]
     public sealed class PhysiologyDisplayStatus
     {
-        public string source,connection;
+        public string source,connection,sourceName;
+        public PhysiologySourceIdentity[] streams;
+    }
+    [System.Serializable]
+    public sealed class PhysiologySourceIdentity
+    {
+        public string name,sourceId,kind,origin,uid,streamType;
     }
 }

@@ -109,10 +109,11 @@ class ControllerTests(unittest.TestCase):
 class FeatureTests(unittest.TestCase):
     def test_display_source_and_freshness_are_not_control_eligibility(self):
         from service import physiology_display_status
-        self.assertEqual(physiology_display_status({},10),dict(source="none",connection="waiting"))
+        self.assertEqual(physiology_display_status({},10),dict(source="none",connection="waiting",sourceName="",streams=[]))
         replay=dict(synthetic=True,data_origin="recorded_xdf_replay",connected=True,last_sample=9)
-        self.assertEqual(physiology_display_status({"EEG":replay},10),dict(source="recorded_replay",connection="receiving"))
-        self.assertEqual(physiology_display_status({"EEG":replay},13),dict(source="recorded_replay",connection="disconnected"))
+        self.assertEqual(physiology_display_status({"EEG":replay},10)["source"],"recorded_replay")
+        self.assertEqual(physiology_display_status({"EEG":replay},10)["connection"],"receiving")
+        self.assertEqual(physiology_display_status({"EEG":replay},13)["connection"],"disconnected")
         live=dict(synthetic=False,data_origin="live_sensor",connected=True,last_sample=9)
         self.assertEqual(physiology_display_status({"EEG":live},10)["source"],"live")
         self.assertEqual(physiology_display_status({"EEG":replay,"ECG":live},10)["source"],"mixed")
@@ -125,7 +126,8 @@ class FeatureTests(unittest.TestCase):
             service.sensors={"EEG":dict(synthetic=True,data_origin="recorded_xdf_replay",connected=False)}
             reply=service.receive(packet())
             self.assertEqual(reply["featuresJson"],"[]")
-            self.assertEqual(reply["physiologyStatus"],dict(source="recorded_replay",connection="waiting"))
+            self.assertEqual(reply["physiologyStatus"]["source"],"recorded_replay")
+            self.assertEqual(reply["physiologyStatus"]["connection"],"waiting")
     def test_raw_dc_offset_does_not_mask_ac_amplitude_check(self):
         t=np.arange(0,12,1/500);x=np.sin(2*np.pi*6*t)
         a,qa=extract_features("EEG",t,x,500,12,10)

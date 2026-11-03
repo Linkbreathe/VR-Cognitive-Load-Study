@@ -96,6 +96,8 @@ namespace EvidenceVR
     public sealed class TrialResult
     {
         public int block, trial, color, mode, seed;
+        public int phaseTrial, blockTrial;
+        public double trialEnd;
         public bool practice, scored, expectedMatch, responded, responseMatch, correct, timeout, interrupted, aborted, transition;
         public int level = -1;
         public string trainingStage;
@@ -111,13 +113,14 @@ namespace EvidenceVR
         public int frame, block, trial;
     }
 
-    public sealed class TaskEngine
+    public sealed partial class TaskEngine
     {
         readonly TaskConfig config;
         public TaskConfig Config => UnityEngine.JsonUtility.FromJson<TaskConfig>(UnityEngine.JsonUtility.ToJson(config));
         public TaskPhase Phase { get; private set; } = TaskPhase.Preparation;
         public TaskMode Mode { get; private set; }
         public bool Practice { get; private set; }
+        public bool ShowsCorrectnessFeedback => Practice || (!IsPersonalized && config.formalFeedbackEnabled);
         public int Block { get; private set; } = -1;
         public int TrialIndex { get; private set; } = -1;
         public bool StimulusVisible { get; private set; }
@@ -150,6 +153,7 @@ namespace EvidenceVR
                 Adaptive=new AdaptiveTrainingState(UnityEngine.JsonUtility.FromJson<AdaptiveTrainingConfig>(UnityEngine.JsonUtility.ToJson(adaptive)));
                 config.scoredTrials=24;config.warmupTrials=2;config.trialSeconds=4.5f;config.responseSeconds=config.visibleSeconds=4;
                 config.distractionsEnabled=false;config.seed=adaptive.seed;config.version=adaptive.version;
+                if(adaptive.IsPersonalized){config.hardPracticeTrials=12;config.formalFeedbackEnabled=false;Adaptive.SetPersonalStage("preparation",0);}
             }
         }
         public bool IsEvaluationClosing => Adaptive!=null && !Practice && Current!=null && Current.scored && scoredInBlock==23;
@@ -169,7 +173,7 @@ namespace EvidenceVR
         }
         void CollectRolling(double now,int frame)
         {
-            if(Adaptive==null || Practice || Adaptive.Stage!="training" || Adaptive.TrainingEndRequested || !Current.scored)return;
+            if(IsPersonalized || Adaptive==null || Practice || Adaptive.Stage!="training" || Adaptive.TrainingEndRequested || !Current.scored)return;
             var row=CurrentResult;
             if(AdaptiveEvaluationBlocked || row.interrupted || row.aborted){ResetRolling(now,frame,"invalid_trial_or_media");return;}
             if(row.transition)return;
@@ -212,6 +216,7 @@ namespace EvidenceVR
         }
         public void Advance(double now, int frame)
         {
+            if(IsPersonalized){AdvancePersonal(now,frame);return;}
             if (Phase == TaskPhase.Preparation) { Block = 0; SetInstructions(now, frame); }
             else if (Phase == TaskPhase.Instructions) BeginBlock(now, frame);
             else if (Phase == TaskPhase.Rest && now >= restEnd) SetInstructions(now, frame);
@@ -246,6 +251,7 @@ namespace EvidenceVR
         }
         public void Tick(double now, int frame)
         {
+            if(IsPersonalized){TickPersonal(now,frame);return;}
             if (Phase != TaskPhase.Running) return;
             double elapsed = now - Planned;
             if (StimulusVisible && elapsed >= config.visibleSeconds) { StimulusVisible = false; CurrentResult.offsetTime = now; Emit("stimulus_off", now, frame, Planned + config.visibleSeconds); }
@@ -332,6 +338,7 @@ namespace EvidenceVR
         }
         public void Resume(double now, int frame)
         {
+            if(IsPersonalized){ResumePersonal(now,frame);return;}
             if (Phase != TaskPhase.Paused) return;
             double duration = now - pauseStart;
             if (resumePhase == TaskPhase.Running) pausedTotal += duration;

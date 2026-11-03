@@ -5,6 +5,7 @@ Run from the project root: python Tools/AdaptiveTraining/service.py --output Evi
 from __future__ import annotations
 
 import argparse
+import copy
 from collections import deque
 import csv
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,10 +15,13 @@ from pathlib import Path
 import re
 import threading
 import time
-import xml.etree.ElementTree as ET
+import sys
 
 from controller import BaselineAdaptiveController, VERSION, SUPPORTED_VERSIONS, baseline
 from features import extract_features, condition_coverage
+from lsl_sources import stream_identity, validate_config, matching_streams, observation_values
+from personalized_model import VERSION as PERSONAL_VERSION, PROTOCOL as PERSONAL_PROTOCOL
+from personalized_runtime import PersonalSession
 
 
 def append_json(path, value):
@@ -41,7 +45,7 @@ def latest_features(features):
 def physiology_display_status(sensors, now):
     """Report source provenance independently of feature quality or control eligibility."""
     rows=[dict(sensor) for sensor in list(sensors.values())]
-    if not rows:return {"source":"none","connection":"waiting"}
+    if not rows:return {"source":"none","connection":"waiting","sourceName":"","streams":[]}
     origins=set()
     fresh=0
     for sensor in rows:
@@ -51,11 +55,15 @@ def physiology_display_status(sensors, now):
         if sensor.get("connected") and 0<=now-sensor.get("last_sample",float("-inf"))<=3:fresh+=1
     source=next(iter(origins)) if len(origins)==1 else "mixed" if origins & {"recorded_replay","synthetic"} else "unknown"
     connection="receiving" if fresh==len(rows) else "partial" if fresh else "disconnected" if any("last_sample" in s for s in rows) else "waiting"
-    return {"source":source,"connection":connection}
+    if not fresh and all(s.get("connected") and s.get("sample_rate") == 0 for s in rows):connection="idle"
+    identities=[{"name":s.get("name", ""), "sourceId":s.get("source_id", ""), "kind":s.get("kind", ""),
+                 "origin":s.get("data_origin", "unknown"),"uid":s.get("uid", ""),"streamType":s.get("stream_type", "")} for s in rows]
+    names=list(dict.fromkeys(s["name"] or s["sourceId"] for s in identities if s["name"] or s["sourceId"]))
+    return {"source":source,"connection":connection,"sourceName":" + ".join(names),"streams":identities}
 
 
 class StudyService:
-    def __init__(self, output, calibration=None, policy=None):
+    def __init__(self, output, calibration=None, policy=None, personalized_policy=None):
         self.output = Path(output)
         self.calibration = calibration or {}
         self.controller = BaselineAdaptiveController(policy)
@@ -63,10 +71,12 @@ class StudyService:
         self.latest = None
         self.lock = threading.RLock()
         self.sensors = {}
+        self.personalized_policy = personalized_policy
 
     def receive(self, packet, decide=False):
+        packet = copy.deepcopy(packet)
         now = time.perf_counter()
-        if packet.get("configVersion") not in SUPPORTED_VERSIONS:
+        if packet.get("configVersion") not in (*SUPPORTED_VERSIONS, PERSONAL_VERSION):
             raise ValueError("Configuration version mismatch")
         sid = packet.get("sessionId", "")
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", sid):
@@ -95,10 +105,14 @@ class StudyService:
                 else:metadata.write_text(json.dumps({"sessionId":sid, "sessionType":kind,
                     "config":packet["config"], "policy":self.controller.policy, "calibration":self.calibration,
                     "status":"in_progress", "clock":"Python perf_counter monotonic seconds; see clock_sync.jsonl"}, indent=2),encoding="utf-8")
-                self.sessions[sid] = session
                 (folder/"calibration.json").write_text(json.dumps(self.calibration,indent=2),encoding="utf-8")
+                if packet.get("configVersion") == PERSONAL_VERSION:
+                    session["personal"] = PersonalSession(packet, folder, self.personalized_policy)
+                self.sessions[sid] = session
             if session["config"] != packet["config"] or session["kind"] != kind:
                 raise ValueError("Session configuration is immutable")
+            if "personal" in session and packet["now"] < session["packet"]["now"]:
+                raise ValueError("Stale personalized telemetry timestamp")
             session["packet"] = packet
             session["received"] = now
             self.latest = sid
@@ -125,7 +139,9 @@ class StudyService:
             calibration = dict(self.calibration, behavioral_baseline=baseline(packet.get("blocks",[])))
             reply = {"serverClock":time.perf_counter(), "featuresJson":json.dumps(latest_features(features)),
                      "calibrationJson":json.dumps(calibration),"physiologyStatus":physiology_display_status(self.sensors,time.perf_counter())}
-            if decide:
+            if "personal" in session:
+                reply.update(session["personal"].receive(packet, decide))
+            elif decide:
                 key = packet["requestId"]
                 if key not in session["decisions"]:
                     decision = self.controller.decide(packet,features,self.calibration)
@@ -133,6 +149,7 @@ class StudyService:
                     append_json(session["path"]/"controller_decisions.jsonl", {"packet":packet,"features":features,
                         "calibration":self.calibration,"policy":self.controller.policy,"decision":decision})
                 reply["decision"] = session["decisions"][key]
+            reply["serverClock"] = time.perf_counter()
             return reply
 
     def record_signal(self, stream_config, raw_times, corrected_monotonic, samples, correction, source_id):
@@ -144,6 +161,8 @@ class StudyService:
                 raise ValueError("Recorded/synthetic signals cannot be written into participant sessions")
             if time.perf_counter()-session.get("received",0)>5:
                 return
+            if "personal" in session:
+                session["personal"].ingest(stream_config, corrected_monotonic, samples, source_id)
             append_json(session["path"]/"raw_signals.jsonl", {"stream":stream_config,"source_id":source_id,
                 "raw_lsl_timestamps":raw_times,"corrected_monotonic":corrected_monotonic,"samples":samples,
                 "lsl_time_correction":correction,"received_monotonic":time.perf_counter(),"synthetic":stream_config.get("synthetic",False)})
@@ -154,6 +173,8 @@ class StudyService:
                 return
             sid = self.latest
             session = self.sessions[sid]
+            if "personal" in session:
+                return  # Dev9 extracts only completed, trial-aligned windows in PersonalSession.
             packet = session["packet"]
             if session["kind"]=="participant" and stream_config.get("synthetic"):
                 raise ValueError("Recorded/synthetic features cannot be written into participant sessions")
@@ -187,10 +208,12 @@ class StudyService:
         with self.lock:
             session=self.sessions.get(self.latest)
             return {"clock":time.perf_counter(),"sensors":self.sensors,"session":self.latest,
+                "physiologyStatus":physiology_display_status(self.sensors,time.perf_counter()),
                 "latest_telemetry":session.get("received") if session else None,
                 "task":session["packet"] if session else None,
-                "features":latest_features(session["features"]) if session else [],
-                "decisions":list(session["decisions"].values())[-3:] if session else []}
+                "features":list(session["personal"].predictions)[-5:] if session and "personal" in session else latest_features(session["features"]) if session else [],
+                "decisions":list(session["personal"].decisions.values())[-3:] if session and "personal" in session else list(session["decisions"].values())[-3:] if session else [],
+                "personalModel": session["personal"].report if session and "personal" in session else None}
 
 
 def lsl_worker(service, config):
@@ -198,32 +221,43 @@ def lsl_worker(service, config):
     while True:
         stream_id=config["source_id"]
         sensor_key=config["kind"]+":"+stream_id
-        service.sensors[sensor_key]={"connected":False,"state":"discovering","kind":config["kind"],"synthetic":config.get("synthetic",False),"data_origin":config.get("data_origin","unknown")}
+        service.sensors.setdefault(sensor_key,{})
+        service.sensors[sensor_key].update(connected=False,state="discovering",kind=config["kind"],name=config.get("name", ""),source_id=stream_id,uid=config.get("uid", ""),stream_type=config.get("stream_type", ""),sample_rate=config["sample_rate"],synthetic=config.get("synthetic",False),data_origin=config.get("data_origin","unknown"))
+        inlet = None
         try:
-            streams=pylsl.resolve_byprop("source_id",stream_id,timeout=2)
+            lookup="uid" if config.get("uid") else "source_id"
+            streams=matching_streams(pylsl.resolve_byprop(lookup,config.get("uid") or stream_id,minimum=2,timeout=2),config)
             if len(streams)!=1:
+                service.sensors[sensor_key]["state"] = "selected_outlet_not_found; refresh and reselect after publisher restart" if not streams else "ambiguous_source; select an outlet UID"
                 time.sleep(1)
                 continue
-            inlet=pylsl.StreamInlet(streams[0],max_buflen=180,recover=True)
-            xml=ET.fromstring(inlet.info().as_xml())
-            recorded=xml.findtext("./desc/xdf_replay/recorded_data", "false")=="true"
+            inlet=pylsl.StreamInlet(streams[0],max_buflen=180,recover=False)
+            identity=stream_identity(inlet.info(timeout=2))
+            recorded=identity["recorded"]
+            if config.get("channel_count") and config["channel_count"]!=identity["channel_count"]:
+                raise ValueError("Outlet channel count differs from selected source")
+            if config.get("channel_format") and config["channel_format"]!=identity["channel_format"]:
+                raise ValueError("Outlet sample format differs from selected source")
             config=dict(config,synthetic=config.get("synthetic",False) or recorded,
+                        name=identity["name"],uid=identity["uid"],stream_type=identity["stream_type"],channel_count=identity["channel_count"],channel_format=identity["channel_format"],channel_labels=identity["channel_labels"],
                         data_origin="recorded_xdf_replay" if recorded else config.get("data_origin","live_sensor"))
-            service.sensors[sensor_key].update(data_origin=config["data_origin"],synthetic=config["synthetic"])
-            rate=inlet.info().nominal_srate()
+            validate_config({"streams":[config]})
+            service.sensors[sensor_key].update(name=config["name"],uid=config["uid"],stream_type=config["stream_type"],data_origin=config["data_origin"],synthetic=config["synthetic"])
+            rate=identity["sample_rate"]
             if abs(rate-config["sample_rate"])>.01:
                 raise ValueError("Stream sample rate differs from frozen device configuration")
             rows=deque(maxlen=int(rate*65)+10)
             correction=inlet.time_correction(timeout=2)
+            if rate==0:service.sensors[sensor_key].update(connected=True,state="idle")
             next_correction=time.perf_counter()+5
             last_sample=time.perf_counter();next_feature=0
             while True:
-                samples,timestamps=inlet.pull_chunk(timeout=.25,max_samples=int(rate))
+                samples,timestamps=inlet.pull_chunk(timeout=.25,max_samples=max(1,min(int(rate) if rate else 256,8192)))
                 now=time.perf_counter()
                 if now>=next_correction:
                     correction=inlet.time_correction(timeout=1);next_correction=now+5
                 if not samples:
-                    if now-last_sample>3:
+                    if rate>0 and now-last_sample>3:
                         raise RuntimeError("No samples for three seconds")
                     continue
                 last_sample=now
@@ -231,11 +265,15 @@ def lsl_worker(service, config):
                 corrected=[t+correction+clock_delta for t in timestamps]
                 service.sensors[sensor_key].update(connected=True,state="receiving",last_sample=now)
                 channels=config["channels"]
-                selected=[[sample[i]*config.get("scale_to_units",1) for i in channels] for sample in samples]
+                selected=[[sample[i] if config["kind"]=="OBSERVE" else sample[i]*config.get("scale_to_units",1) for i in channels] for sample in samples]
                 if config.get("differential"):
                     if len(channels)!=2:raise ValueError("Differential ECG requires exactly two columns")
                     selected=[[row[0]-row[1]] for row in selected]
                 service.record_signal(config,timestamps,corrected,selected,correction,stream_id)
+                if config["kind"] in ("FEATURES","OBSERVE"):
+                    service.sensors[sensor_key].update(external_values=observation_values(config,selected),
+                        control_eligible=False,processing="external values only; no calibrated feature admission")
+                    continue
                 rows.extend(zip(corrected,selected))
                 if now>=next_feature and rows:
                     next_feature=now+2
@@ -246,8 +284,10 @@ def lsl_worker(service, config):
                         hrv_config=dict(config,window_seconds=60,feature_scope="hrv_only")
                         service.add_features(hrv_config,[r[0] for r in hrv],[r[1] for r in hrv],stream_id)
         except Exception as error:
-            service.sensors[sensor_key]={"connected":False,"state":str(error),"kind":config["kind"],"synthetic":config.get("synthetic",False),"data_origin":config.get("data_origin","unknown")}
+            service.sensors[sensor_key].update(connected=False,state=str(error))
             time.sleep(1)
+        finally:
+            if inlet is not None:inlet.close_stream()
 
 
 MONITOR = b'''<!doctype html><html lang="en"><meta charset="utf-8"><title>Stage 2 monitor</title>
@@ -291,17 +331,24 @@ def main():
     parser.add_argument("--host",default="127.0.0.1");parser.add_argument("--port",type=int,default=8765)
     parser.add_argument("--output",type=Path,required=True);parser.add_argument("--calibration",type=Path)
     parser.add_argument("--lsl-config",type=Path);parser.add_argument("--policy",type=Path)
+    parser.add_argument("--personalized-policy", type=Path, help="Dev9 frozen pilot policy; defaults never admit a physiological model")
+    parser.add_argument("--log-file",type=Path)
     args=parser.parse_args()
+    if args.log_file:
+        args.log_file.parent.mkdir(parents=True,exist_ok=True)
+        sys.stdout=args.log_file.open("a",encoding="utf-8",buffering=1);sys.stderr=sys.stdout
     read=lambda p:json.loads(p.read_text(encoding="utf-8-sig")) if p else None
-    service=StudyService(args.output,read(args.calibration),read(args.policy))
+    service=StudyService(args.output,read(args.calibration),read(args.policy),read(args.personalized_policy))
+    selected=validate_config(read(args.lsl_config)) if args.lsl_config else None
+    server=ThreadingHTTPServer((args.host,args.port),make_handler(service))
     if args.lsl_config:
-        for stream in read(args.lsl_config)["streams"]:
-            if stream["kind"] not in ("EEG","ECG") or not stream["source_id"] or stream["amplitude_limit"]<=0:
-                raise ValueError("Complete the device-specific LSL configuration first")
+        args.output.mkdir(parents=True,exist_ok=True)
+        (args.output/"lsl-selection.json").write_text(json.dumps(selected,indent=2),encoding="utf-8")
+        for stream in selected["streams"]:
             import pylsl  # Fail clearly when acquisition dependencies are unavailable.
             threading.Thread(target=lsl_worker,args=(service,stream),daemon=True).start()
     print(f"Stage 2 service: http://{args.host}:{args.port} | output={args.output}",flush=True)
-    ThreadingHTTPServer((args.host,args.port),make_handler(service)).serve_forever()
+    server.serve_forever()
 
 
 if __name__=="__main__":

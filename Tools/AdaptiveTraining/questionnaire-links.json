@@ -1,0 +1,16 @@
+{
+  "revision": "external-forms-pilot-v1",
+  "created": "2026-11-02",
+  "status": "published_pilot",
+  "calibrationFormUrl": "https://docs.google.com/forms/d/e/1FAIpQLSeghD4XMzg3o9_Z0C3wX79ns8VwIqtdPLRScHXn829bPKI0_A/viewform",
+  "trainingFormUrl": "https://docs.google.com/forms/d/e/1FAIpQLScKnSC3dnP8edc19qBj5Zbs2sRH62p1eQ5s9zbi9y5T9LTlEQ/viewform",
+  "calibrationEditorUrl": "https://docs.google.com/forms/d/1o5qVojVTBfPtVeazs_S34WqzO2k6keOFIw01Ex8TghE/edit",
+  "trainingEditorUrl": "https://docs.google.com/forms/d/1GWVFxQJIOXGC8uF9JV_uQxFL6Z1P_XHNz_JE-v5p2JY/edit",
+  "calibrationQuestions": 8,
+  "trainingQuestions": 15,
+  "trainingRequiredQuestions": 14,
+  "tlx": "Raw TLX; six ratings 0-100 in steps of 5; provisional digital dropdown administration",
+  "emailsCollected": false,
+  "responseSummaryShared": false,
+  "submissionTestPerformed": false
+}

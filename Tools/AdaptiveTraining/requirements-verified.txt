@@ -3,3 +3,5 @@ numpy==1.24.3
 scipy==1.14.1
 pylsl==1.18.6
 pyxdf==1.16.8
+scikit-learn==1.5.1
+joblib==1.4.2

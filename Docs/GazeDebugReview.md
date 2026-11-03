@@ -1,5 +1,7 @@
 # Engineering gaze highlight review
 
+Current follow-up (2026-11-02, dev8): at the user's request, shared task focus covers the sphere and tray bounding region, including the gap and 4 cm margin (`gaze-roi-v4-sphere-tray-area`). The engineering eye ray is a translucent continuous white line (`engineering-gaze-ray-v2-soft-white`). Sphere silhouette styling is unchanged; gaze on the tray can highlight the visible sphere. See [current operation and validation](EyeRayLinkReview.md). The dev6 definitions and results below are historical.
+
 Target clarification, 2026-11-02: Meta Quest Pro is the intended genuine eye-tracking device. Dev7 adds the explicit Android runtime permission request; see [Quest Pro support](QuestProSupport.md). The dev6 implementation and validation record below is retained as historical evidence.
 
 Date: 2026-11-02. Application: `2.0.0-stage2-dev6`, Android code 18. Training configuration/controller policy remain `2.0.0-stage2-dev5` / `rolling10-stride2-v1`. Debug presentation revision: `engineering-gaze-outline-v1`. Gaze processing revision: `gaze-roi-v2-visible-targets`.
@@ -48,3 +50,7 @@ Visibility gating changes gaze-data semantics even when the debug overlay is off
 - Android build/signature results are recorded in the current [acceptance record](AcceptanceRecord.md) and [project log](ProjectLog.md). Real eye hardware and Quest 3/Quest Pro stereo/comfort/device acceptance remain pending.
 
 Restore point: `Evidence/RestorePoints/gaze-debug-20261102/working-source-before.zip` includes the existing uncommitted dev5 work, with original Editor configuration and Git HEAD alongside it. New test code: `AgentScripts/GazeDebugValidation.cs`. Pipeline references used: installed `Documentation~/commands/scripts.md`, `editor-lifecycle-and-observability.md`, `build-and-compilation.md` and `capture.md`. The user subsequently requested remote delivery on 2026-11-02; the dev5/dev6 source, validation scripts and documentation are included together in the remote checkpoint. Existing ignore rules keep APK/ZIP artifacts, downloaded media and local engineering evidence outside Git.
+
+## 2026-11-02 engineering eye-ray extension
+
+Dev8 adds an independently switchable, default-off cyan dashed true-eye ray, engineering status readout and audited live toggles. Participant sessions remain excluded. Quest Pro Link readback still fails eye action-space creation; no valid eyes have been demonstrated. See [eye-ray implementation, tests and Link diagnosis](EyeRayLinkReview.md).

@@ -17,12 +17,15 @@ import time
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--editor",action="store_true",help="Temporarily enable the Editor engineering demo and install prepared media")
+    p.add_argument("--personalized", action="store_true", help="Use the dev11 protocol; recorded data can never admit a physiological model")
     p.add_argument("--mode",choices=["OFF","SHADOW","ACTIVE"],default="SHADOW")
     p.add_argument("--port",type=int,default=8765)
     p.add_argument("--repeat",type=int,default=6)
     p.add_argument("--duration",type=float,default=300)
-    p.add_argument("--xdf",type=Path,default=Path(r"D:\Code-Space\patent_code\P007\EEG-ECG-unlabeled-07-12min.xdf"))
+    p.add_argument("--xdf",type=Path)
     a=p.parse_args()
+    if a.xdf is None:
+        a.xdf=Path(r"D:\Code-Space\patent_code\P007")/("sub-P007.xdf" if a.personalized else "EEG-ECG-unlabeled-07-12min.xdf")
     root=Path(__file__).resolve().parents[2];os.chdir(root)
     with socket.socket() as sock:
         if sock.connect_ex(("127.0.0.1",a.port))==0:raise RuntimeError(f"Port {a.port} already in use; stop the earlier study service first")
@@ -47,6 +50,11 @@ def main():
             config=json.loads((root/"Assets/TaskPlatform/Config/adaptive-training-config.json").read_text())
             config.update(enabled=True,mode=a.mode,participantCode="P007-recorded-replay-demo",sessionType="engineering",
                 controlBasis="behavioral_fallback",controllerUrl=f"http://127.0.0.1:{a.port}")
+            if not a.personalized:
+                config.update(version="2.0.0-stage2-dev5", protocol="training", evaluationPolicy="rolling10-stride2-v1",
+                              rollingWindowTrials=10, rollingStrideTrials=2, includeTransferTests=True)
+            else:
+                config["controlBasis"]="physiological"
             (persistent/"adaptive-training-config.json").write_text(json.dumps(config,indent=2),encoding="utf-8")
         def launch(script,args,log):
             handle=(output/log).open("w",encoding="utf-8");handles.append(handle)
@@ -57,8 +65,10 @@ def main():
         while not config.exists():
             if replay.poll() is not None or time.perf_counter()>deadline:raise RuntimeError(f"Replay failed to initialize; inspect {output/'replay.log'}")
             time.sleep(.2)
-        service=launch("service.py",["--port",str(a.port),"--output",str(output/"service"),"--lsl-config",str(config)],"service.log")
-        print(f"RECORDED P007 REPLAY / SIMULATION. Behavioral control only. Monitor: http://127.0.0.1:{a.port}/",flush=True)
+        policy_args=["--personalized-policy",str(root/"Tools/AdaptiveTraining/p007-personalized-replay-policy.json")] if a.personalized else []
+        service=launch("service.py",["--port",str(a.port),"--output",str(output/"service"),"--lsl-config",str(config),*policy_args],"service.log")
+        control_note="Personal-model admission prohibited; explicit fallback only after model failure." if a.personalized else "Behavioral control only."
+        print(f"RECORDED P007 REPLAY / SIMULATION. {control_note} Monitor: http://127.0.0.1:{a.port}/",flush=True)
         print("Enter Unity Play Mode for the Editor demo, or start the configured Quest app. Ctrl+C stops both processes.",flush=True)
         print("Evidence: "+str(output),flush=True)
         while replay.poll() is None:

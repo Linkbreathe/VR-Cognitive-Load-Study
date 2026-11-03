@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="LslSourceWindow.uss" />
+  <ui:ScrollView name="panel" class="lsl-panel">
+    <ui:Label text="LSL Signal Sources" class="lsl-title" />
+    <ui:Label text="Start your device or replay publisher, then choose its signal here." class="lsl-note" />
+    <ui:VisualElement name="configuration" />
+    <ui:VisualElement name="actions" class="lsl-actions" />
+    <ui:Label name="status" class="lsl-note" />
+    <ui:Label name="serviceStatus" class="lsl-note" />
+  </ui:ScrollView>
+</ui:UXML>

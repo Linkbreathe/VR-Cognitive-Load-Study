@@ -40,7 +40,7 @@ public static class StatusViewProbe
         Check(c.AdaptiveRuntime.PhysiologyStatus.source=="recorded_replay","Actual bridge identifies recorded source");
         Check(c.AdaptiveRuntime.PhysiologyStatus.connection=="receiving","Actual LSL samples are current");
         c.StatusView.Refresh();
-        Check(c.StatusView.DisplayText.Contains("RECORDED REPLAY") && c.StatusView.DisplayText.Contains("Online"),"Replay and connectivity visible");
+        Check(c.StatusView.DisplayText.Contains("recorded_replay") && c.StatusView.DisplayText.Contains("Online"),"Replay provenance and connectivity retained");
         File.WriteAllText("Evidence/Stage2Status/replay-connected.txt",c.StatusView.DisplayText+"\n"+c.DataPath);
         return c.StatusView.DisplayText;
     }
@@ -48,7 +48,7 @@ public static class StatusViewProbe
     {
         var c=UnityEngine.Object.FindFirstObjectByType<TaskPlatformController>();
         Check(!c.AdaptiveRuntime.ServiceConnected,"No service response in three seconds");c.StatusView.Refresh();
-        Check(c.StatusView.DisplayText.Contains("SERVICE OFFLINE") && c.StatusView.DisplayText.Contains("Last source: RECORDED REPLAY"),"Stale source is explicitly historical");
+        Check(c.StatusView.DisplayText.Contains("SERVICE OFFLINE") && c.StatusView.DisplayText.Contains("recorded_replay"),"Offline source retains provenance without claiming receipt");
         File.WriteAllText("Evidence/Stage2Status/replay-disconnected.txt",c.StatusView.DisplayText);
         return c.StatusView.DisplayText;
     }
@@ -56,7 +56,7 @@ public static class StatusViewProbe
     {
         var c=UnityEngine.Object.FindFirstObjectByType<TaskPlatformController>();
         c.Engine.Resume(Time.realtimeSinceStartupAsDouble,Time.frameCount);await Task.Delay(250);
-        Check(c.StatusView.DisplayText.Contains("Receiving"),"Current sample receipt displayed");
+        Check(c.StatusView.DisplayText.Contains("RECEIVING"),"Current sample receipt displayed");
         ScreenCapture.CaptureScreenshot(Path.GetFullPath("Evidence/Stage2Status/active-replay-receiving.png"));await Task.Delay(150);
         c.Engine.Pause(Time.realtimeSinceStartupAsDouble,Time.frameCount,"engineering_status_probe");
         return c.StatusView.DisplayText;
@@ -66,11 +66,10 @@ public static class StatusViewProbe
         Check(ExperimentStatusView.ControllerText("SHADOW","behavioral_fallback",true).Contains("Auto OFF (advice only)"),"Shadow never implies execution");
         Check(ExperimentStatusView.ControllerText("ACTIVE","physiological",false).Contains("Offline / HOLD"),"Active configuration does not imply service availability");
         Check(ExperimentStatusView.PhysiologyText(null,true).Contains("UNKNOWN"),"Older bridge without provenance cannot claim live input");
-        Check(ExperimentStatusView.PhysiologyText(new PhysiologyDisplayStatus{source="live",connection="receiving"},true).Contains("not validated"),"Live transport is not physiological validation");
-        Check(ExperimentStatusView.PhysiologyText(new PhysiologyDisplayStatus{source="mixed",connection="partial"},true).Contains("includes simulation"),"Mixed sources retain simulation warning");
+        Check(ExperimentStatusView.PhysiologyText(new PhysiologyDisplayStatus{source="live",connection="receiving"},true).Contains("Provenance: live"),"Transport provenance remains explicit");
+        Check(ExperimentStatusView.PhysiologyText(new PhysiologyDisplayStatus{source="mixed",connection="partial"},true).Contains("Provenance: mixed"),"Mixed provenance is retained");
         var c=UnityEngine.Object.FindFirstObjectByType<TaskPlatformController>();
-        c.badge.text="STAGE 2 - ADAPTIVE TRAINING | Preparation\n"+ExperimentStatusView.ControllerText("SHADOW","physiological",true)+"\n"+
-            ExperimentStatusView.PhysiologyText(new PhysiologyDisplayStatus{source="mixed",connection="partial"},true);
+        c.badge.text=ExperimentStatusView.CompactStatus("SHADOW","physiological",new PhysiologyDisplayStatus{source="mixed",connection="partial",sourceName=new string('X',80)},true);
         c.badge.ForceMeshUpdate();Check(!c.badge.isTextOverflowing,"Longest source/control combination fits preparation label");
         c.StatusView.Refresh();
         File.WriteAllText("Evidence/Stage2Status/label-checks.txt","PASS: SHADOW, ACTIVE offline, unknown bridge, live-unvalidated, mixed-simulation and longest-label layout checks. Synthetic label inputs only.");

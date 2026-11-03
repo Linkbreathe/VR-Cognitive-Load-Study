@@ -1,0 +1,8 @@
+.lsl-panel { padding: 12px; flex-grow: 1; }
+.lsl-title { font-size: 20px; -unity-font-style: bold; margin-bottom: 6px; }
+.lsl-note { white-space: normal; margin-top: 6px; margin-bottom: 8px; }
+.lsl-section { margin-top: 10px; padding: 8px; border-width: 1px; border-color: #707070; border-radius: 4px; }
+.lsl-actions { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
+.lsl-actions Button { margin-right: 6px; min-height: 26px; }
+.lsl-source { white-space: normal; -unity-font-style: bold; margin-bottom: 5px; }
+.lsl-hidden { display: none; }

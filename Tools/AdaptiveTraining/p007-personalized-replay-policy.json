@@ -1,0 +1,56 @@
+{
+  "revision": "personalized-rf-pilot-v3-control70-40",
+  "frozen": false,
+  "device_qualified": false,
+  "auc_minimum": null,
+  "minimum_auc_gain": 0.0,
+  "min_class_windows": 10,
+  "min_class_blocks": 2,
+  "n_estimators": 300,
+  "max_depth": 3,
+  "min_samples_leaf": 5,
+  "theta_channels": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "alpha_channels": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "electrode_description": "P007 recorded XDF columns 1-4 in uV; anatomical sites unconfirmed; ECG is column 7 minus column 8; replay only",
+  "eeg_units_confirmed": true,
+  "iaf_qualified": false,
+  "label_trials": 5,
+  "label_alignment": "within_window5",
+  "label_rt_weight": 0.1,
+  "label_stable_min": 0.8,
+  "label_struggling_max": 0.4,
+  "permutation_count": 199,
+  "permutation_alpha": 0.05,
+  "permutation_method": "within_block_circular_labels",
+  "permutation_exchangeability_qualified": false,
+  "minimum_varying_blocks_per_condition": 2,
+  "stable_ba": 0.7,
+  "stable_omissions_below": 4,
+  "struggling_ba": 0.4,
+  "struggling_omissions_above": 5,
+  "thresholds": {
+    "0": {
+      "stable_max": 0.45,
+      "struggling_min": 0.65
+    },
+    "1": {
+      "stable_max": 0.45,
+      "struggling_min": 0.65
+    }
+  },
+  "threshold_method": "pilot_fixed_no_test_set_tuning",
+  "max_clock_uncertainty": 0.05,
+  "minimum_media_seconds": 10,
+  "minimum_dwell_trials": 5,
+  "enable_behavioral_fallback": true
+}

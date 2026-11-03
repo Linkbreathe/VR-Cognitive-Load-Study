@@ -17,7 +17,10 @@ public static class GazeDebugValidation
         var go=new GameObject("Synthetic gaze geometry");var t=go.transform;t.position=new Vector3(0,0,3);t.localScale=new Vector3(3.2f,1.8f,1);
         try
         {
-            Vector3 origin=Vector3.zero,ball=new Vector3(0,0,1.5f);
+            Vector3 origin=Vector3.zero;
+            var sphere=new Bounds(new Vector3(0,0,1.5f),Vector3.one*.16f);
+            var tray=new Bounds(new Vector3(0,-.19f,1.5f),new Vector3(.30f,.05f,.30f));
+            var ball=GazeRegions.TaskBounds(sphere,tray);
             Func<Vector3,bool,bool,GazeRegionSample> resolve=(direction,visible,video)=>GazeRegions.Classify(true,origin,direction,ball,visible,t,video);
             var s=resolve(Vector3.forward,true,true);Check(s.valid && s.task && !s.video,"Task takes priority over screen");
             Check(resolve(new Vector3(.8f,0,3),true,true).video,"Screen intersection inside rectangle");
@@ -33,11 +36,20 @@ public static class GazeDebugValidation
             Check(!GazeRegions.Classify(true,new Vector3(float.PositiveInfinity,0,0),Vector3.forward,ball,true,t,true).valid,"Nonfinite position invalid");
             Check(!GazeRegions.ValidRotation(new Quaternion(0,0,0,0)),"Zero quaternion invalid");
             Check(GazeRegions.ValidRotation(Quaternion.identity),"Identity quaternion valid");
+            Check(resolve(tray.center,true,false).task,"Tray center counts as task focus");
+            Check(resolve(new Vector3(0,-.1f,1.5f),true,false).task,"Gap between sphere and tray counts");
+            Check(resolve(new Vector3(.18f,-.19f,1.5f),true,false).task,"Margin around tray counts");
+            Check(!resolve(new Vector3(.30f,-.19f,1.5f),true,false).task,"Outside area excluded");
+            Check(!resolve(tray.center,false,false).task,"Inactive task area excluded");
+            Check(!GazeRegions.Classify(true,ball.center,Vector3.forward,ball,true,null,false).task,"Origin inside task area excluded");
+            Check(!GazeRegions.Classify(true,Vector3.zero,Vector3.back,ball,true,null,false).task,"Task area behind eye excluded");
+            Check(!GazeRegions.Classify(true,Vector3.zero,Vector3.forward,new Bounds(Vector3.forward,new Vector3(float.NaN,1,1)),true,null,false).task,"Invalid task bounds excluded");
             for(int i=0;i<=1000;i++)
             {
                 float angle=i/100f;
                 var r=resolve(Quaternion.Euler(0,angle,0)*Vector3.forward,true,true);
-                if(Mathf.Abs(angle-3)>.001f)Check(r.task==(angle<3),"Three-degree task region");
+                float boundary=Mathf.Atan2(.19f,1.31f)*Mathf.Rad2Deg;
+                if(Mathf.Abs(angle-boundary)>.001f)Check(r.task==(angle<boundary),"Sphere/tray area horizontal boundary");
                 Check(!(r.task && r.video),"Regions do not double count");
             }
             foreach(string kind in new[]{"engineering","participant","editor-test","synthetic"})foreach(bool requested in new[]{false,true})foreach(bool enabled in new[]{false,true})
@@ -45,7 +57,7 @@ public static class GazeDebugValidation
                       (kind=="engineering" && requested && enabled),"Engineering permission matrix");
             var shader=Resources.Load<Shader>("GazeDebugOutline");Check(shader!=null && shader.isSupported,"Outline shader available");
             var messages=UnityEditor.ShaderUtil.GetShaderMessages(shader);Check(!messages.Any(m=>m.severity.ToString()=="Error"),"No shader compiler errors");
-            string report="PASS: "+checks+" synthetic geometry/gating/shader checks. Visible-only task/movie regions, invalid eye data, no overlap, participant lockout. No real eye device validation.";
+            string report="PASS: "+checks+" synthetic geometry/gating/shader checks. Active sphere/tray area, margin and gap inclusion, invalid eye data, no overlap, participant lockout. No real eye device validation.";
             File.WriteAllText(Folder+"/model.txt",report);Debug.Log(report);return report;
         }
         finally{UnityEngine.Object.DestroyImmediate(go);}
@@ -88,7 +100,8 @@ public static class GazeDebugValidation
             Func<bool,GazeRegionSample> sample=video=>
             {
                 var target=video?c.AdaptiveRuntime.Media.Screen.position+c.AdaptiveRuntime.Media.Screen.right*.9f:c.stimulus.transform.position;
-                return GazeRegions.Classify(true,c.head.position,target-c.head.position,c.stimulus.transform.position,e.StimulusVisible,
+                var tray=c.spatialView.bench.Find("StimulusPlinth").GetComponent<Renderer>();
+                return GazeRegions.Classify(true,c.head.position,target-c.head.position,GazeRegions.TaskBounds(c.stimulus.bounds,tray.bounds),e.StimulusVisible,
                     c.AdaptiveRuntime.Media.Screen,c.AdaptiveRuntime.Media.IsVideoVisible);
             };
             var ball=sample(false);Color original=c.stimulus.sharedMaterial.color;

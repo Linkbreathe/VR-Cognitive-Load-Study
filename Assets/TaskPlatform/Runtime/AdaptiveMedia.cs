@@ -44,7 +44,7 @@ namespace EvidenceVR
         {
             // Practice uses only the participant's AV-assigned training clips; held-out clips stay unseen.
             var pool=manifest.items.Where(m=>m.split=="train").OrderBy(m=>m.id,StringComparer.Ordinal)
-                .Where((m,i)=>i%2==(1+config.counterbalanceGroup)%2).ToList();
+                .Where((m,i)=>config.IsPersonalized || i%2==(1+config.counterbalanceGroup)%2).ToList();
             var rng=new StableRandom(unchecked(config.seed+7919));
             for(int i=pool.Count-1;i>0;i--){int j=rng.Next(i+1);var item=pool[i];pool[i]=pool[j];pool[j]=item;}
             var result=new List<AdaptiveExposure>();
@@ -54,13 +54,14 @@ namespace EvidenceVR
                 double onset=config.practiceMediaOnsets[i]+(rng.Next(2001)/1000.0-1)*config.practiceOnsetJitterSeconds;
                 double duration=item?.duration??12;
                 if(onset+duration>blockDuration)continue;
-                result.Add(new AdaptiveExposure{mediaId=item?.id??"unavailable",modality="audiovisual",stage="practice",block=0,level=2,
+                result.Add(new AdaptiveExposure{mediaId=item?.id??"unavailable",modality="audiovisual",stage="practice",block=0,level=config.IsPersonalized?1:2,
                     previousExposures=item!=null && exposureCounts.ContainsKey(item.id)?exposureCounts[item.id]:0,onset=onset,duration=duration});
             }
             return result;
         }
         public List<AdaptiveExposure> Plan(int block,int level,string stage)
         {
+            if(config.IsPersonalized)return PlanPersonal(block,level,stage);
             var rng=new StableRandom(unchecked(config.seed+block*104729));
             var plan=new List<AdaptiveExposure>();
             string split=stage=="training"||stage=="calibration"?"train":((stage=="pretest")==(config.counterbalanceGroup/2==0)?"test_a":"test_b");
@@ -80,6 +81,25 @@ namespace EvidenceVR
                     onset=config.mediaOnsets[count==1?1:i]+(rng.Next(2001)/1000.0-1)*config.onsetJitterSeconds,duration=item?.duration??12});
             }
             return plan;
+        }
+        List<AdaptiveExposure> PlanPersonal(int block,int level,string stage)
+        {
+            var pool=manifest.items.Where(m=>m.split=="train").OrderBy(m=>m.id,StringComparer.Ordinal).ToList();
+            var rng=new StableRandom(unchecked(config.seed+block*104729));
+            for(int i=pool.Count-1;i>0;i--){int j=rng.Next(i+1);var temp=pool[i];pool[i]=pool[j];pool[j]=temp;}
+            pool=pool.OrderBy(m=>exposureCounts.ContainsKey(m.id)?exposureCounts[m.id]:0).ToList();
+            var onsets=stage=="calibration"?new[]{9.0,31.0}:new[]{9.0,36.0,63.0,90.0};
+            var result=new List<AdaptiveExposure>();
+            for(int i=0;i<onsets.Length;i++)
+            {
+                var item=level==1 && i<pool.Count?pool[i]:null;
+                int previous=item!=null && exposureCounts.ContainsKey(item.id)?exposureCounts[item.id]:0;
+                if(previous>0 && !config.allowMediaRepeats)item=null;
+                result.Add(new AdaptiveExposure{block=block,level=level,stage=stage,
+                    mediaId=level==0?"silent_slot":item?.id??"unavailable",modality=level==0?"silent":"audiovisual",
+                    previousExposures=previous,onset=onsets[i]+(rng.Next(2001)/1000.0-1)*config.onsetJitterSeconds,duration=item?.duration??12});
+            }
+            return result;
         }
         public void Presented(string id){if(id=="silent_slot"||id=="unavailable")return;exposureCounts[id]=(exposureCounts.ContainsKey(id)?exposureCounts[id]:0)+1;}
     }
@@ -106,7 +126,7 @@ namespace EvidenceVR
         public bool Ready {get;private set;}
         public bool BlockFailed {get;private set;}
         public bool IsPlaying=>active!=null;
-        public bool IsVideoVisible=>active!=null && active.level==2 && started && firstFrame && screen!=null && screen.enabled && player!=null && player.isPlaying;
+        public bool IsVideoVisible=>active!=null && active.modality=="audiovisual" && started && firstFrame && screen!=null && screen.enabled && player!=null && player.isPlaying;
         public string ActiveId=>active?.mediaId??"none";
         public Transform Screen=>screen?.transform;
         public double PlannedOnset(AdaptiveExposure e)=>blockStart+e.onset;
@@ -169,7 +189,7 @@ namespace EvidenceVR
             if(e.type=="block_start")
             {
                 Stop("interrupted","block_boundary");next=0;BlockFailed=false;engine.AdaptiveEvaluationBlocked=false;
-                blockStart=e.planned+(!engine.Practice && engine.Block==1?9:0);
+                blockStart=e.planned+(!config.IsPersonalized && !engine.Practice && engine.Block==1?9:0);
                 plan=scheduler==null?new List<AdaptiveExposure>():engine.Practice?
                     scheduler.PlanPractice((owner.SessionConfig.hardPracticeTrials+owner.SessionConfig.warmupTrials)*owner.SessionConfig.trialSeconds):
                     scheduler.Plan(engine.Block,engine.Adaptive.Level,engine.Adaptive.Stage);
@@ -200,7 +220,7 @@ namespace EvidenceVR
         }
         void PrepareNext()
         {
-            if(next<plan.Count && plan[next].level==2 && videos.TryGetValue(plan[next].mediaId,out var path))
+            if(next<plan.Count && plan[next].modality=="audiovisual" && videos.TryGetValue(plan[next].mediaId,out var path))
             {player.url=path;player.Prepare();}
         }
         public void Tick(double now)
@@ -210,16 +230,16 @@ namespace EvidenceVR
             if(next>=plan.Count || now<blockStart+plan[next].onset)return;
             active=plan[next++];activeEnd=blockStart+active.onset+active.duration;started=false;firstFrame=false;
             if(active.level==0){OnMedia?.Invoke(active,"silent_slot",now,"");active=null;return;}
-            if(now>=activeEnd || !clips.ContainsKey(active.mediaId) || (active.level==2&&!player.isPrepared))
+            if(now>=activeEnd || !clips.ContainsKey(active.mediaId) || (active.modality=="audiovisual"&&!player.isPrepared))
             {Stop("failure","missing_or_not_prepared_or_missed_slot");PrepareNext();return;}
             var item=manifest.items.First(m=>m.id==active.mediaId);source.volume=config.mediaVolume*item.gain;
             OnMedia?.Invoke(active,"play_requested",now,"fixed_source;software_timestamp");
-            if(active.level==1){source.clip=clips[active.mediaId];source.Play();started=true;scheduler.Presented(active.mediaId);OnMedia?.Invoke(active,"started",now,"audio_play_call");}
+            if(active.modality=="audio"){source.clip=clips[active.mediaId];source.Play();started=true;scheduler.Presented(active.mediaId);OnMedia?.Invoke(active,"started",now,"audio_play_call");}
             else {source.clip=null;player.Play();}
         }
         void OnFrame(VideoPlayer p,long frame)
         {
-            if(active==null||active.level!=2||firstFrame)return;
+            if(active==null||active.modality!="audiovisual"||firstFrame)return;
             firstFrame=started=true;screen.sharedMaterial=videoMaterial;screen.enabled=true;scheduler.Presented(active.mediaId);
             OnMedia?.Invoke(active,"started",Time.realtimeSinceStartupAsDouble,"first_decoded_frame;not_photon_onset");
         }
@@ -229,8 +249,8 @@ namespace EvidenceVR
             {
                 if(status!="ended")
                 {
-                    BlockFailed=true;engine.AdaptiveEvaluationBlocked=true;
-                    engine.ResetRolling(Time.realtimeSinceStartupAsDouble,Time.frameCount,"media_"+status);
+                    BlockFailed=true;
+                    if(engine!=null){engine.AdaptiveEvaluationBlocked=true;engine.ResetRolling(Time.realtimeSinceStartupAsDouble,Time.frameCount,"media_"+status);}
                 }
                 OnMedia?.Invoke(active,status,Time.realtimeSinceStartupAsDouble,detail);
             }

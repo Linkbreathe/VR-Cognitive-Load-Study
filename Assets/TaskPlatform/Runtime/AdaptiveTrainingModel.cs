@@ -20,6 +20,7 @@ namespace EvidenceVR
         public int baselineBlocks = 2, maxTrainingBlocks = 8, maxConsecutiveBlocks = 3;
         public bool enabled, includeTransferTests = true, allowMediaRepeats = true;
         public bool engineeringGazeHighlight;
+        public bool engineeringGazeRay;
         public float mediaVolume = .25f, onsetJitterSeconds = 1;
         public float[] mediaOnsets = { 19, 51, 83 };
         public float videoAngle = 0, videoWidth = 3.2f, videoHeight = 1.8f;
@@ -27,6 +28,16 @@ namespace EvidenceVR
         public float[] practiceMediaOnsets = {10,28,46};
         public float practiceOnsetJitterSeconds = .5f;
         public string mediaManifest = "adaptive-media-manifest.json";
+        public const string PersonalVersion = "2.0.0-stage2-dev11";
+        public bool IsPersonalized => version==PersonalVersion && protocol=="personalized-rf-v2";
+        public int calibrationBlocks=8, trainingTrials=96;
+        public string assignmentId="engineering-unallocated";
+        public string calibrationFormUrl="", trainingFormUrl="";
+        public string questionnaireAdministration=TaskEngine.PersonalQuestionnaireAdministration;
+        public static AdaptiveTrainingConfig Personalized() => new AdaptiveTrainingConfig {
+            version=PersonalVersion, protocol="personalized-rf-v2", enabled=true, mode="ACTIVE",
+            evaluationPolicy="physio5-behavior20-stride5-v2", controlBasis="physiological",
+            rollingWindowTrials=20, rollingStrideTrials=5, includeTransferTests=false };
         public bool UpgradeLegacyPresentation()
         {
             if(version!="2.0.0-stage2-dev1" && version!="2.0.0-stage2-dev3" && version!="2.0.0-stage2-dev4")return false;
@@ -36,6 +47,19 @@ namespace EvidenceVR
         }
         public void Validate()
         {
+            if(IsPersonalized)
+            {
+                if(!new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) || !new[]{"engineering","participant"}.Contains(sessionType) ||
+                    questionnaireAdministration!=TaskEngine.PersonalQuestionnaireAdministration ||
+                    string.IsNullOrWhiteSpace(participantCode) || (calibrationBlocks!=6 && calibrationBlocks!=8) || trainingTrials!=96 ||
+                    counterbalanceGroup<0 || counterbalanceGroup>3 || evaluationPolicy!="physio5-behavior20-stride5-v2" ||
+                    videoWidth!=3.2f || videoHeight!=1.8f || videoPlacement!="front_wall_center" ||
+                    !(mediaVolume>=0 && mediaVolume<=1) || !(onsetJitterSeconds>=0 && onsetJitterSeconds<=1) ||
+                    !Uri.TryCreate(controllerUrl,UriKind.Absolute,out var endpoint) || endpoint.Scheme!="http" ||
+                    (sessionType=="participant" && (string.IsNullOrWhiteSpace(assignmentId) || assignmentId=="engineering-unallocated" || mode!="ACTIVE")))
+                    throw new ArgumentException("Invalid dev11 personalized protocol configuration or participant allocation.");
+                return;
+            }
             if (version != "2.0.0-stage2-dev5" || evaluationPolicy!="rolling10-stride2-v1" || rollingWindowTrials!=10 || rollingStrideTrials!=2 || !new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) ||
                 !new[]{"training","calibration"}.Contains(protocol) ||
                 !new[]{"behavioral_fallback","physiological"}.Contains(controlBasis) ||
@@ -107,6 +131,10 @@ namespace EvidenceVR
         int stageCount;
         string trainingEndRequested;
         public AdaptiveTrainingState(AdaptiveTrainingConfig config) { config.Validate(); Config=config; }
+        internal void SetPersonalStage(string stage,int level)
+        { if(!Config.IsPersonalized)throw new InvalidOperationException();Stage=stage;Level=level;Pending=null; }
+        internal void SetPersonalLevel(int level)
+        { if(!Config.IsPersonalized || level<0 || level>1)throw new ArgumentException();Level=level;Pending=null; }
         public bool ApplyRollingDecision()
         {
             if(Stage!="training" || Finished || Config.mode!="ACTIVE" || Pending==null)return false;

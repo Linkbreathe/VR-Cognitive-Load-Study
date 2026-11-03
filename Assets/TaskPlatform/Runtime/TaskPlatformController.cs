@@ -88,8 +88,9 @@ namespace EvidenceVR
             if(adaptiveConfig!=null)config=Engine.Config;
             recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, adaptiveConfig==null?"TaskPlatformData":"AdaptiveTrainingData"), Engine.Config,
                 participant:adaptiveConfig?.participantCode??"anonymous",kind:Application.isEditor?"editor-test":adaptiveConfig?.sessionType??"participant",
-                presentationVersion:adaptiveConfig==null?null:"adaptive-lab-v2.0-rolling-countdown",
-                gazeDebugRequested:adaptiveConfig?.engineeringGazeHighlight??false,gazeDebugEnabled:GazeDebugHighlighter.IsAllowed(adaptiveConfig));
+                presentationVersion:adaptiveConfig==null?null:adaptiveConfig.IsPersonalized?TaskEngine.PersonalPresentationRevision:"adaptive-lab-v2.0-rolling-countdown",
+                gazeDebugRequested:adaptiveConfig?.engineeringGazeHighlight??false,gazeDebugEnabled:GazeDebugHighlighter.IsAllowed(adaptiveConfig),
+                gazeRayRequested:adaptiveConfig?.engineeringGazeRay??false,gazeRayEnabled:EngineeringGazeRay.IsAllowed(adaptiveConfig) && adaptiveConfig.engineeringGazeRay);
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
             onsetCue?.Bind(Engine,config);
@@ -160,8 +161,15 @@ namespace EvidenceVR
             float diameter = 2 * config.distance * Mathf.Tan(config.visualAngle * Mathf.Deg2Rad * .5f);
             stimulus.transform.localScale = Vector3.one * diameter;
             spatialView?.PlaceSupports(taskAnchor);
+            spatialView?.PlaceStimulusAboveTray(stimulus);
             calibrated = confirm;
             Engine?.Note("calibration", "head=" + head.position + ";forward=" + forward + ";diameter_m=" + diameter, Time.realtimeSinceStartupAsDouble, Time.frameCount);
+            if(spatialView!=null)
+            {
+                string placement=SpatialTaskView.StimulusPlacementRevision+";surface_clearance_m="+SpatialTaskView.SphereTrayClearanceMeters.ToString(System.Globalization.CultureInfo.InvariantCulture)+";sphere_world="+stimulus.transform.position.ToString("F6",System.Globalization.CultureInfo.InvariantCulture);
+                Engine?.Note("stimulus_placement",placement,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                Debug.Log("Stimulus placement: "+placement);
+            }
             lastPhase = (TaskPhase)(-1);
         }
         void Update()
@@ -170,6 +178,7 @@ namespace EvidenceVR
             try
             {
                 double now = Time.realtimeSinceStartupAsDouble;
+                CheckPersonalMount(now);
                 double delta = now - lastTime; lastTime = now;
                 float refresh = 0; SubsystemManager.GetSubsystems(displays);
                 foreach (var display in displays) if (display.running) display.TryGetDisplayRefreshRate(out refresh);
@@ -245,11 +254,11 @@ namespace EvidenceVR
                     footer.text = "Seated task  /  No movement required"; break;
                 case TaskPhase.Instructions:
                     heading.text = (Engine.Practice ? "PRACTICE" : "FORMAL BLOCK " + (Engine.Block - 1)) + "  /  " + (Engine.Mode == TaskMode.Easy ? "0-BACK" : "2-BACK");
-                    body.text = rule + "\n\nFirst " + config.warmupTrials + " colors: observe and remember.\nNo answers needed during warm-up.\n\n" + (Engine.Practice || config.formalFeedbackEnabled ? "Correct and incorrect answers receive visual feedback." : "No feedback during the formal block.") + "\n\n{continue} to begin."; break;
+                    body.text = rule + "\n\nFirst " + config.warmupTrials + " colors: observe and remember.\nNo answers needed during warm-up.\n\n" + (Engine.ShowsCorrectnessFeedback ? "Correct and incorrect answers receive visual feedback." : "No feedback during the formal block.") + "\n\n{continue} to begin."; break;
                 case TaskPhase.Running:
                     heading.text = (Engine.Practice ? "PRACTICE  /  " : "") + (Engine.Mode == TaskMode.Easy ? "0-BACK  /  " + ColorNames[config.targetColor] : "2-BACK") + (Engine.Current.scored ? "" : "  /  WARM-UP");
                     badge.text = ""; body.text = "";
-                    if ((Engine.Practice || config.formalFeedbackEnabled) && Engine.Current.scored && Engine.CurrentResult != null && (Engine.CurrentResult.responded || Engine.CurrentResult.timeout))
+                    if (Engine.ShowsCorrectnessFeedback && Engine.Current.scored && Engine.CurrentResult != null && (Engine.CurrentResult.responded || Engine.CurrentResult.timeout))
                         body.text = "\n\n\n\n" + (Engine.CurrentResult.timeout ? "No response" : Engine.CurrentResult.correct ? "Correct" : "Incorrect");
                     break;
                 case TaskPhase.Rest:
@@ -266,6 +275,15 @@ namespace EvidenceVR
             body.text = body.text.Replace("{continue}", Key(config.advanceAction)).Replace("{pause}", Key(config.pauseAction));
         }
         static string Key(string name) => name == "RightPrimary" ? "A" : name == "RightSecondary" ? "B" : name == "LeftPrimary" ? "X / Enter" : name == "LeftSecondary" ? "Y / P" : name;
+        void CheckPersonalMount(double now)
+        {
+            if(!Engine.IsPersonalized)return;
+            var headset=InputDevices.GetDeviceAtXRNode(XRNode.Head);
+            if(headset.isValid && headset.TryGetFeatureValue(UnityEngine.XR.CommonUsages.userPresence,out bool present) && !present)
+                Engine.ReportPersonalMountMovement(now,Time.frameCount,"xr_user_presence_false");
+            if(Keyboard.current!=null && Keyboard.current.hKey.wasPressedThisFrame)
+                Engine.ReportPersonalMountMovement(now,Time.frameCount,"operator_reported_headset_or_electrode_movement");
+        }
         void Fail(Exception e)
         {
             setupError = e.Message; if (stimulus != null) stimulus.enabled = false;

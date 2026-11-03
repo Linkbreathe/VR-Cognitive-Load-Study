@@ -10,6 +10,8 @@ namespace EvidenceVR
         public TMP_Text stage, rule, progress, comparison, timer, timerLabel, controls, feedback;
         public Transform bench, leftLeg, rightLeg;
         public const float TabletopHeight=.65f;
+        public const float SphereTrayClearanceMeters=.0864f;
+        public const string StimulusPlacementRevision="sphere-tray-clearance-v1";
         public const float InstructionForwardOffset=-.25f, HudForwardOffset=-.22f;
         public static readonly Color CorrectColor=LabPalette.Hex("70D69A"), IncorrectColor=LabPalette.Hex("F27D7D");
         public const string CountdownRevision="response-countdown-v2-centiseconds";
@@ -31,7 +33,7 @@ namespace EvidenceVR
             timerLabel.text=remaining>0 ? "" : "Next";
             timer.color=LabPalette.Text;timerLabel.color=LabPalette.Muted;
             var result=engine.CurrentResult;
-            if((engine.Practice || config.formalFeedbackEnabled) && engine.Current.scored && result!=null && (result.responded || result.timeout))
+            if(engine.ShowsCorrectnessFeedback && engine.Current.scored && result!=null && (result.responded || result.timeout))
             {
                 bool correct=result.responded && result.correct;
                 timer.color=timerLabel.color=correct ? CorrectColor : IncorrectColor;
@@ -62,5 +64,13 @@ namespace EvidenceVR
             stem.localScale=new Vector3(.09f,stemHeight*.5f,.09f);
         }
         public void ShowError() { instructions.enabled=true; taskCanvas.enabled=false; }
+        public void PlaceStimulusAboveTray(Renderer sphere)
+        {
+            var tray=bench.Find("StimulusPlinth").GetComponent<Renderer>();
+            // Use surface clearance so calibration and sphere size cannot change the gap.
+            var position=sphere.transform.position;
+            position.y=tray.bounds.max.y+sphere.bounds.extents.y+SphereTrayClearanceMeters;
+            sphere.transform.position=position;
+        }
     }
 }

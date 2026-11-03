@@ -1,14 +1,93 @@
 # Project status and update log
 
-This is the entry point for project progress and major changes. Add a dated entry after each major update, newest first, and refresh the current status below. Preserve historical entries and link detailed reviews and evidence instead of duplicating them.
-
 ## Current status
 
-Last reviewed: 2026-11-02. Application: `2.0.0-stage2-dev7` (Android code 19); training configuration remains `2.0.0-stage2-dev5`. Policy: `rolling10-stride2-v1`; status: `mode-status-v2-compact`; countdown: `response-countdown-v2-centiseconds`. Current work: **Meta Quest Pro deployment target clarified; explicit Android eye permission added; engineering gaze highlight and rolling control software-verified; physiological/device acceptance pending**.
+Last reviewed: 2026-11-03. Application `2.0.0-stage2-dev12`, Android code 24; environment `warm-study-v1`; configuration/HTTP contract `2.0.0-stage2-dev11`; protocol `personalized-rf-v2`; updated Python policy `personalized-rf-pilot-v3-control70-40`. Engineering candidate only. Model/device/permutation qualification remains disabled by default. Stage 1 remains the default without an enabled override.
+
+- The shared scene is a warm study with cream walls, oak furnishings, static books/plants, linen seating and baked fixed lighting. Session metadata records the environment revision. [Environment review](LabEnvironmentReview.md).
+- Current source adds `controller-guidance-v1`: illustrated left-trigger/A/B preparation cards, explicit current/ready states and a completed-check count. Editor-verified; not included in the existing dev12 APK. [UI review](ControlHintUiReview.md).
+- Control Stable: BA >= 0.70 and omissions < 4. Struggling: BA <= 0.40 or total omissions > 5 within twenty trials. No decision RT ceiling or consecutive-omission trigger. Model thresholds: <= 0.45 / >= 0.65. Restart the updated service and start a fresh session; old policy/models are rejected. [Control rule review](PersonalizedControlRulesReview.md).
+- Preparation and signal checks lead directly to practice and calibration; no 120-second resting acquisition. Default timed duration is 22:39, excluding instructions, model fitting and oral questions/rests. Python no longer writes resting-reference files.
+- Each feature window uses its own five-trial score label, with a correctness-dominant score, small correct-RT adjustment and an unlabeled buffer. No block-ten label sharing or small-window balanced accuracy.
+- Leave-block-out validation adds per-condition gates, a time baseline and 199 within-block circular label transformations with full refits. Assumptions and all gates remain provisional.
+- Correctness feedback is practice-only in the personalized protocol. Calibration/Random/Bioadaptive retain the neutral countdown and unchanged response scoring/timing.
+- All questionnaires are read aloud and entered by the experimenter; headset/electrodes stay in place. Recorded mount movement requires a new session and blocks model/control reuse. No automatic baseline-offset correction.
+- All fifteen previously EEG-evaluated P007 windows were reproduced: amplitude failures, zero flatline failures; the fourth selected channel alone fails all fifteen. Source header declares uV and the mapped scale is 1. No gates or channels were relaxed.
+- Current delivery/test status: [acceptance](AcceptanceRecord.md), [release](LabEnvironmentRelease.md). Detailed changes and limitations: [no-rest review](NoRestProtocolReview.md) and [retained model method](PersonalizedValidityReview.md). Historical dev9/dev10 evidence is retained below.
+- The 2026-11-03 source publication checkpoint includes the accumulated Stage 2 source, scene, environment assets, control policy and controller guidance. Existing dev12 APKs still predate the controller guidance; older deployment ZIPs retain their original Python policy.
+
+## 2026-11-03 — Stage 2 source publication checkpoint
+
+- **Stage/reason:** The user approved publishing the current work to `origin/main`. Application remains dev12/code 24, with `warm-study-v1`, `personalized-rf-v2`, `personalized-rf-pilot-v3-control70-40` and `controller-guidance-v1`.
+- **Scope:** Accumulated changes since dev7: source-first LSL selection, engineering gaze/Quest Link support, personalized protocol and validity revisions, no-rest flow, warm study assets and baked scene, revised control thresholds, controller guidance, validation helpers and operating/review records. Source assets retain their provenance records.
+- **Validation:** Fresh Python regression run passed all 111 tests in 15.060 seconds. Reviewed the existing controller-guidance and control-policy verification records; no Unity compilation, device test or APK build was rerun for this publication. Authored-code/document whitespace checks passed; Unity-generated scene/OpenXR YAML retains existing whitespace warnings. No added file exceeds GitHub's ordinary file-size limit. The fetched remote matched the starting local HEAD before the checkpoint.
+- **Delivery boundary:** This is a source checkpoint. Ignored local `Builds/`, `Evidence/`, caches and original `MediaSources/` are not part of the Git publication. Previously tracked and newly authored `Assets/Evidence/` engineering preview assets are included. Existing APK/ZIP artifacts retain their documented contents.
+- **Pending:** Quest Pro physical acceptance, controller/readability/comfort/performance checks, real signal quality and model/threshold qualification remain open. Software fixtures do not establish participant or physical-device acceptance.
+- **Records:** [Controller guidance](ControlHintUiReview.md), [control policy](PersonalizedControlRulesReview.md), [environment](LabEnvironmentReview.md), [acceptance](AcceptanceRecord.md), [operation](ExperimentGuide.md).
+
+## 2026-11-03 — Controller guidance UI v1
+
+- **Stage/reason:** Shared instruction UI; the user requested clearer, less monotonous left-trigger/A/B guidance.
+- **Changes:** Existing cards now show a trigger schematic, large A/B keycaps, warm current-step borders, textual ready states and a 0–3 completion count. Compact legends return outside preparation; new metadata field `controlHintRevision=controller-guidance-v1`. Existing operations and trial HUD remain intact.
+- **Validation:** Runtime and authoring compilation passed; 113 engineering input/text/transition/metadata assertions passed, with four PASS messages read back. Initial, intermediate, ready and instruction captures inspected. Eleven protected engine/input/model/configuration/player-setting files match pre-change hashes. Current console zero errors/two warnings; transient OpenXR initialization and a corrected helper-only field-name error are documented in the review.
+- **Pending:** Quest Pro readability, physical controls, comfort and standalone performance. No new APK, participant session or physiological acceptance.
+- **Operation/restore:** Same left-trigger/C, A/B and X/Enter controls. Source/scene update only; validation Play Mode stopped, existing auto-tick retained. Restore ZIP: `Evidence/ControlHintUI/pre-guidance-source.zip`. [Detailed review](ControlHintUiReview.md), [acceptance](AcceptanceRecord.md), [guide](ExperimentGuide.md).
+
+## 2026-11-03 — Personalized control policy v3
+
+- **Stage/reason:** User revised behavior/model thresholds and clarified cumulative omissions > 5 within twenty trials, replacing three consecutive omissions.
+- **Changes:** Stable BA >= 0.70 with omissions < 4; Struggling BA <= 0.40 or omissions > 5; no control RT ceiling; model Stable <= 0.45 and Struggling >= 0.65. All-wrong/all-omitted windows remain evaluable with descriptive RT=null. Default/replay policies, decision state/revision audit and old-policy/model rejection updated. Five-trial labels, admission gates and Unity task/environment remain unchanged.
+- **Validation:** 111 Python tests passed in 26.239 s, including 17 new regressions and localhost HTTP/cache/audit checks. Nine synthetic Python decisions passed 73 isolated-engine Play Mode boundary/deferral/audit checks. PASS log read back; current console zero errors/two warnings. Initial serialization/helper issues resolved and documented. Protected scene/configuration/runtime files checked against pre-change hashes.
+- **Pending:** Revised threshold qualification and retained sensor, Quest Pro and participant acceptance. No new model admission, APK, installation or physical validation.
+- **Operation/restore:** Restart the updated Python service and begin a new session/calibration. Existing deployment ZIPs retain their original policy. Restore: `Evidence/PersonalizedControlRules/pre-control-v3-source.zip`; [review](PersonalizedControlRulesReview.md), [acceptance](AcceptanceRecord.md), [operation](ExperimentGuide.md). No commit or remote push implied.
+
+## 2026-11-03 — Stage 2 dev12 warm study environment
+
+- **Stage/reason:** User requested online assets and a richer room, then selected a welcoming study instead of the unshipped gray laboratory draft.
+- **Changes:** Sourced CC0 wood/plaster/furniture; cream walls, oak floor/desks/bookshelves, static books/plants, reading corner and fixed lamps; baked room lighting; narrow HUD contrast backing; session environment revision. Application/code dev12/24 with unchanged dev11 configuration/service and v2 model policy.
+- **Validation:** Saved scene reload and 421 structural/sightline checks passed, including 405 clear sampled movie rays. Existing engine regression: 15,945 assertions. Seven live engineering checks passed for frame advancement, metadata, timing and sphere clearance; three room captures and the live task inspected. Ten protected files remain byte-identical to the restore point. Final live console ground truth reported zero errors/warnings, with historical resolved errors and unrelated logs retained. Android dev12 build succeeded in 177.607 s, zero errors/347 warnings; 100,260,882-byte ARM64 APK, code 24 and v2 signature verified. Build identity: [release](LabEnvironmentRelease.md).
+- **Pending:** Quest Pro standalone visual comfort, color/scale/readability, distraction and performance; all retained physiological/policy/device qualifications. No participant or physical acceptance.
+- **Restore/records:** `Evidence/LabEnvironment/pre-dev12-source.zip` and `pre-dev12.patch`; [review](LabEnvironmentReview.md), [style/sources](LabEnvironmentStyle.md), [operation](ExperimentGuide.md). No commit or remote push implied.
+
+## 2026-11-03 — Stage 2 dev11 removes the initial resting acquisition
+
+- **Stage/reason:** User requested deletion of the two-minute baseline while keeping preparation and signal checks.
+- **Changes:** Preparation -> practice -> calibration, removal of baseline UI/countdowns and Python resting-reference writes, versioned flow/presentation metadata, dev11 source/config/service/build support, revised duration and operating guide. Calibration and training algorithms, budgets, four-second responses, 4.5-second cycle, quality gates, oral questions and mount handling remain unchanged.
+- **Validation:** Unity compilation and 15,945 synthetic-clock assertions passed across all allocations and six/eight-block schedules. Combined Python suite: 94 tests passed in 26.617 s. Play Mode: 15 checks passed using synthetic keyboard and transient media/signal-status fixtures, including retained preparation gates and direct practice/calibration transitions. Preparation and calibration UI inspected. Android build succeeded in 83.560 s with zero errors and 350 recorded warnings. APK: 95,981,506 bytes, ARM64, code 23/name `2.0.0-stage2-dev11`, v2 signature verified. SHA-256 `d28376148519195cf5e7a0fd23797c3d38d63911f1fcf0c068af4476bbcdd62e`. No headset installation was performed.
+- **Pending:** Quest Pro full physical/device acceptance, actual sensor/contact/unit quality, model/policy qualification, oral Forms rehearsal and scientific efficacy. No real participant or sensor acceptance is claimed.
+- **Restore/delivery:** `Evidence/NoRestProtocol/pre-dev11-source.zip` and `pre-dev11.patch`; old APKs/ZIPs retained. [Review](NoRestProtocolReview.md), [release](NoRestProtocolRelease.md), [operation](ExperimentGuide.md). No commit or remote push is implied.
+
+## 2026-11-02 — Stage 2 dev10 validity revision
+
+- **Stage/reason:** Address the user's four methodological concerns and selected oral-questionnaire procedure before a real pilot.
+- **Changes:** Five-trial window labels and buffer; within-block circular null with full block-held-out refits; within-condition and time-comparator gates; practice-only correctness feedback; oral questionnaire UI/metadata; latched mount-integrity invalidation in Unity/Python and descriptive analysis; per-channel EEG quality diagnostics and a reproducible P007 audit. Versioned source/configuration/policy/presentation prevents silent reuse of old artifacts.
+- **Preserved:** Central 2-back, four-second response/visibility, 4.5-second cycle, trial budgets, scoring, media schedules, allocation, Stage 1 feedback, genuine-eye-only recording and engineering-data isolation.
+- **Validation:** Unity compilation, 15,965 synthetic-clock protocol assertions and 79 actual-scene UI/mount/scoring checks passed. The final combined Python suite passed 94 tests. A separate production 300-tree/199-null synthetic integration passed in 591.192 s; its non-participant/unqualified model remained rejected. Android code-22 APK built successfully with zero errors and 347 warnings; ARM64/version/v2 signature checked. Live engineering calibration accepted an incorrect answer with neutral countdown, and oral-question UI was inspected. Fifteen P007 EEG fractions reproduced exactly; source XDF read only.
+- **Pending:** Label/score/circular-exchangeability/AUC qualification, real EEG/ECG montage/contact and timing, oral Forms submission/export rehearsal, media review, Quest Pro presence/comfort/eye/standalone/full-duration sessions, real model pass rates and efficacy. No participant or physical-device pass is claimed.
+- **Restore/delivery:** `Evidence/PersonalizedValidity/pre-dev10-source.zip` and `pre-dev10.patch` preserve the dirty pre-update worktree. Existing dev9 APK/ZIP remain historical. No commit or remote push is implied. See [release instructions](PersonalizedValidityRelease.md).
+
+## 2026-11-02 — Stage 2 dev9 personalized two-level protocol
+
+- **Stage/reason:** Implement the supplied revised Random vs Bioadaptive specification while preserving the dirty dev8 eye/LSL/placement work.
+- **Changes:** Added resting phases, alternating calibration, bounded supplementation/model waiting, blinded allocated training and external-form breaks; binary AV scheduling; trial-completion telemetry; personal RF/quality/labels/validation/artifacts; allocation and descriptive-analysis tools. The user selected retrospective block-ten labels for the engineering pilot.
+- **Validation:** C# compilation and 15,965 synthetic-clock Unity assertions passed. The final combined Python suite passed 81 tests with the user-selected retrospective default. Play Mode advanced; baseline UI and actual L1 movie decoding were inspected. All 22 pairs loaded; the unperformed media review gate remains false. Zero console errors. Android APK built successfully (zero errors; 347 recorded warnings).
+- **Pending:** Pilot label/AUC/threshold freeze, real sensor/montage and ECG qualification, clock/onset validation, complete Quest Pro sessions, media review, questionnaire scoring/submission/export linkage and participant model pass rates. P007 XDF is replay/simulation evidence only.
+- **Follow-up evidence:** User confirmed EEG XDF columns 1-4 and ECG column 7 minus column 8. Actual P007 replay -> LSL -> Python -> Unity produced 1,298 mapped raw chunks and 17 candidate windows: 15 failed EEG quality, two crossed excluded transition history, and none was admitted. Ten of the 15 evaluated ECG windows passed the candidate ECG gate. No thresholds were relaxed. Both pilot Forms were created and their published fields/settings verified; no responses submitted. See `Evidence/PersonalizedProtocol/p007-replay-summary.json` and [questionnaire record](QuestionnaireSetup.md).
+- **Records:** [Protocol review](PersonalizedProtocolReview.md), [operation](ExperimentGuide.md), [acceptance](AcceptanceRecord.md), `AgentScripts/PersonalizedProtocolValidation.cs`, `Tools/AdaptiveTraining/test_personalized.py`, `Evidence/PersonalizedProtocol/`. Restore point: `pre-dev9.zip` and `pre-dev9.patch` in that folder. No commit or remote push is implied.
+
+## Historical dev8 status snapshot (superseded by dev9)
+
+Last reviewed: 2026-11-02. Source/application: `2.0.0-stage2-dev8` (next Android code 20); last built APK: dev7/code 19. Training configuration remains `2.0.0-stage2-dev5`. Policy: `rolling10-stride2-v1`; status: `mode-status-v4-source-identity` with optional `engineering-gaze-ray-v2-soft-white` and shared `gaze-roi-v4-sphere-tray-area`; countdown: `response-countdown-v2-centiseconds`. Current work: **Source-first Editor LSL selection and exact outlet identities in VR logs; transport/provenance retained separately. Quest Pro Link genuine eyes were acquired using `quest-link-eye-space-v1`; quantified accuracy, standalone and physiological/device acceptance remain incomplete**.
 
 The project has separate `FixedBlockExperiment` and `AdaptiveDistractionTraining` modes. Stage 1 remains the default without an enabled adaptive override. Stage 2 preserves continuous four-color 2-back, four-second visibility/responses, the 4.5-second cycle, single onset cue and green/red feedback.
 
 Current Stage 2 behavior:
+
+- **Evidence VR > Stage 2 > LSL Signal Sources** now uses Scan, select source, Connect. New sources receive numeric/text samples without guessing EEG/ECG. Advanced settings holds optional mappings, provenance, Python path and port. Exact outlet UID distinguishes shared IDs/names; VR shows source name and receipt state. [Operation and validation](LslSourceSelectionReview.md).
+
+- Sphere bottom remains 8.64 cm above the tray top after placement/calibration (`sphere-tray-clearance-v1`); tray height policy is unchanged. The shared gaze focus area follows both objects. See [operation](ExperimentGuide.md).
+
+- Independently switchable engineering-only translucent white eye line, including preparation diagnostics, live Editor toggle and tracking-state text. Default off in the release template; no valid eye pose means no ray. Participant sessions cannot enable it. [Eye-ray review and live Link failure evidence](EyeRayLinkReview.md).
 
 - Optional engineering-only gaze outlines: a faint white sphere rim and thin border around a playing movie. Default off; participant sessions always block the effect. Invalid/missing gaze produces no highlight and head direction is never substituted. Shared visible-target ROI classification and debug/ROI revisions are recorded; see [gaze-debug review](GazeDebugReview.md).
 
@@ -18,11 +97,73 @@ Current Stage 2 behavior:
 - Countdown displays two decimals in both modes. The response deadline and feedback are unchanged. Revision metadata distinguishes this display from prior versions.
 - Fixed 3.2 x 1.8 m front-wall movie display/source, hidden when inactive; compact status; 63-second practice with three seeded AV clips near 10/28/46 seconds. Baseline follows AV familiarization. Practice excludes held-out clips and logs familiarity.
 - Twenty-two candidate film pairs (18 training/four reserved). Each participant has nine clips per modality; practice uses three AV clips. Media bytes/gains remain unchanged. Only unstarted training slots are replanned after level changes; their original times are retained. Human content matching/headset listening remain pending and participant readiness is blocked.
-- Computer LSL bridge, EEG/ECG quality/feature windows, clock mapping, raw retention, decision replay and descriptive summaries. Temporary P007 recorded-XDF input remains explicitly simulated; current automatic engineering demos use `behavioral_fallback`. No feature has been admitted for real physiological control and genuine gaze is absent in the Quest 3 setup.
+- Computer LSL bridge, EEG/ECG quality/feature windows, clock mapping, raw retention, decision replay and descriptive summaries. Temporary P007 recorded-XDF input remains explicitly simulated; current automatic engineering demos use `behavioral_fallback`. No feature has been admitted for real physiological control. Quest Pro Link eye acquisition now works in the tested engineering Editor setup; acquisition alone does not validate physiological control.
 
-Stage 1 scene visibility was previously confirmed through Quest Link on Quest 3; this does not verify Stage 2 or standalone operation. The user has clarified Meta Quest Pro as the intended deployment and genuine eye-tracking target; Quest Pro remains physically unverified. VLM attribution, active probes and Patent effects are outside this revision.
+Stage 1 scene visibility was previously confirmed through Quest Link on Quest 3. On 2026-11-02 the user reported seeing the Unity room on Quest Pro, head/controller tracking was read back, and a later engineering Link check acquired real tracked eyes. This is limited PC Link evidence, not full physical acceptance; quantified eye accuracy and standalone behavior remain unverified. VLM attribution, active probes and Patent effects are outside this revision.
 
 Start with the [operator guide](Stage2Guide.md), [current review](RollingAdaptationReview.md), [acceptance](AcceptanceRecord.md) and [calibration worksheet](Stage2CalibrationReport.md).
+
+## 2026-11-02 — dev8 follow-up: select the source before its processing
+
+- **Reason/stage:** User requested direct signal selection without first identifying EEG/ECG. Stage 2 engineering; selector `lsl-source-selector-v2`, display `mode-status-v4-source-identity`.
+- **Changes:** Main panel is Scan / source selector / Connect / Disconnect. New sources default to receive-only, including numeric, text and irregular event streams. Optional explicit EEG/ECG mappings and connection settings are under Advanced settings. UID pins the actual outlet even when source IDs/names are shared; publisher restarts require reselection. Sparse event silence displays idle. Provenance and identity persist in configuration/status logs. Task timing, scoring, media and adaptation remain unchanged.
+- **Validation:** 62 Python tests, compilation, 16 real-outlet Editor integration checks and five profile/revision checks passed. Exact UID and samples survived LSL -> Python -> HTTP -> Unity; receive-only data produced no features. Editor panel and VR preparation status visually inspected; engineering data isolated. Original runtime config restored and test processes stopped. Two no-headset XR audio fallback warnings; no task runtime errors. Evidence: `Evidence/LslSourceFirst/`.
+- **Pending/delivery:** Source only; last APK remains dev7. Quest Pro readability/comfort, standalone operation and physiological/participant acceptance remain pending.
+- **Records:** [Detailed review](LslSourceSelectionReview.md), [acceptance](AcceptanceRecord.md), [operation](ExperimentGuide.md). Restore archive: `Evidence/LslSourceFirst/before-source-first.zip`.
+
+## 2026-11-02 — dev8 follow-up: clarify input toggles and hide connection settings
+
+- **Reason/stage:** User accepted moving Python path/port out of the main view and asked what Enable EEG/ECG means. Stage 2 Editor usability only.
+- **Changes:** Added default-collapsed Advanced settings for Python executable and HTTP port. Renamed toggles to Use raw EEG (brain signals), Use raw ECG (heart signals), and Use precomputed features; tooltips clarify that selecting an input does not start hardware or enable adaptation.
+- **Validation:** Unity compilation passed; live Editor readback confirmed the foldout defaults to closed; the updated panel was visually inspected. No source selection, runtime configuration, task behavior or VR presentation revision changed. No new APK or device check.
+- **Records:** [Operation](LslSourceSelectionReview.md), [experiment guide](ExperimentGuide.md), [acceptance](AcceptanceRecord.md). Source backup: `Evidence/LslSourceSelection/before-advanced-settings.cs`.
+
+## 2026-11-02 — dev8 follow-up: LSL source selection and source-name HUD
+
+- **Reason/stage:** User requested source selection outside VR and actual signal-source names instead of a REPLAY headline. Stage 2 engineering, display revision `mode-status-v3-source-name`; task and controller policy unchanged.
+- **Changes:** UI Toolkit Editor panel scans outlets, selects EEG/ECG/FEATURES, reviews zero-based channels/units/provenance, imports existing mappings and saves a local selection. It starts/stops only an owned bridge and locks changes during Play or acquisition. Source IDs, actual outlet names and provenance pass through HTTP and status events. VR shows name plus receipt state, with eye diagnostics on a separate line. Precomputed feature values are observation-only; replay metadata and participant/control exclusions remain enforced.
+- **Validation:** 57 Python tests, 20 focused Editor checks and actual two-outlet LSL/HTTP/Unity integration passed. Reviewed Editor panel and preparation/running screenshots; checked metadata, labels, raw/feature separation and `editor-test` isolation. Original runtime configuration restored; temporary bridge stopped. Two headset-runtime audio fallback warnings occurred; no task runtime errors. See [review](LslSourceSelectionReview.md) and [acceptance](AcceptanceRecord.md).
+- **Pending/delivery:** Source only; last APK remains dev7. Headset readability/comfort, standalone and actual physiological/participant acceptance remain pending. A discovered BioFeatures outlet was identified as precomputed values, not validated raw physiology.
+- **Records:** [Operator instructions](Stage2Guide.md), [experiment guide](ExperimentGuide.md), `Evidence/LslSourceSelection/`, `AgentScripts/LslSourceValidation.cs`. Restore archive: `Evidence/LslSourceSelection/before-source-selection.zip`.
+
+## 2026-11-02 — dev8 follow-up: fixed sphere-to-tray clearance
+
+- **Reason/stage:** User explicitly selected fixed spacing relative to the tray, with tray height unchanged, rather than a fixed sphere floor height.
+- **Changes:** `sphere-tray-clearance-v1` positions the sphere bottom 0.0864 m above the tray top after scene placement/recalibration. It preserves the observed normal seated gap and handles the tray minimum-height clamp without letting the sphere sink toward it. Tray placement code, horizontal position, sphere dimensions, response timing, scoring and media are unchanged. Session metadata and `stimulus_placement` events identify the revision; shared gaze bounds use the resulting geometry.
+- **Validation/pending:** Compilation, 36 isolated placement checks and live gap/tray-policy/metadata readback passed; see [acceptance](AcceptanceRecord.md). Headset comfort/alignment pending; no APK. Preview remains in Preparation.
+- **Records:** [Operation](ExperimentGuide.md), `AgentScripts/FixedSphereGapValidation.cs`, `Evidence/FixedSphereHeight/` (including pre-change backup).
+
+## 2026-11-02 — dev8 follow-up: sphere-and-tray focus area
+
+- **Reason/stage:** User clarified that looking at the general sphere/tray area should count as focus, rather than precisely looking at the sphere.
+- **Changes:** `gaze-roi-v4-sphere-tray-area`: shared classifier uses combined sphere/tray world bounds with 4 cm padding, including the gap. The visible tray keeps task focus active between sphere presentations during running trials. Added geometry events and `task_region_visible` CSV field; retained `task_visible` as sphere visibility. Existing sphere outline indicates area membership when the sphere is visible. No change to answer correctness, task geometry/timing/media or genuine-eye acquisition.
+- **Validation/pending:** Compilation, 2,042 synthetic classifier/gating/shader checks and six actual-scene geometry checks passed. Metadata, CSV header and geometry events were read back; see [acceptance](AcceptanceRecord.md). Physical alignment/comfort and participant/standalone acceptance remain pending; no new APK. Play Mode remains in Preparation for user testing.
+- **Records:** [Operation and ROI semantics](EyeRayLinkReview.md), [experiment guide](ExperimentGuide.md), `Evidence/GazeArea/`; pre-change backup `before-area.zip` in that folder.
+
+## 2026-11-02 — dev8 follow-up: softer eye line and wider sphere gaze region
+
+- **Reason/stage:** The user confirmed genuine eyes work, but requested a less intrusive line and slightly more forgiving sphere gaze detection.
+- **Changes:** `engineering-gaze-ray-v2-soft-white`: continuous white, 1.5 mm width, alpha 0.22, 0.65–3.85 m extent. `gaze-roi-v3-task-4p5deg`: task half-angle increases from 3 to 4.5 degrees in the shared highlight/logging classifier. Metadata and CSV revisions distinguish these definitions. Sphere geometry, media, timing, scoring and gaze acquisition remain unchanged; engineering-only rendering and invalid/stale clearing remain enforced.
+- **Validation/pending:** Compilation, targeted classifier and renderer validation recorded in the acceptance record. New headset comfort and tolerance assessment remain pending; earlier physical eye-acquisition evidence is retained. No APK build.
+- **Evidence:** [Eye-line and ROI operation](EyeRayLinkReview.md), `Evidence/GazeComfort/`; pre-change source/document backup at `Evidence/GazeComfort/before-comfort.zip`.
+
+## 2026-11-02 — dev8 follow-up: Quest Pro Link eyes acquired
+
+- **Reason/stage:** Resolve missing genuine gaze in the Stage 2 engineering Editor over Meta Link/Air Link after the user enabled and calibrated eyes.
+- **Cause narrowed:** Oculus rejected a space for the correctly declared single `/user/eyes_ext` action. A same-action `XR_NULL_PATH` retry succeeded. Windows also defaulted to VirtualDesktopXR despite the user using Link; Editor now has a project-local Oculus selection. Global runtime settings and vendor binaries are unchanged.
+- **Changes:** `quest-link-eye-space-v1` retries only this specific Oculus eye-only failure, only in enabled engineering Editor sessions. Added metadata and state events, plus persisted local runtime selection with an explicit system-default opt-out. No participant or Android workaround; no head-pose substitution or task/timing/media/scoring changes.
+- **Validation:** Native retry returned 0; genuine `Eye Tracking OpenXR` readback became tracked with valid position/rotation; user confirmed visible cyan dashes moving with the eyes while asked to hold the head still. Final compilation, 11 retry boundary checks, x64 ABI and Standalone/Android feature configuration passed. These checks establish acquisition and user-observed visualization, not measured accuracy.
+- **Pending/delivery:** Editor source only, last APK dev7. Quantified calibration/ROI/stereo accuracy, standalone eye acquisition, participant/device and physiological acceptance remain pending.
+- **Evidence:** [Detailed follow-up](EyeRayLinkReview.md#resolved-engineering-link-acquisition-2026-11-02-follow-up), [acceptance](AcceptanceRecord.md), `Evidence/EyeSpaceProbe/`, `AgentScripts/QuestLinkEyeCompatibilityValidation.cs`.
+
+## 2026-11-02 — v2.0.0-stage2-dev8: engineering eye ray and live Link diagnosis
+
+- **Reason/stage:** Stage 2 engineering. User requested a visible dashed eye ray with a switch and investigation of missing eyes on the connected Quest Pro.
+- **Changes:** Independent default-off cyan ray; live Editor enable/disable; tracking-state text; shared real-eye sampling; preparation-only diagnostics excluded from trial records; metadata and transition/toggle events. Participant lockout and task/media/controller behavior preserved.
+- **Validation:** Compilation, 72 isolated ray tests and 2,033 existing classifier/gating/shader checks passed. Synthetic side-view rendering inspected. Completed engineering session audit: 1,506 real-reader rows, zero valid eyes, no synthetic injection. User confirmed room visibility and wearing/calibration; head/controllers tracked.
+- **Diagnosis:** Oculus 1.208.0 / OpenXR 1.19.0 repeatedly reject eye action-space creation with `XR_ERROR_PATH_UNSUPPORTED` for `/user/eyes_ext`. Same error with zero API layers in a temporary process-only comparison; environment restored. Underlying native/runtime responsibility remains unresolved.
+- **Delivery/pending:** Editor source only; no dev8 APK. Local engineering ray enabled for testing, release default off. ADB unauthorized; standalone comparison, actual eye acquisition, stereo accuracy/comfort and full device/physiology acceptance remain pending.
+- **Evidence/restore:** [Eye-ray review](EyeRayLinkReview.md), `Evidence/GazeRay/`, `AgentScripts/GazeRayValidation.cs`; source checkpoint `406e5fbe0239bb8796c7eca192b3cf3b7557c1de`.
 
 ## 2026-11-02 — v2.0.0-stage2-dev7: Meta Quest Pro eye permission
 

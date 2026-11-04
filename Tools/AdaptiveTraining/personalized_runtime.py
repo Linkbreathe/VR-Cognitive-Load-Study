@@ -10,7 +10,7 @@ import threading
 import time
 
 from personalized_model import VERSION, PROTOCOL, policy_config, behavioral_summary, window_behavior, train_personal, load_personal
-from personalized_signals import FEATURES, sampled_window, eeg_features, ecg_features, movie_fraction
+from personalized_signals import FEATURES, REVISION as FEATURE_REVISION, sampled_window, eeg_features, ecg_features, movie_fraction
 
 
 def write_json(path, data):
@@ -29,14 +29,14 @@ def random_schedule(seed):
 
 
 class PersonalSession:
-    def __init__(self, packet, folder, policy):
+    def __init__(self, packet, folder, policy, test_store=None):
         self.sid = packet["sessionId"]; self.participant = packet["participantCode"]
         self.kind = packet["sessionType"]; self.folder = Path(folder); self.policy = policy_config(policy)
         self.config = packet["config"]; self.seed = int(self.config["seed"])
         if packet["configVersion"] != VERSION or self.config.get("protocol") != PROTOCOL:
             raise ValueError("Personalized protocol mismatch")
-        if self.config.get("calibrationBlocks") not in (6, 8) or self.config.get("trainingTrials") != 96:
-            raise ValueError("Protocol requires six/eight calibration blocks and 96 training trials")
+        if self.config.get("calibrationBlocks") not in (4, 6, 8) or self.config.get("trainingTrials") != 96:
+            raise ValueError("Protocol requires four/six/eight calibration blocks and 96 training trials")
         self.folder.mkdir(parents=True, exist_ok=True)
         # Do not silently resume with stale signal buffers or a different model after a process restart.
         if (self.folder / "personal_protocol.json").exists():
@@ -44,8 +44,13 @@ class PersonalSession:
         self.plan = random_schedule(self.seed)
         write_json(self.folder / "personal_protocol.json", {"version": VERSION, "participant": self.participant,
             "session": self.sid, "config": self.config, "policy": self.policy, "random_plan": self.plan,
+            "featureRevision": FEATURE_REVISION,
             "counterbalance_group": self.config["counterbalanceGroup"], "label_alignment": self.policy["label_alignment"],
-            "flow_revision": "preparation-practice-calibration-no-rest-v1", "resting_baseline_seconds": 0})
+            "flow_revision": "preparation-practice-calibration-no-rest-v1", "resting_baseline_seconds": 0,
+            "calibration_budget_revision": "calibration-block-budget-v2-short-default",
+            "initial_calibration_trials": self.config["calibrationBlocks"] * 12,
+            "initial_calibration_seconds": self.config["calibrationBlocks"] * 54,
+            "supplemental_trials": 24, "supplemental_seconds": 108})
         self.signals = {}; self.trials = {}; self.events_seen = set(); self.windows = {}; self.decisions = {}
         self.intervals = []; self.playing = {}
         self.model = None; self.report = None; self.model_status = "awaiting_calibration"
@@ -53,6 +58,21 @@ class PersonalSession:
         self.fit_thread = None; self.attempts = 0; self.condition_epoch = 0
         self.last_change = float("-inf"); self.last_stage = None; self.predictions = deque(maxlen=200)
         self.packet = packet; self.lock = threading.RLock()
+        self.test_store = test_store
+        self.candidate_control = False
+        if self.config.get("operatorManaged"):
+            if test_store is None or self.kind not in ("engineering", "editor-test"):
+                raise ValueError("Operator-managed model reuse requires an assigned engineering session")
+            if self.config.get("testSessionMode") == "bioadaptive":
+                saved, meta = test_store.load_model(self.config["testStorageFolder"], self.participant,
+                    self.config["testModelId"], self.config["allowCandidateModel"])
+                if meta["sha256"] != self.config["testModelHash"]: raise ValueError("Selected model changed after preparation")
+                self.model = saved["model"]; self.report = saved["report"]
+                self.candidate_control = not meta["admitted"]
+                self.model_status = "engineering_candidate_loaded" if self.candidate_control else "personal_model_validated"
+                write_json(self.folder / "model-reuse.json", {"source": meta, "revision": "engineering-model-reuse-v1",
+                    "candidateControl": self.candidate_control, "waivedAdmissionReasons": meta["reasons"] if self.candidate_control else [],
+                    "crossSessionValidityEstablished": False, "freshBuffers": True})
 
     def ingest(self, config, times, samples, source_id):
         if config["kind"] not in ("EEG", "ECG"):
@@ -111,7 +131,8 @@ class PersonalSession:
         start, end = first["plannedOnset"], last["plannedOnset"] + 4.5
         result = {"block": last["block"], "trial": last["phaseTrial"], "stage": last["trainingStage"],
                   "level": last["level"], "start": start, "end": end, "valid": False,
-                  "reason": "incomplete_or_mixed_window", "features": [], "origin": "unknown"}
+                  "reason": "incomplete_or_mixed_window", "features": [], "origin": "unknown",
+                  "featureRevision": FEATURE_REVISION}
         if (len(rows) != 5 or abs(end - start - 22.5) > .01 or
                 len({r["level"] for r in rows}) != 1 or len({r["trainingStage"] for r in rows}) != 1 or
                 any(not r["scored"] or r["interrupted"] or r["aborted"] or r["transition"] for r in rows) or
@@ -180,6 +201,8 @@ class PersonalSession:
         return result
 
     def start_fit(self):
+        if self.config.get("testSessionMode") == "bioadaptive":
+            raise ValueError("Reused models are frozen; calibration is required for refitting")
         if not self.mount_intact or (self.fit_thread is not None and self.fit_thread.is_alive()):
             return
         self.model_status = "training"; self.attempts += 1
@@ -194,6 +217,8 @@ class PersonalSession:
                     saved = load_personal(self.folder / ("model_attempt_" + str(attempt)) / "personal_model.joblib",
                                           self.participant, self.sid, report["model_sha256"])
                     model = saved["model"]
+                if self.test_store is not None:
+                    self.test_store.publish(self, attempt)
                 with self.lock:
                     self.model = model if self.mount_intact else None
                     self.report = report
@@ -223,6 +248,7 @@ class PersonalSession:
                 if self.attempts < requested:
                     self.start_fit()
             reply = {"modelStatus": self.model_status, "modelAdmitted": bool(self.mount_intact and self.report and self.report.get("admitted")),
+                     "modelTestUsable": bool(self.mount_intact and self.model is not None and (self.candidate_control or self.report and self.report.get("admitted"))),
                      "modelReportJson": json.dumps(self.report or {"status": self.model_status}),
                      "modelAttempt": self.attempts, "featuresJson": json.dumps(list(self.predictions)[-1:])}
             if decide:
@@ -265,20 +291,22 @@ class PersonalSession:
         behavior.update(stable_criteria_met=stable, struggling_criteria_met=difficult,
                         state="struggling" if difficult else "stable" if stable else "undetermined")
         admitted = bool(self.report and self.report.get("admitted"))
-        if not admitted:
+        if not admitted and not self.candidate_control:
             d.update(reason="personal_model_not_validated", basis="behavioral_fallback")
             if self.policy["enable_behavioral_fallback"] and self.attempts >= 2:
                 d["action"] = "ON" if stable and p["level"] == 0 else "OFF" if difficult and p["level"] == 1 else "HOLD"
             return d
         recent = [r for r in self.predictions if r["stage"] == p["stage"] and r["trial"] < count][-5:]
         good = [r for r in recent if r["valid"] and r["score"] is not None and r["level"] == p["level"] and r["start"] >= self.last_change]
-        d.update(valid_predictions=len(good), basis="personalized_rf", physiologicalEligible=False)
+        d.update(valid_predictions=len(good), basis="engineering_candidate_rf" if self.candidate_control else "personalized_rf", physiologicalEligible=False,
+                 engineeringModelEligible=False)
         if len(good) < 3 or not good or good[-1]["trial"] < count - 3:
             d["reason"] = "fewer_than_three_recent_pure_condition_predictions"; return d
         if p["level"] == 1 and self.exposure(max(self.last_change, current[0]["plannedOnset"]), current[-1]["trialEnd"]) * (current[-1]["trialEnd"] - max(self.last_change, current[0]["plannedOnset"])) < self.policy["minimum_media_seconds"]:
             d["reason"] = "insufficient_actual_movie_exposure"; return d
         score = sum(r["score"] for r in good) / len(good); threshold = self.policy["thresholds"][str(p["level"])]
-        d.update(score=score, physiologicalEligible=True, reason="physiology_behavior_disagree_or_hold")
+        d.update(score=score, physiologicalEligible=not self.candidate_control, engineeringModelEligible=self.candidate_control,
+                 reason="physiology_behavior_disagree_or_hold")
         if score <= threshold["stable_max"] and stable and p["level"] == 0:
             d.update(action="ON", reason="stable_score_and_behavior")
         elif score >= threshold["struggling_min"] and difficult and p["level"] == 1:

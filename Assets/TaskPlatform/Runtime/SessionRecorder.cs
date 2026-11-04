@@ -19,11 +19,16 @@ namespace EvidenceVR
             public string countdownDisplayVersion = SpatialTaskView.CountdownRevision;
             public string stimulusPlacementRevision=SpatialTaskView.StimulusPlacementRevision;
             public float sphereTrayClearanceMeters=SpatialTaskView.SphereTrayClearanceMeters;
+            public float stimulusDiameterScale=SpatialTaskView.StimulusDiameterScale;
+            public float traySurfaceHeightMeters=SpatialTaskView.TraySurfaceHeight;
             public string gazeRoiRevision="not_used", gazeDebugRevision="not_used";
+            public string gazeOverviewRevision="not_used";
             public bool gazeDebugRequested,gazeDebugEnabled;
             public string gazeRayRevision="not_used";
             public bool gazeRayRequested,gazeRayInitiallyEnabled;
             public string gazeLinkCompatibilityRevision="not_used",gazeLinkCompatibilityInitialState="inactive";
+            public string evidenceGuardMode="off",evidenceGuardRevision=EvidenceGuardContract.Revision;
+            public string trialProgressRevision="not_used",personalCalibrationRevision="not_used";
             public TaskConfig config;
         }
         public string DirectoryPath { get; }
@@ -33,17 +38,23 @@ namespace EvidenceVR
         static string F(double n) => n.ToString("R", CultureInfo.InvariantCulture);
         static string B(bool b) => b ? "1" : "0";
         public SessionRecorder(string root, TaskConfig config, string participant = "anonymous", string kind = "participant", string presentationVersion = null,
-            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false)
+            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false,string evidenceGuardMode="off",string assignedSessionId=null)
         {
-            string id = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
-            DirectoryPath = Path.Combine(root, kind, id); Directory.CreateDirectory(DirectoryPath);
+            string id = assignedSessionId ?? DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            if(!System.Text.RegularExpressions.Regex.IsMatch(id,"^[A-Za-z0-9_-]{1,100}$"))throw new ArgumentException("Invalid assigned session ID.");
+            DirectoryPath = Path.Combine(root, kind, id);
+            if(Directory.Exists(DirectoryPath))throw new IOException("Session already exists; prepare a new operator session.");
+            Directory.CreateDirectory(DirectoryPath);
             metadata = new Metadata { sessionId = id, sessionType = kind, participantCode = participant, utcStarted = DateTime.UtcNow.ToString("O"), applicationVersion = Application.version, unityVersion = Application.unityVersion, device = SystemInfo.deviceModel, status = "in_progress", config = config,
                 timingNote = "Unity realtimeSinceStartupAsDouble in seconds; software events, not measured photon onset. RT from actual software onset includes pauses; interrupted trials are excluded from clean summaries. Warmups are unscored and do not require an answer. Frame gaps are diagnostic, not hardware dropped-frame counts." };
             if(presentationVersion!=null){metadata.presentationVersion=presentationVersion;metadata.experimentMode="AdaptiveDistractionTraining";}
-            if(presentationVersion!=null){metadata.gazeRoiRevision=GazeRegions.Revision;metadata.gazeDebugRevision=GazeDebugHighlighter.Revision;}
+            if(presentationVersion!=null){metadata.gazeRoiRevision=GazeRegions.Revision;metadata.gazeDebugRevision=GazeDebugHighlighter.Revision;metadata.gazeOverviewRevision=GazeConsoleProjection.Revision;}
             metadata.gazeDebugRequested=gazeDebugRequested;metadata.gazeDebugEnabled=gazeDebugEnabled;
             if(presentationVersion!=null)metadata.gazeRayRevision=EngineeringGazeRay.Revision;
             metadata.gazeRayRequested=gazeRayRequested;metadata.gazeRayInitiallyEnabled=gazeRayEnabled;
+            metadata.evidenceGuardMode=evidenceGuardMode;
+            if(presentationVersion==TaskEngine.PersonalPresentationRevision)
+            {metadata.trialProgressRevision=TaskEngine.PersonalProgressRevision;metadata.personalCalibrationRevision=TaskEngine.PersonalCalibrationRevision;}
             if(presentationVersion!=null && Application.isEditor){metadata.gazeLinkCompatibilityRevision=QuestLinkEyeSpaceFeature.Revision;metadata.gazeLinkCompatibilityInitialState=QuestLinkEyeSpaceFeature.LastResult;}
             WriteMetadata();
             trials = Writer("trials.csv"); practice = Writer("practice_trials.csv"); events = Writer("events.jsonl");

@@ -1,0 +1,13 @@
+# Clearer desk-sign typography
+
+Date: 2026-11-03. User requested a font adjustment for time and progress. Current source uses `personalized-lab-v2.6-sign-typography` and `trial-progress-v3-clear-type`; candidate `3.0.0-stage3-dev5` / Android code 29.
+
+The existing Liberation Sans SDF font is retained. Both numeric values now use fixed **78-point bold** text, the `TIME LEFT` / `PROGRESS` headings use **28-point bold**, and the secondary captions use **26-point regular** text. Headings are brighter warm white. An isolated shared material removes the outline and underlay from sign text without altering the other HUD text or font assets. Equal fixed numeric sizes avoid size changes as progress increases. Shutdown restores the original countdown style/material/layout and releases the temporary sign material.
+
+The signs, sphere, tray and movie retain their positions and dimensions. Counting, calibration duration, response timing and feedback colors are unchanged. The new presentation revisions are recorded in session metadata and progress events. This typography applies to the personalized desk-sign UI; Stage 1 typography remains unchanged.
+
+Unity compilation passed. All **81 existing progress/budget/UI checks passed**. **17 text-fit cases passed**, including `95/96`, `96/96`, `Extra block 2/2`, `No response` and both headings; the PASS log was read back. Actual-scene calibration/training previews were inspected under `Assets/Evidence/SignTypography/`. They are synthetic Editor previews, not headset or participant evidence. Evidence: `Evidence/SignTypography/`. No Python logic changed or Python tests were rerun.
+
+New APK: `Builds/Stage3Dev5/EvidenceVR-Stage3-dev5.apk`, using the same dev2 Python/guard/configuration package. Dev4 retains the previous lighter typography. Android IL2CPP build succeeded in **129.459 s**, zero errors and 347 retained warnings. APK size: **100,271,802 bytes**; SHA-256 `d7b2668946f89fdfd5ef2f36e074e8e687015d6e3a02c0656935f4269a35565d`. Manifest confirms dev5/code 29 and ARM64; APK v2 signature verified. Full build, badging and signature evidence is under `Evidence/SignTypography/`. Quest Pro stereo readability and comfort remain physically unverified.
+
+Restore point: `Evidence/SignTypography/pre-typography-source.zip`. All six protected files match their pre-update hashes: task engine, spatial view, controller, media runtime, scene and restored PlayerSettings. Pre-build live console: zero errors, one warning; whitespace checking passed. Project PlayerSettings are restored to dev12/code 24; Play Mode is stopped and the pre-existing auto-tick setting is retained. Existing unrelated changes are retained. No headset installation, participant recording or Git publication was performed.

@@ -1,6 +1,120 @@
 # Current acceptance record
 
+## 2026-11-04 — Persistent model configuration
+
+**Implemented/software-verified:** `model-config-persistence-v1`. Unity Connect and the console launcher load the saved personal policy consistently. Unity preserves channel labels and explicit analysis units; remembered mappings reject changed known label order. Compatibility errors identify differing fields without weakening gates. All 157 Python regressions, Unity compilation, six metadata/layout checks and actual Connect passed. The existing Gin V3 artifact loads under the current service configuration with its original hash; unified launcher reuse and both replay signal roles were verified. [Review and evidence](ModelCompatibilityReview.md).
+
+**Pending/boundary:** No new test assignment or trial run, participant calibration, scientific admission, APK or Quest Pro physical acceptance. Gin remains an unvalidated engineering candidate. Unity is stopped and the corrected 8765 bridge is receiving replay. This entry supersedes earlier current bridge-configuration descriptions, not historical evidence.
+
+## 2026-11-03 — Gaze overview
+
+**Implemented/software-verified:** `console-gaze-overview-v1` and Unity `gaze-console-front-plane-v1`; real-ray projection transport, bounded history, missing/stale states and diagnostic percentages. Unity compilation, 16 isolated geometry/JSON assertions, all 154 Python regressions (including ten console tests) and synthetic browser checks at six widths passed. No head-direction substitution or inferred dots from ROI fractions. [Details and evidence](GazeConsoleReview.md).
+
+**Pending:** Quest Pro eye tracking, physical projection alignment and runtime performance. Existing APKs have not been rebuilt for the new gaze-position field. This update did not start a live task or claim device/participant acceptance.
+
+## 2026-11-03 — Unified console launcher
+
+**Implemented/software-verified:** Exactly one root CMD, StartEvidenceConsole.cmd; default test page and all monitoring pages share 8765. Actual wrapper reuse, Gin EEG/ECG reception, V3 model load and retained tester/history checks passed. Port 8877 is closed; no active assignment was started. All ten affected console regressions passed. Models/session files remain intact; previous scripts/settings are backed up. [Details and evidence](UnifiedConsoleReview.md).
+
+Unity bootstrap now uses 8765 and Unity remains stopped. No new task execution, APK, physical-device or model-validity acceptance. This supersedes earlier multi-launcher/8877 operation instructions, not their historical test evidence.
+
+## 2026-11-03 — V3 filtered quality and offline prediction verification
+
+**Implemented/software-verified:** EEG raw-integrity plus filtered-amplitude screening, ECG RMS/local-RR detection, preprocessing-version model/launcher compatibility, and standard-path retraining on 43 qualified Gin windows. Old models remain archived and are incompatible with V3. All 154 Python regressions passed; subsequent console compatibility checks passed separately. The unchanged capture has 43/48 eligible windows versus zero previously. Chronological offline reprocessing of the earlier actual Unity run now yields 20 numeric scores among 23 windows, range 0.286-0.761. Trial-25 HOLD follows a mean score of 0.507, with engineering eligibility true and physiological eligibility false. [Methods and evidence](SignalQualityV3Review.md).
+
+**Pending:** A new live Unity run was not performed: automatic approval review rejected preparing/starting the test with `blocked by policy`. Unity is stopped and updated service 8877 is receiving with no active assignment. No new live switch, physical-device, annotated ECG or participant/model-validity acceptance. This entry supersedes the current preprocessing/operation description below; earlier results remain historical evidence.
+
+## 2026-11-03 — Gin replay diagnostic model and Bioadaptive smoke test
+
+**Implemented and software-verified:** Exact selected Gin capture (217,904 samples), unchanged 96-slot synthetic answers, 43 finite diagnostic feature windows, saved 300-tree RF and prediction-identical registry reload. Model `20261103T183721_e718f9a0f3d8-1` belongs to `SIM_GIN_TEST` and remains unvalidated. Five other windows had sample/timestamp gaps; strict eligible training windows were zero. Diagnostic fitting explicitly includes quality-rejected descriptors and does not alter production qualification.
+
+Unity test `20261103T183828_c4d88eae4bbc` loaded the candidate, entered Bioadaptive and completed 26 slots before aborting the next. All five requests returned HOLD; at trial 25 behavior was Stable but valid predictions remained zero and eligibility stayed false. Core archive verified all five files byte-identically, retaining aborted status. [Source, methods, paths and evidence](GinModelTestReview.md). No actual participant answers, qualified physiology, model efficacy, APK rebuild or physical Quest Pro acceptance is claimed.
+
+## 2026-11-03 — LSL disconnect recovery
+
+`lsl-bridge-disconnect-v1`: compilation and actual external-service detection/disconnect passed. Window readback confirmed locked/connected and editable/disconnected states; exact-project and foreign/missing identity checks passed. Receiver port 8765 is closed, and discovery still finds Gin and original mock publishers. No data/publisher deletion, APK rebuild or physical-device acceptance. [Review and evidence](LslSourceSelectionReview.md).
+
+## 2026-11-03 — Synthetic responses prepared; requested source pending
+
+`simulated-calibration-record-v1`: generated 96 explicitly synthetic trials and validated 48 five-trial behavioral windows (24 Stable/24 Struggling) using the existing scoring function. No signal features or trained model were produced: the requested "GIN" source still requires identification. The fixture is separate from participant records, does not change acquisition mapping and is not part of the delivered dev6 ZIP. [Artifact, reproduction and remaining work](SimulationTrainingReview.md).
+
+## 2026-11-03 — Operator tests, model persistence and reuse
+
+**Implemented:** `engineering-model-reuse-v1`, console `evidence-console-v1.2-model-reuse`, Android candidate `3.0.0-stage3-dev6` / code 30. The local page configures tester ID, writable computer storage, calibration/full/direct-Bioadaptive mode and explicit unvalidated-candidate reuse. Complete fitted pipelines and provenance are versioned by tester/session; reuse checks identity, hashes, software, policy and signal mapping and starts fresh buffers without retraining. Core Unity files synchronize with retry, identity and final hash verification. Settings/index persist across changing bridge output directories. Service restart revokes task assignments while preserving archive recovery. [Operation and detailed limits](ModelReuseTestGuide.md).
+
+**Software-verified:** 147 Python checks, including 13 model-reuse checks; 664 new isolated Unity assertions and 21,269 retained personalized-protocol assertions. The Editor/browser/service fixture entered Bioadaptive directly, loaded its synthetic candidate, emitted HOLD for insufficient behavior, stopped through the page and archived all five core files byte-identically. Its six-trial session is correctly recorded as aborted, not completed. Evidence: `Evidence/ModelReuse/python-tests-final.txt`, `engine-validation.txt`, `integration-result.json`; retained protocol evidence: `Evidence/NoRestProtocol/unity-protocol-validation.txt`. Unity screenshots: `Assets/Evidence/ModelReuse/`. No real signals were used in the fixture.
+
+**Build:** Android build succeeded in 278.766 seconds, zero errors and 347 warnings. The actual APK is 100,384,178 bytes, ARM64, version/code 3.0.0-stage3-dev6/30; v2 signature verified. Build report and APK checks are retained in `Evidence/ModelReuse/`. Project PlayerSettings were restored to dev12/24 after the separate build. The APK retains Stage 1 startup unless the enabled operator bootstrap is deployed.
+
+**Pending:** Quest Pro installation and physical acceptance, stereo label readability, genuine EEG/ECG mapping/quality, clock/latency, media/volume, mobile performance, device restart/disconnection and cross-session model usefulness. Native folder-picker interaction has not been physically exercised. A fitted candidate is not an admitted physiological model; an insufficient-data calibration can save a report without producing any reusable estimator. Only five core Unity files are synchronized; optional gaze/diagnostic files retain the existing export procedure. No participant session, physical device validation, commit or push was performed.
+
+**Local deployment:** Refreshed the idle study service after confirming no task/assignment, preserving the exact selected-stream fingerprint. The user's current `mock_p007_test` recorded replay remains OBSERVE, distinct from the stopped synthetic integration fixture. The engineering launcher reused this service with an explicit replay warning; the normal launcher still rejected the replay selection. Evidence: `launcher-tests.txt`, `launcher-normal-replay-rejection.txt` and `service-before-refresh.json` under `Evidence/ModelReuse/`. The final browser page showed the default ID/root, replay reception and missing physiological mapping. No new acquisition publisher or participant recording was started.
+
+## 2026-11-03 — Receive-only raw waveform completion
+
+Service `evidence-console-v1.1`, display `console-observe-waveforms-v1`: OBSERVE numeric curves now render independently of Unity and physiological mapping. Original values, unknown units/provenance, sampled timestamps and gaps are retained. The preview is explicitly current-source scoped and separate from session/control evidence. All 134 adaptive-service tests passed, including ten console checks. Browser verification against the connected source showed eight changing curves, selectable sample index, stale-state handling and six responsive widths without errors. [Operation and evidence](EvidenceConsoleGuide.md).
+
+The paused editor-test preparation had zero completed trials; it was ended to restart the service, with records retained and acquisition publisher unchanged. Unity is left stopped, while raw monitoring is connected. No physiological eligibility, participant experiment or Quest Pro acceptance is implied.
+
+## 2026-11-03 — Receive-only display correction
+
+`console-receive-only-v1` exposes latest OBSERVE/FEATURES values directly and derives reception state from sensor freshness instead of mapped waveform buffers. Browser validation against the connected source confirmed nine value columns, Receiving, explicit missing-mapping wording, stale-source labeling and four responsive widths with no page errors. No service/session restart, channel remapping or participant-data alteration was performed. The display revision is recorded in a separate active-session metadata sidecar. This verifies monitoring, not physiological units, signal quality, model admission or Quest Pro acceptance.
+
+## 2026-11-03 — LSL selected-outlet recovery
+
+`console-listener-exclusive-v1` fixes competing Windows service binds. The operator's saved EEG outlet UID was stale; it was refreshed through the existing Editor selection workflow after verified idle services were stopped. Actual Editor state and HTTP status both reported `02_007_5_eeg — Receiving`, 500 Hz and nine columns. The first column is sample index. Seven console tests passed, including new/legacy duplicate-listener rejection; launcher reuse of the Editor bridge also passed. [Details and evidence](EvidenceConsoleGuide.md).
+
+This is receive-only connectivity evidence: provenance remains unknown, no EEG/ECG feature mapping or model admission was enabled, no Unity experiment was run, and no Quest Pro acceptance was performed. The source is left connected in OBSERVE mode.
+
+## 2026-11-03 — Evidence Console v1
+
+**Implemented:** Python-hosted English three-page operator interface, read-only telemetry/Guard/receipt projection, bounded raw signal display with provenance/gaps, extracted feature windows and quality/model state, protocol/questionnaire reference, double-click start/reuse and inactive-service stop. Existing Unity contract reused; task and device presentation unchanged.
+
+**Software-verified:** All 130 adaptive-service tests passed, including six new console tests. Logs: `Evidence/EvidenceConsoleValidation/`. Headless Edge verified three pages, eight guide steps, six widths, waveform/feature rendering, execution receipt transitions and disconnect warnings. An explicitly synthetic LSL outlet verified actual LSL-to-service-to-console transport and exact UID/provenance. Windows launcher reuse/stop/restart passed while idle. [Detailed operation and evidence](EvidenceConsoleGuide.md).
+
+**Not physically verified:** No saved real source selection, live EEG/ECG recording, Unity Play session, Quest Pro link/standalone operation, latency acceptance, questionnaire submission or complete participant run in this change. Delivered service waits for setup. Synthetic browser and LSL records are engineering evidence only. No new APK/installation; previous Quest Pro/model acceptance boundaries remain open.
+
+## Retained acceptance status
+
 Updated 2026-11-03. Current application `2.0.0-stage2-dev12`, Android code 24, environment `warm-study-v1`; configuration/HTTP contract `2.0.0-stage2-dev11`; protocol family `personalized-rf-v2`; updated Python policy `personalized-rf-pilot-v3-control70-40`. Engineering candidate; no physical or scientific acceptance is implied.
+
+## Sign typography (current source; Stage 3 dev5 candidate)
+
+Implemented: equal 78-point bold time/progress numbers, brighter 28-point bold headings and 26-point regular captions using the existing Liberation Sans SDF font. A separate outline-free sign material leaves other HUD text unchanged. Geometry, behavior and feedback remain unchanged; session presentation revisions updated.
+
+Software verified: compilation, 81 retained progress checks and 17 text-fit cases including long captions and two-digit progress; PASS log read back and calibration/training synthetic previews inspected. All six protected files unchanged after restoration. Android build passed in 129.459 s, zero errors/347 warnings; 100,271,802-byte ARM64 dev5/code-29 APK, manifest and v2 signature verified. [Review](SignTypographyReview.md). Pending: actual Quest Pro stereo readability and comfort. No physical acceptance or participant results.
+
+## Lower stimulus geometry (retained dev4 implementation and evidence)
+
+Implemented: tray top 0.72 m above the floor, shortened 0.02 m stem, 0.025 m sphere/tray air gap and 1.08 diameter multiplier. Default sphere diameter 0.169801 m and center height 0.829901 m. Shared conditions retain identical geometry; table, desk signs, movie surface, task rules and timing are unchanged. Geometry revision/dimensions are recorded in session metadata and events.
+
+Software verified: Unity compilation, 81 retained progress checks and 12 geometry/metadata/gaze checks; PASS log read back. Task-only and muted local-movie synthetic captures inspected. Conservative bounding-box overlap at the 1.20 m Editor eye height is 16.15 pixels at 720p. All seven protected files match their pre-change hashes. Android build passed in 71.933 s, zero errors/347 warnings; 100,271,454-byte ARM64 dev4/code-28 APK, manifest and v2 signature verified. [Review](LowerStimulusReview.md).
+
+Pending: actual Quest Pro stereo overlap, target visibility/readability, seated comfort, gaze and standalone performance. Lower viewpoints may overlap more; nominal Editor measurements do not establish universal or physical acceptance.
+
+## Desk-sign HUD (retained dev3 implementation and evidence)
+
+Implemented: static countdown/progress signs on the left/right of the tabletop, 0.80 m center separation, 0.86 m center height and bases on the unchanged 0.65 m tabletop. Existing count/feedback/timing semantics retained. Session presentation revisions updated; no task, media, model or saved-scene changes.
+
+Software verified: Unity compilation, 81 retained progress/budget assertions and 31 geometry/text/metadata checks, including desk contact after simulated seated-height changes. Calibration/practice/training synthetic camera previews inspected; PASS log read back. All eight protected files unchanged after PlayerSettings restoration. Android build passed in 154.521 s, zero errors/347 warnings; 100,271,758-byte ARM64 dev3/code-27 APK, manifest and v2 signature verified. [Review](DeskSignHudReview.md).
+
+Pending: Quest Pro stereo readability, viewing comfort and standalone performance. No physical or participant acceptance. The dev2 delivery retains the earlier floating-text HUD; its Python/configuration files remain compatible.
+
+## Short calibration and progress (retained dev2 implementation and evidence)
+
+Implemented: four alternating twelve-trial calibration blocks / 216 s by default, with the existing optional two-block / 108 s supplement. Explicit six/eight remain valid. The right-side completed-trial display mirrors the left countdown: practice `/14`, current calibration block `/12` with block caption, each training phase `/96`. Presentation and budget revisions are recorded in session metadata/events; local engineering override updated with backup.
+
+Software verified: 124 Python tests; Unity compilation, 81 targeted UI/engine/metadata assertions and 21,269 full-protocol assertions for four/six/eight blocks and all counterbalance groups. Calibration, practice and training synthetic camera previews visually inspected. All six protected files match their pre-change hashes. Android build succeeded in 246.180 s, zero errors/347 warnings; 100,265,262-byte ARM64 APK `3.0.0-stage3-dev2` / code 26, manifest and v2 signature verified. Project PlayerSettings restored to dev12/24. Packaging and build evidence: [detailed review](ShortCalibrationProgressReview.md).
+
+Not physically accepted: Quest Pro readability/comfort/performance, short-calibration physiological yield, real model admission and participant effects. All class, held-out/permutation, signal, device and policy gates remain unchanged. Four blocks provide fewer opportunities for eligible data; the optional supplement and explicitly labeled fallback retain their existing rules.
+
+## Stage 3 dev1 Evidence Guard (retained original release evidence)
+
+Implemented: independent Python package and Unity/Python host adapters; off/observe/enforce; duration-based eye evidence; actual-media forward checks and nonoverlapping-window reverse checks; optional read-only movie-fraction diagnostic; evidence dependencies, selective invalidation, independent challenge paths, actual acknowledgments and fault protection. Default off. No active probes, model/threshold changes, extra media or trial changes. Normal Random scheduling and OFF/pause/exit retain independent authority.
+
+Software verified: 135 Python tests (121 host/Stage 2 plus 14 core), 106 isolated Unity assertions, real HTTP integration, three scripted demo families and 17 Stage 2 control tests after actual package uninstall. Android ARM64 APK `3.0.0-stage3-dev1`, code 25, built with zero build errors/347 warnings and verified APK v2 signature. Project PlayerSettings restored to dev12/24 after the separate build. [Release evidence](EvidenceGuardRelease.md).
+
+Not accepted physically: no ADB-connected headset, no Quest Pro trial or genuine viewing/sensor validation, no full-session device latency/performance/comfort acceptance. The 70%/60% gaze references and response delays remain provisional. Editor recorded a previous-domain GC-handle assertion and unrelated subscription messages; validation passed but this is not a clean-console claim. Stage 3.1/3.2 and Stage 3.3 software checks do not complete Stage 3.3 device acceptance or establish participant benefit. [Detailed review](EvidenceGuardReview.md), [operation](EvidenceGuardGuide.md).
 
 ## Controller guidance UI v1 (current source)
 

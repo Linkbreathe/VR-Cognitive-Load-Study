@@ -26,7 +26,7 @@ def main():
     parser.add_argument("--allocation-seed", type=int, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--controller-url", required=True)
-    parser.add_argument("--calibration-blocks", type=int, choices=[6, 8], default=8)
+    parser.add_argument("--calibration-blocks", type=int, choices=[4, 6, 8], default=4)
     parser.add_argument("--engineering", action="store_true")
     args = parser.parse_args()
     allocation = assignment(args.participant, args.index, args.allocation_seed)

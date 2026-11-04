@@ -18,5 +18,9 @@
 /Tools/__pycache__/
 /Tools/AdaptiveTraining/.venv/
 /Tools/AdaptiveTraining/__pycache__/
+/Tools/EvidenceGuard/**/__pycache__/
+/Tools/EvidenceGuard/*.egg-info/
+/Tools/EvidenceGuard/build/
+/Tools/EvidenceGuard/dist/
 # Keep original downloaded media local; runtime assets retain provenance.
 /MediaSources/

@@ -25,6 +25,8 @@ namespace EvidenceVR
         public ExperimentStatusView StatusView { get; private set; }
         AdaptiveTrainingConfig adaptiveConfig;
         bool adaptiveConfigUpgraded;
+        public TestSessionClient TestClient {get;private set;}
+        bool startingAssignedTest;
         public bool Calibrated => calibrated;
         public bool MatchChecked => checkedMatch;
         public bool NonmatchChecked => checkedNonmatch;
@@ -73,12 +75,23 @@ namespace EvidenceVR
                     throw new ArgumentException("Calibration action cannot be assigned as a response or navigation action.");
                 inputActions.Enable();
                 sphereMaterial = stimulus.material;
-                BeginSession();
+                if(adaptiveConfig?.operatorManaged==true)
+                {
+                    TestClient=gameObject.AddComponent<TestSessionClient>();TestClient.Bind(this,adaptiveConfig.controllerUrl);
+                    ShowTestWaiting("Choose Participant ID, storage and mode on the study computer.");
+                }
+                else BeginSession();
             }
             catch (Exception e) { Fail(e); }
         }
         public void BeginSession()
         {
+            if(adaptiveConfig?.operatorManaged==true && !startingAssignedTest)
+            {
+                if(Engine!=null && Engine.Phase!=TaskPhase.Complete && Engine.Phase!=TaskPhase.Aborted)
+                    Engine.Abort(Time.realtimeSinceStartupAsDouble,Time.frameCount,"operator_test_restart_requested");
+                return;
+            }
             if (Engine != null && !terminalRecorded) { Engine.Abort(Time.realtimeSinceStartupAsDouble, Time.frameCount, "restart"); recorder.Complete("aborted_restart"); }
             recorder?.Dispose();
             var frozen=JsonUtility.FromJson<TaskConfig>(JsonUtility.ToJson(config));
@@ -90,7 +103,9 @@ namespace EvidenceVR
                 participant:adaptiveConfig?.participantCode??"anonymous",kind:Application.isEditor?"editor-test":adaptiveConfig?.sessionType??"participant",
                 presentationVersion:adaptiveConfig==null?null:adaptiveConfig.IsPersonalized?TaskEngine.PersonalPresentationRevision:"adaptive-lab-v2.0-rolling-countdown",
                 gazeDebugRequested:adaptiveConfig?.engineeringGazeHighlight??false,gazeDebugEnabled:GazeDebugHighlighter.IsAllowed(adaptiveConfig),
-                gazeRayRequested:adaptiveConfig?.engineeringGazeRay??false,gazeRayEnabled:EngineeringGazeRay.IsAllowed(adaptiveConfig) && adaptiveConfig.engineeringGazeRay);
+                gazeRayRequested:adaptiveConfig?.engineeringGazeRay??false,gazeRayEnabled:EngineeringGazeRay.IsAllowed(adaptiveConfig) && adaptiveConfig.engineeringGazeRay,
+                evidenceGuardMode:adaptiveConfig?.evidenceGuardMode??"off",
+                assignedSessionId:adaptiveConfig?.operatorManaged==true?adaptiveConfig.testSessionId:null);
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
             onsetCue?.Bind(Engine,config);
@@ -104,6 +119,24 @@ namespace EvidenceVR
             if(StatusView==null)StatusView=gameObject.AddComponent<ExperimentStatusView>();
             StatusView.Bind(this);
             StartCoroutine(PlaceAfterTrackingReady(Engine));
+        }
+        public void StartAssignedTest(AdaptiveTrainingConfig assigned)
+        {
+            if(Engine!=null && Engine.Phase!=TaskPhase.Complete && Engine.Phase!=TaskPhase.Aborted)
+                throw new InvalidOperationException("Finish the current test before changing identity.");
+            assigned.Validate();
+            if(!assigned.operatorManaged || string.IsNullOrEmpty(assigned.testSessionId))throw new ArgumentException("Missing test assignment.");
+            adaptiveConfig=assigned;startingAssignedTest=true;
+            try {BeginSession();Debug.Log("OPERATOR TEST START: "+assigned.participantCode+";mode="+assigned.testSessionMode+";session="+assigned.testSessionId);}
+            finally {startingAssignedTest=false;}
+        }
+        public void ShowTestWaiting(string message)
+        {
+            if(Engine!=null)return;
+            stimulus.enabled=false;
+            if(spatialView!=null){spatialView.instructions.enabled=true;spatialView.taskCanvas.enabled=false;}
+            if(presentation!=null){presentation.setupCards.SetActive(false);presentation.exampleCards.SetActive(false);presentation.actionHint.text="Waiting for Test sessions";}
+            heading.text="Engineering test setup";body.text=message;badge.text="ENGINEERING TEST";
         }
         IEnumerator PlaceAfterTrackingReady(TaskEngine owner)
         {
@@ -158,7 +191,7 @@ namespace EvidenceVR
             if (forward.sqrMagnitude < .1f) forward = Vector3.forward;
             taskAnchor.position = head.position + forward * config.distance;
             taskAnchor.rotation = Quaternion.LookRotation(forward, Vector3.up);
-            float diameter = 2 * config.distance * Mathf.Tan(config.visualAngle * Mathf.Deg2Rad * .5f);
+            float diameter = 2 * config.distance * Mathf.Tan(config.visualAngle * Mathf.Deg2Rad * .5f) * SpatialTaskView.StimulusDiameterScale;
             stimulus.transform.localScale = Vector3.one * diameter;
             spatialView?.PlaceSupports(taskAnchor);
             spatialView?.PlaceStimulusAboveTray(stimulus);
@@ -166,7 +199,7 @@ namespace EvidenceVR
             Engine?.Note("calibration", "head=" + head.position + ";forward=" + forward + ";diameter_m=" + diameter, Time.realtimeSinceStartupAsDouble, Time.frameCount);
             if(spatialView!=null)
             {
-                string placement=SpatialTaskView.StimulusPlacementRevision+";surface_clearance_m="+SpatialTaskView.SphereTrayClearanceMeters.ToString(System.Globalization.CultureInfo.InvariantCulture)+";sphere_world="+stimulus.transform.position.ToString("F6",System.Globalization.CultureInfo.InvariantCulture);
+                string placement=SpatialTaskView.StimulusPlacementRevision+";surface_clearance_m="+SpatialTaskView.SphereTrayClearanceMeters.ToString(System.Globalization.CultureInfo.InvariantCulture)+";diameter_scale="+SpatialTaskView.StimulusDiameterScale.ToString(System.Globalization.CultureInfo.InvariantCulture)+";tray_surface_height_m="+SpatialTaskView.TraySurfaceHeight.ToString(System.Globalization.CultureInfo.InvariantCulture)+";sphere_world="+stimulus.transform.position.ToString("F6",System.Globalization.CultureInfo.InvariantCulture);
                 Engine?.Note("stimulus_placement",placement,Time.realtimeSinceStartupAsDouble,Time.frameCount);
                 Debug.Log("Stimulus placement: "+placement);
             }

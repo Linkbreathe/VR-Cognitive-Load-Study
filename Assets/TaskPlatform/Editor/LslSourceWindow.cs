@@ -20,10 +20,13 @@ namespace EvidenceVR.Editor
         public double sample_rate=250, scale_to_units=1, amplitude_limit=150, window_seconds=12, hrv_window_seconds=60;
         public int[] channels={0};
         public int channel_count, channel_format;
+        public string[] channel_labels=Array.Empty<string>();
+        public string units="";
         public bool differential, synthetic;
     }
     [Serializable] public sealed class LslSelectionFile { public string revision="lsl-source-selector-v2"; public LslInputSelection[] streams, profiles; }
     [Serializable] public sealed class LslBridgeStatus { public PhysiologyDisplayStatus physiologyStatus; }
+    [Serializable] public sealed class LslBridgeHealth { public string application,project; public int pid; }
     [Serializable] public sealed class LslDiscoveredStream
     {
         public string name, source_id, uid, stream_type, discovery_error;
@@ -48,7 +51,8 @@ namespace EvidenceVR.Editor
         [SerializeField] string pythonPath;
         [SerializeField] int port=8765;
         LslDiscoveredStream[] discovered=Array.Empty<LslDiscoveredStream>();
-        bool busy,polling;
+        bool busy,polling,externalBridge;
+        int bridgeGeneration;
         double nextPoll;
         string connection="Disconnected";
         Label status,serviceStatus;
@@ -80,7 +84,7 @@ namespace EvidenceVR.Editor
             var actions=rootVisualElement.Q("actions");
             scan=new Button(()=>Run(ScanAsync)){text="Scan"};actions.Add(scan);
             start=new Button(()=>Run(StartBridgeAsync)){text="Connect"};actions.Add(start);
-            stop=new Button(()=>TryAction(()=>{StopBridge();connection="Disconnected";SetStatus("Disconnected. You can choose another source.");})){text="Disconnect"};actions.Add(stop);
+            stop=new Button(()=>Run(DisconnectBridgeAsync)){text="Disconnect"};actions.Add(stop);
             status.enableRichText=false;serviceStatus.enableRichText=false;
             SetStatus(OwnedBridge()==null?"Start your publisher, scan, then choose a signal source.":"Source selection is locked until you disconnect.");
             RefreshState();
@@ -133,12 +137,14 @@ namespace EvidenceVR.Editor
             return source!=null && !string.IsNullOrEmpty(input.name) && !string.IsNullOrEmpty(input.stream_type) &&
                 input.name==source.name && input.stream_type==source.stream_type && input.source_id==source.source_id &&
                 (!string.IsNullOrEmpty(input.source_id) || input.uid==source.uid) && input.channel_count==source.channel_count &&
-                input.channel_format==source.channel_format && Math.Abs(input.sample_rate-source.sample_rate)<.01;
+                input.channel_format==source.channel_format && Math.Abs(input.sample_rate-source.sample_rate)<.01 &&
+                (input.channel_labels==null || input.channel_labels.Length==0 || input.channel_labels.SequenceEqual(source.channel_labels??Array.Empty<string>()));
         }
         void StampIdentity(LslInputSelection input)
         {
             input.name=selected.name;input.source_id=selected.source_id??"";input.uid=selected.uid;input.stream_type=selected.stream_type;
             input.sample_rate=selected.sample_rate;input.channel_count=selected.channel_count;input.channel_format=selected.channel_format;
+            input.channel_labels=(selected.channel_labels??Array.Empty<string>()).ToArray();
             input.data_origin=selected.recorded?"recorded_xdf_replay":provenance;
             input.synthetic=input.data_origin=="recorded_xdf_replay" || input.data_origin=="synthetic";
         }
@@ -174,6 +180,7 @@ namespace EvidenceVR.Editor
             var channels=new TextField("Channels (e.g. 0,1)"){value=string.Join(",",input.channels??Array.Empty<int>())};box.Add(channels);
             channels.RegisterValueChangedCallback(e=>{try{input.channels=e.newValue.Split(',').Select(x=>int.Parse(x.Trim(),CultureInfo.InvariantCulture)).ToArray();}catch{input.channels=Array.Empty<int>();SetStatus("Channels must be comma-separated integer indices.");}});
             Number(box,"Scale to analysis units",input.scale_to_units,v=>input.scale_to_units=v);
+            Text(box,"Analysis units (after scaling)",input.units,v=>input.units=v.Trim());
             if(input.kind!="FEATURES")Number(box,"Amplitude limit",input.amplitude_limit,v=>input.amplitude_limit=v);
             if(input.kind=="ECG")
             {
@@ -191,7 +198,7 @@ namespace EvidenceVR.Editor
             profiles=(file.profiles??file.streams).Select(Clone).ToList();
             foreach(var profile in profiles)if(profile.synthetic && profile.data_origin!="recorded_xdf_replay")profile.data_origin="synthetic";
             var first=file.streams[0];
-            selected=new LslDiscoveredStream{name=first.name,source_id=first.source_id,uid=first.uid,stream_type=first.stream_type,sample_rate=first.sample_rate,channel_count=first.channel_count,channel_format=first.channel_format,recorded=first.data_origin=="recorded_xdf_replay"};
+            selected=new LslDiscoveredStream{name=first.name,source_id=first.source_id,uid=first.uid,stream_type=first.stream_type,sample_rate=first.sample_rate,channel_count=first.channel_count,channel_format=first.channel_format,channel_labels=first.channel_labels,recorded=first.data_origin=="recorded_xdf_replay"};
             mappings=file.streams.Where(m=>(m.kind=="EEG" || m.kind=="ECG") && ProfileMatches(m,selected) && m.uid==selected.uid).Select(Clone).ToList();provenance=first.synthetic && first.data_origin!="recorded_xdf_replay"?"synthetic":first.data_origin;
         }
         void ImportMappings(string path)
@@ -221,7 +228,7 @@ namespace EvidenceVR.Editor
             }
         }
         void RequireEditable()
-        {if(EditorApplication.isPlayingOrWillChangePlaymode || OwnedBridge()!=null)throw new InvalidOperationException("Stop Play Mode and the owned bridge before changing the selection.");}
+        {if(EditorApplication.isPlayingOrWillChangePlaymode || OwnedBridge()!=null || externalBridge)throw new InvalidOperationException("Stop Play Mode and disconnect before changing the selection.");}
         public void SaveSelection()
         {
             RequireEditable();
@@ -242,6 +249,7 @@ namespace EvidenceVR.Editor
         }
         async Task StartBridgeAsync()
         {
+            bridgeGeneration++;
             SaveSelection();if(port<1024 || port>65535)throw new InvalidOperationException("Use a port between 1024 and 65535.");
             var adaptivePath=Path.Combine(Application.persistentDataPath,"adaptive-training-config.json");
             if(File.Exists(adaptivePath))
@@ -282,6 +290,24 @@ namespace EvidenceVR.Editor
             cachedBridge?.Dispose();cachedBridge=null;
             SessionState.EraseInt(ProcessKey);SessionState.EraseString(StartKey);
         }
+        async Task DisconnectBridgeAsync()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play Mode before disconnecting the source bridge.");
+            bridgeGeneration++;
+            if(externalBridge)
+                await RunPython("launch_evidence_console.py","--stop","--port",port.ToString(CultureInfo.InvariantCulture),"--no-browser");
+            else StopBridge();
+            externalBridge=false;connection="Disconnected";nextPoll=0;
+            SetStatus("Disconnected. You can scan or choose another source.");
+            Debug.Log("LSL DISCONNECT: receiving bridge stopped; source publisher and saved records retained.");
+        }
+        public static bool IsProjectBridge(LslBridgeHealth health)
+        {
+            try{return health!=null && health.application=="Evidence Console" && health.pid>0 &&
+                string.Equals(Path.GetFullPath(health.project).TrimEnd(Path.DirectorySeparatorChar),
+                    Path.GetFullPath(ProjectRoot).TrimEnd(Path.DirectorySeparatorChar),StringComparison.OrdinalIgnoreCase);}
+            catch{return false;}
+        }
         [InitializeOnLoadMethod] static void RegisterShutdown()
         {EditorApplication.quitting+=()=>{var p=OwnedBridge();if(p!=null)p.Kill();};}
         public static string QuoteArgument(string value)
@@ -318,23 +344,40 @@ namespace EvidenceVR.Editor
         void RefreshState()
         {
             if(configuration==null || start==null)return;
-            bool running=OwnedBridge()!=null,playing=EditorApplication.isPlayingOrWillChangePlaymode,editable=!busy&&!running&&!playing;
+            bool running=OwnedBridge()!=null || externalBridge,playing=EditorApplication.isPlayingOrWillChangePlaymode,editable=!busy&&!running&&!playing;
+            if(!running && status.text=="Source selection is locked until you disconnect.")
+                SetStatus("Disconnected. You can scan or choose another source.");
             configuration.SetEnabled(true);
             configuration.Q<PopupField<string>>("sourcePicker")?.SetEnabled(editable);
             var advanced=configuration.Q<Foldout>("advancedSettings");
             if(advanced!=null)foreach(var element in advanced.contentContainer.Children())element.SetEnabled(element.name=="diagnostics" || editable);
             scan.SetEnabled(editable);start.SetEnabled(editable && selected!=null && !string.IsNullOrEmpty(selected.uid));stop.SetEnabled(running&&!playing&&!busy);
             serviceStatus.text="Status: "+(running?connection:"Disconnected")+(playing?" — stop Play Mode to change sources.":"");
-            if(running && !polling && EditorApplication.timeSinceStartup>=nextPoll)PollBridge();
+            if(!busy && !polling && EditorApplication.timeSinceStartup>=nextPoll)PollBridge();
         }
         async void PollBridge()
         {
-            polling=true;nextPoll=EditorApplication.timeSinceStartup+1;
+            polling=true;nextPoll=EditorApplication.timeSinceStartup+1;int generation=bridgeGeneration;
             try
             {
+                using(var healthRequest=UnityWebRequest.Get("http://127.0.0.1:"+port+"/console/health"))
+                {
+                    healthRequest.timeout=2;var healthOperation=healthRequest.SendWebRequest();while(!healthOperation.isDone)await Task.Yield();
+                    if(generation!=bridgeGeneration)return;
+                    bool found=healthRequest.result==UnityWebRequest.Result.Success && IsProjectBridge(JsonUtility.FromJson<LslBridgeHealth>(healthRequest.downloadHandler.text));
+                    bool wasExternal=externalBridge;externalBridge=found && OwnedBridge()==null;
+                    if(externalBridge && !wasExternal)SetStatus("Receiving service detected for this project. Disconnect before changing sources.");
+                    if(!found)
+                    {
+                        connection=OwnedBridge()!=null?"Service unavailable":"Disconnected";
+                        if(wasExternal)SetStatus("Disconnected. You can scan or choose another source.");
+                        return;
+                    }
+                }
                 using(var request=UnityWebRequest.Get("http://127.0.0.1:"+port+"/status"))
                 {
                     request.timeout=2;var operation=request.SendWebRequest();while(!operation.isDone)await Task.Yield();
+                    if(generation!=bridgeGeneration)return;
                     if(request.result!=UnityWebRequest.Result.Success){connection="Service unavailable";return;}
                     var reply=JsonUtility.FromJson<LslBridgeStatus>(request.downloadHandler.text)?.physiologyStatus;
                     connection=reply==null?"Source status unavailable":(reply.sourceName??selected?.name??"")+" — "+

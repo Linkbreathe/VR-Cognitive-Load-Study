@@ -124,8 +124,10 @@ namespace EvidenceVR
         int next;
         bool firstFrame,started;
         public bool Ready {get;private set;}
+        public bool EngineeringReady {get;private set;}
         public bool BlockFailed {get;private set;}
         public bool IsPlaying=>active!=null;
+        public bool IsAudioPlaying=>active!=null && source!=null && source.isPlaying && !source.mute && source.volume>0;
         public bool IsVideoVisible=>active!=null && active.modality=="audiovisual" && started && firstFrame && screen!=null && screen.enabled && player!=null && player.isPlaying;
         public string ActiveId=>active?.mediaId??"none";
         public Transform Screen=>screen?.transform;
@@ -180,7 +182,8 @@ namespace EvidenceVR
                 }
             }
             File.WriteAllText(Path.Combine(owner.DataPath,"adaptive-media-manifest.json"),ManifestJson);
-            engine.Note("adaptive_media_ready","complete="+Ready+";loaded_pairs="+clips.Count,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            EngineeringReady=manifest.HasValidLayout() && clips.Count==manifest.items.Length && videos.Count==manifest.items.Length;
+            engine.Note("adaptive_media_ready","complete="+Ready+";engineering_files_ready="+EngineeringReady+";loaded_pairs="+clips.Count,Time.realtimeSinceStartupAsDouble,Time.frameCount);
             if(engine.Phase==TaskPhase.Running)PrepareNext();
         }
         static string Hash(string path){using(var sha=System.Security.Cryptography.SHA256.Create())using(var file=File.OpenRead(path))return BitConverter.ToString(sha.ComputeHash(file)).Replace("-","").ToLowerInvariant();}

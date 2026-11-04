@@ -11,10 +11,14 @@ namespace EvidenceVR
         public string evaluationPolicy = "rolling10-stride2-v1";
         public int rollingWindowTrials=10, rollingStrideTrials=2;
         public string mode = "OFF";
+        public string evidenceGuardMode = "off";
         public string protocol = "training";
         public string controllerUrl = "http://127.0.0.1:8765";
         public string participantCode = "engineering";
         public string sessionType = "engineering";
+        public bool operatorManaged, allowCandidateModel;
+        public string testSessionMode="full", testSessionId="", testRevision="engineering-model-reuse-v1";
+        public string testModelId="", testModelHash="", testStorageFolder="";
         public string controlBasis = "behavioral_fallback";
         public int seed = 20261102, counterbalanceGroup, scoredTrials = 24;
         public int baselineBlocks = 2, maxTrainingBlocks = 8, maxConsecutiveBlocks = 3;
@@ -30,7 +34,7 @@ namespace EvidenceVR
         public string mediaManifest = "adaptive-media-manifest.json";
         public const string PersonalVersion = "2.0.0-stage2-dev11";
         public bool IsPersonalized => version==PersonalVersion && protocol=="personalized-rf-v2";
-        public int calibrationBlocks=8, trainingTrials=96;
+        public int calibrationBlocks=4, trainingTrials=96;
         public string assignmentId="engineering-unallocated";
         public string calibrationFormUrl="", trainingFormUrl="";
         public string questionnaireAdministration=TaskEngine.PersonalQuestionnaireAdministration;
@@ -47,11 +51,22 @@ namespace EvidenceVR
         }
         public void Validate()
         {
+            if(operatorManaged && (!IsPersonalized || sessionType!="engineering" ||
+                !new[]{"full","calibration","bioadaptive"}.Contains(testSessionMode) || testRevision!="engineering-model-reuse-v1" ||
+                !System.Text.RegularExpressions.Regex.IsMatch(participantCode??"", "^[A-Za-z0-9_-]{1,80}$")))
+                throw new ArgumentException("Operator test sessions require a valid engineering identity and test mode.");
+            if(!operatorManaged && (testSessionMode!="full" || allowCandidateModel || !string.IsNullOrEmpty(testModelId)))
+                throw new ArgumentException("Model reuse requires the operator-managed engineering test mode.");
+            if(operatorManaged && !string.IsNullOrEmpty(testSessionId) && testSessionMode=="bioadaptive" &&
+                (string.IsNullOrEmpty(testModelId) || testModelHash.Length!=64))
+                throw new ArgumentException("Bioadaptive reuse requires a selected model and hash.");
+            if(!new[]{"off","observe","enforce"}.Contains(evidenceGuardMode) || (!IsPersonalized && evidenceGuardMode!="off"))
+                throw new ArgumentException("Evidence Guard requires the personalized protocol and off/observe/enforce mode.");
             if(IsPersonalized)
             {
                 if(!new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) || !new[]{"engineering","participant"}.Contains(sessionType) ||
                     questionnaireAdministration!=TaskEngine.PersonalQuestionnaireAdministration ||
-                    string.IsNullOrWhiteSpace(participantCode) || (calibrationBlocks!=6 && calibrationBlocks!=8) || trainingTrials!=96 ||
+                    string.IsNullOrWhiteSpace(participantCode) || (calibrationBlocks!=4 && calibrationBlocks!=6 && calibrationBlocks!=8) || trainingTrials!=96 ||
                     counterbalanceGroup<0 || counterbalanceGroup>3 || evaluationPolicy!="physio5-behavior20-stride5-v2" ||
                     videoWidth!=3.2f || videoHeight!=1.8f || videoPlacement!="front_wall_center" ||
                     !(mediaVolume>=0 && mediaVolume<=1) || !(onsetJitterSeconds>=0 && onsetJitterSeconds<=1) ||
@@ -108,9 +123,11 @@ namespace EvidenceVR
     public sealed class AdaptiveDecision
     {
         public string sessionId, requestId, action, reason, basis, configVersion;
+        public string guardMode,guardRevision,guardVerdict,guardRequestId,guardReason;
         public int block, level;
         public int evaluationId, epoch, lastTrial;
         public bool physiologicalEligible;
+        public bool engineeringModelEligible;
     }
 
     public sealed class AdaptiveTrainingState

@@ -34,7 +34,7 @@ public static class PersonalizedProtocolValidation
     public static string Run()
     {
         checks=0;
-        for(int group=0;group<4;group++)foreach(int blocks in new[]{6,8})
+        for(int group=0;group<4;group++)foreach(int blocks in new[]{4,6,8})
         {
             double now=0;var events=new List<TaskEvent>();var e=Begin(group,blocks,ref now,events);
             RunTrials(e,ref now,14);Check(now==63,"practice maximum 63 seconds; no baseline delay");
@@ -60,7 +60,7 @@ public static class PersonalizedProtocolValidation
             Check(e.Phase==TaskPhase.Complete,"study completes after external forms");
             Check(events.Count(x=>x.type=="personal_decision_due")==38,"19 decisions per 96-trial training");
             Check(e.Adaptive.Blocks.Count(x=>x.stage=="random")==4 && e.Adaptive.Blocks.Count(x=>x.stage=="bioadaptive")==4,"four independent statistics blocks");
-            Check(now==(blocks==8?1359:1251),"nominal total timing without baseline");
+            Check(now==63+blocks*54+2*432,"nominal total timing without baseline");
             Check(!events.Any(x=>x.type=="protocol_stage" && x.detail.StartsWith("rest_")),"no resting baseline stages anywhere in full session");
         }
         {

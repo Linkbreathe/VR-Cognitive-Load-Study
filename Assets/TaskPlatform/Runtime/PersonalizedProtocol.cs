@@ -13,8 +13,13 @@ namespace EvidenceVR
         public bool SupplementUsed {get;private set;}
         public string PersonalModelStatus {get;private set;}="awaiting_calibration";
         public bool PersonalModelAdmitted {get;private set;}
+        public bool PersonalModelTestUsable {get;private set;}
+        public bool IsOperatorTest => IsPersonalized && Adaptive.Config.operatorManaged;
+        public bool IsDirectBioadaptiveTest => IsOperatorTest && Adaptive.Config.testSessionMode=="bioadaptive";
         public bool PersonalMountIntact {get;private set;}=true;
-        public const string PersonalPresentationRevision="personalized-lab-v2.3-preparation-to-practice";
+        public const string PersonalPresentationRevision="personalized-lab-v2.6-sign-typography";
+        public const string PersonalCalibrationRevision="calibration-block-budget-v2-short-default";
+        public const string PersonalProgressRevision="trial-progress-v3-clear-type";
         public const string PersonalFlowRevision="preparation-practice-calibration-no-rest-v1";
         public const string PersonalQuestionnaireAdministration="interviewer_oral_headset_on-v1";
         public int PersonalDecisionId {get;private set;}
@@ -23,6 +28,14 @@ namespace EvidenceVR
             Adaptive.Stage=="calibration"?"Calibration":Adaptive.Stage=="practice"?"Practice":
             Adaptive.Stage=="preparation" || Adaptive.Stage=="model_wait"?"Preparation":"Questionnaire / rest";
         int protocolLength, phaseOffset, blockStartIndex;
+        public int PersonalProgressTotal => !IsPersonalized?0:Adaptive.Stage=="calibration"?12:
+            Adaptive.Stage=="practice"?14:Adaptive.Stage=="random" || Adaptive.Stage=="bioadaptive"?96:0;
+        public int PersonalProgressCompleted => PersonalProgressTotal==0 ||
+            (Phase!=TaskPhase.Running && !(Phase==TaskPhase.Paused && resumePhase==TaskPhase.Running))?0:
+            Math.Max(0,Math.Min(PersonalProgressTotal,ProtocolCompletedTrials-(Adaptive.Stage=="calibration"?phaseOffset+blockStartIndex:0)));
+        public string PersonalProgressText => PersonalProgressCompleted+"/"+PersonalProgressTotal;
+        public string PersonalProgressCaption => Adaptive.Stage=="calibration"?
+            (SupplementUsed?"Extra block ":"Block ")+Math.Max(1,Math.Min(SupplementUsed?2:Adaptive.Config.calibrationBlocks,TrialIndex/12+1))+"/"+(SupplementUsed?2:Adaptive.Config.calibrationBlocks):"Completed";
         bool skipPractice;
         string firstTraining => Adaptive.Config.counterbalanceGroup/2==0?"random":"bioadaptive";
         string secondTraining => firstTraining=="random"?"bioadaptive":"random";
@@ -37,7 +50,15 @@ namespace EvidenceVR
         void AdvancePersonal(double now,int frame)
         {
             if(!PersonalMountIntact)return;
-            if(Phase==TaskPhase.Preparation){Block=0;PersonalStage("practice",1,now,frame);return;}
+            if(Phase==TaskPhase.Preparation)
+            {
+                if(IsDirectBioadaptiveTest && !PersonalModelTestUsable)return;
+                Block=0;
+                if(IsDirectBioadaptiveTest){TrainingOrdinal=1;PersonalStage("bioadaptive",0,now,frame);}
+                else PersonalStage(IsOperatorTest && Adaptive.Config.testSessionMode=="calibration"?"calibration":"practice",
+                    IsOperatorTest && Adaptive.Config.testSessionMode=="calibration"?Adaptive.Config.counterbalanceGroup%2:1,now,frame);
+                return;
+            }
             if(Phase==TaskPhase.Running && Practice){skipPractice=true;Emit("practice_skip_requested",now,frame,now);return;}
             if(Phase==TaskPhase.Rest)
             {
@@ -124,6 +145,7 @@ namespace EvidenceVR
             {
                 SummarizePersonalBlock(now,frame);
                 if(Adaptive.Stage=="calibration")PersonalStage("model_wait",0,now,frame,TaskPhase.Rest);
+                else if(IsDirectBioadaptiveTest)CompleteOperatorTest(now,frame);
                 else PersonalStage("questionnaire_"+TrainingOrdinal,0,now,frame,TaskPhase.Rest);
                 return;
             }
@@ -145,6 +167,8 @@ namespace EvidenceVR
         {
             if(!PersonalMountIntact){Adaptive.Pending=null;return;}
             var d=Adaptive.Pending;if(d==null)return;
+            if(!EvidenceGuardContract.Allows(Adaptive.Config,d))
+            {Adaptive.Pending=null;Emit("evidence_guard_rejected",now,frame,now,"execution_authorization_missing;request="+d.requestId);return;}
             if(d.epoch!=RollingEpoch || d.level!=Adaptive.Level || d.evaluationId!=PersonalDecisionId ||
                 ProtocolCompletedTrials-d.lastTrial>5 || (Adaptive.Stage!="random" && Adaptive.Stage!="bioadaptive"))
             {Adaptive.Pending=null;Emit("personal_execution_rejected",now,frame,now,"stale_epoch_or_decision");return;}
@@ -155,15 +179,20 @@ namespace EvidenceVR
             {Pause(now,frame,"python_rest_request");return;}
             int target=d.action=="ON"?1:d.action=="OFF"?0:Adaptive.Level;
             int before=Adaptive.Level;Adaptive.SetPersonalLevel(target);
-            Emit("personal_execution",now,frame,now,"request="+d.requestId+";action="+d.action+";level="+target+";reason="+d.reason+";basis="+d.basis);
+            Emit("personal_execution",now,frame,now,"request="+d.requestId+";action="+d.action+";level="+target+";reason="+d.reason+";basis="+d.basis+
+                (Adaptive.Config.evidenceGuardMode=="off"?"":";previous_level="+before+";scene="+LabEnvironmentIdentity.CurrentRevision+";guard="+d.guardVerdict));
             if(before!=target)
             {
                 transitionRemaining=2;ResetRolling(now,frame,"level_change");
                 Emit("adaptive_level_changed",now,frame,now,"level="+target+";stage="+Adaptive.Stage+";previous_level="+before);
             }
         }
-        public void ReceivePersonalModel(string status,bool admitted,int attempt,double now,int frame)
+        void CompleteOperatorTest(double now,int frame)
+        {Phase=TaskPhase.Complete;StimulusVisible=false;Emit("session_complete",now,frame,now,"engineering_test;"+PersonalModelStatus);}
+        public void ReceivePersonalModel(string status,bool admitted,int attempt,double now,int frame,bool testUsable=false)
         {
+            if(IsDirectBioadaptiveTest && PersonalMountIntact)
+            {PersonalModelStatus=status;PersonalModelAdmitted=admitted;PersonalModelTestUsable=testUsable;return;}
             if(!IsPersonalized || !PersonalMountIntact || Adaptive.Stage!="model_wait")return;
             PersonalModelStatus=status;PersonalModelAdmitted=admitted;
             if(status!="personal_model_validated" && status!="personal_model_not_validated")return;
@@ -171,6 +200,7 @@ namespace EvidenceVR
             Emit("personal_model_result",now,frame,now,"status="+status+";admitted="+admitted+";attempt="+attempt);
             if(!admitted && !SupplementUsed)
             {SupplementUsed=true;PersonalStage("calibration",Adaptive.Config.counterbalanceGroup%2,now,frame);}
+            else if(IsOperatorTest && Adaptive.Config.testSessionMode=="calibration")CompleteOperatorTest(now,frame);
             else PersonalStage("questionnaire_calibration",0,now,frame,TaskPhase.Rest);
         }
         void ResumePersonal(double now,int frame)
@@ -191,7 +221,8 @@ namespace EvidenceVR
                 if(TrialIndex>=protocolLength)
                 {
                     SummarizePersonalBlock(now,frame);
-                    PersonalStage(Practice?"calibration":Adaptive.Stage=="calibration"?"model_wait":"questionnaire_"+TrainingOrdinal,Practice?Adaptive.Config.counterbalanceGroup%2:0,now,frame,Practice?TaskPhase.Instructions:TaskPhase.Rest);
+                    if(IsDirectBioadaptiveTest)CompleteOperatorTest(now,frame);
+                    else PersonalStage(Practice?"calibration":Adaptive.Stage=="calibration"?"model_wait":"questionnaire_"+TrainingOrdinal,Practice?Adaptive.Config.counterbalanceGroup%2:0,now,frame,Practice?TaskPhase.Instructions:TaskPhase.Rest);
                 }
                 else
                 {

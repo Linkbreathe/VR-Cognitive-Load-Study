@@ -38,7 +38,7 @@
   "rollingStrideTrials": 5,
   "engineeringGazeHighlight": false,
   "engineeringGazeRay": false,
-  "calibrationBlocks": 8,
+  "calibrationBlocks": 4,
   "trainingTrials": 96,
   "assignmentId": "engineering-unallocated",
   "calibrationFormUrl": "https://docs.google.com/forms/d/e/1FAIpQLSeghD4XMzg3o9_Z0C3wX79ns8VwIqtdPLRScHXn829bPKI0_A/viewform",

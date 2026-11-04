@@ -29,6 +29,10 @@ namespace EvidenceVR
             public int completedTrials;
             public double stageStarted;
             public bool supplementUsed;
+            public GuardGazeSample[] guardGaze;
+            public ConsoleGazeOverview gazeOverview;
+            public string environmentRevision;
+            public string testClientId;
         }
         [Serializable] sealed class Reply
         {
@@ -39,6 +43,9 @@ namespace EvidenceVR
             public string modelStatus,modelReportJson;
             public bool modelAdmitted;
             public int modelAttempt;
+            public string evidenceGuardStatus;
+            public string testSessionId;
+            public bool modelTestUsable,testStopRequested,testSignalsReady;
         }
         TaskPlatformController owner;
         TaskEngine engine;
@@ -52,8 +59,13 @@ namespace EvidenceVR
         Bounds lastFocusBounds;
         bool focusBoundsRecorded;
         double nextGazeStatusLog;
-        public bool CanStart=>config.sessionType!="participant" || (Media!=null && Media.Ready &&
+        public bool CanStart=>config.operatorManaged ? ServiceConnected && TestAssignmentConfirmed && TestSignalsReady && Media!=null && Media.EngineeringReady &&
+            (!engine.IsDirectBioadaptiveTest || engine.PersonalModelTestUsable) :
+            config.sessionType!="participant" || (Media!=null && Media.Ready &&
             (!config.IsPersonalized || (ServiceConnected && PhysiologyStatus?.source=="live" && PhysiologyStatus?.connection=="receiving")));
+        public bool TestAssignmentConfirmed {get;private set;}
+        public bool TestSignalsReady {get;private set;}
+        public string LastServiceError {get;private set;}="Waiting for the study computer";
         public PhysiologyDisplayStatus PhysiologyStatus {get;private set;}
         double lastServiceReply=double.NegativeInfinity;
         public bool ServiceConnected=>Time.realtimeSinceStartupAsDouble-lastServiceReply<=3;
@@ -79,6 +91,7 @@ namespace EvidenceVR
             if(focusTray==null)Debug.LogWarning("Task gaze region: tray unavailable; using padded sphere bounds only.");
             countdown=(RectTransform)owner.spatialView.timer.transform.parent;originalCountdownPosition=countdown.anchoredPosition;
             countdown.anchoredPosition=new Vector2(-220,originalCountdownPosition.y);
+            CreatePersonalProgress();
             File.WriteAllText(Path.Combine(owner.DataPath,"adaptive-training-config.json"),JsonUtility.ToJson(config,true));
             File.WriteAllText(Path.Combine(owner.DataPath,"calibration.json"),"{\"status\":\"not_calibrated\",\"physiological_features\":[],\"control_basis\":\""+config.controlBasis+"\"}");
             Open("training_blocks.csv","session_id,config_version,block,stage,level,start_s,end_s,eligible,matches,nonmatches,balanced_accuracy,median_correct_rt_s,omissions,transition_trials,valid,mixed_level,levels");
@@ -87,6 +100,7 @@ namespace EvidenceVR
             Open("gaze_samples.csv","session_id,config_version,time_s,block,trial,level,valid,origin_x,origin_y,origin_z,direction_x,direction_y,direction_z,task_roi,video_roi,task_visible,video_visible,roi_revision,gaze_source,task_region_visible");
             Open("physio_features.csv","session_id,config_version,received_s,payload_json");
             Open("controller_decisions.jsonl",null);Open("clock_sync.jsonl",null);
+            if(config.evidenceGuardMode!="off")Open("evidence_guard_status.jsonl",null);
             Open("rolling_evaluations.jsonl",null);
             Open("subjective_ratings.csv","session_id,config_version,time_s,item,rating_1_to_7");
             var mediaObject=new GameObject("Adaptive media runtime");mediaObject.transform.SetParent(transform,false);
@@ -101,8 +115,12 @@ namespace EvidenceVR
             engine.Note("protocol_configuration",config.protocol+";version="+config.version,Time.realtimeSinceStartupAsDouble,Time.frameCount);
             if(config.IsPersonalized)
             {
+                engine.Note("evidence_guard_configuration",EvidenceGuardContract.Revision+";mode="+config.evidenceGuardMode,Time.realtimeSinceStartupAsDouble,Time.frameCount);
                 engine.Note("personal_presentation_policy","feedback=practice_only;questionnaires="+TaskEngine.PersonalQuestionnaireAdministration+";mount_movement=restart_required",Time.realtimeSinceStartupAsDouble,Time.frameCount);
                 engine.Note("personal_flow_policy",TaskEngine.PersonalFlowRevision+";resting_baseline_seconds=0;preparation_checks=required",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                engine.Note("personal_calibration_budget",TaskEngine.PersonalCalibrationRevision+";initial_blocks="+config.calibrationBlocks+";initial_trials="+(config.calibrationBlocks*12)+";supplement_trials=24",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                engine.Note("personal_progress_display",TaskEngine.PersonalProgressRevision+";left=countdown;right=completed_trial_slots;calibration=block;practice_and_training=phase;placement=desk_signs;centers_m=+-0.40;center_height_m=0.86",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                Debug.Log("Personalized progress: "+TaskEngine.PersonalProgressRevision+"; calibration="+(config.calibrationBlocks*54)+" seconds plus optional 108-second supplement.");
                 Debug.Log("Personalized flow: preparation and signal checks -> practice -> calibration; no resting baseline. Revision: "+TaskEngine.PersonalFlowRevision);
             }
             engine.Note("gaze_debug_configuration",GazeDebugHighlighter.Revision+";requested="+config.engineeringGazeHighlight+";effective="+GazeDebug.Allowed+";roi="+GazeRegions.Revision+";source=tracked_eyes_only",Time.realtimeSinceStartupAsDouble,Time.frameCount);
@@ -141,6 +159,7 @@ namespace EvidenceVR
         void Json(string file,object value){if(!disposed)writers[file].WriteLine(JsonUtility.ToJson(value));}
         void RecordMedia(AdaptiveExposure e,string status,double now,string detail)
         {
+            if(config.evidenceGuardMode!="off")detail+=";audio_playing="+(Media.IsAudioPlaying?"true":"false")+";scene=warm-study-v1";
             var pos=Media.Screen.position;
             Row("media_events.csv",sessionId,config.version,e.block,e.stage,e.level,e.mediaId,e.modality,status,Media.PlannedOnset(e),now,e.duration,e.previousExposures,pos.x,pos.y,pos.z,detail);
             engine.Note("adaptive_media_"+status,JsonUtility.ToJson(e)+";"+detail,now,Time.frameCount);
@@ -148,6 +167,7 @@ namespace EvidenceVR
         void OnEvent(TaskEvent e)
         {
             if(disposed)return;
+            if(e.type=="pause" || e.type=="resume" || e.type=="protocol_stage" || e.type=="personal_mount_interrupted" || e.type=="adaptive_level_changed")previousGuardGaze=null;
             if(e.type=="pause" || e.type=="session_complete" || e.type=="session_aborted" || e.type=="block_complete"){GazeDebug?.Clear();GazeRay?.Clear();}
             if(events.Count<2048)events.Add(e);
             else {events.Clear();engine.Pause(e.actual,e.frame,"telemetry_queue_full");}
@@ -184,12 +204,15 @@ namespace EvidenceVR
                 gazeValidFraction=gazeSamples>0?(double)gazeValid/gazeSamples:0,gazeTaskFraction=gazeValid>0?(double)gazeTask/gazeValid:-1,gazeVideoFraction=gazeValid>0?(double)gazeVideo/gazeValid:-1};
             if(config.IsPersonalized)
             {
+                packet.testClientId=owner.TestClient?.ClientId;
                 packet.trials=engine.Results.ToArray();packet.completedTrials=engine.ProtocolCompletedTrials;
                 packet.stageStarted=engine.ProtocolStageStarted;packet.supplementUsed=engine.SupplementUsed;
                 packet.stage=engine.Adaptive.Stage;packet.level=engine.Practice?1:engine.Adaptive.Level;
                 packet.evaluationId=engine.PersonalDecisionId;packet.lastTrial=engine.ProtocolCompletedTrials;
                 packet.requestId=sessionId+":"+packet.stage+":"+packet.evaluationId;
+                if(config.evidenceGuardMode!="off"){packet.guardGaze=guardGaze.ToArray();packet.environmentRevision=LabEnvironmentIdentity.CurrentRevision;}
             }
+            packet.gazeOverview=ConsoleGazeSnapshot(packet.now);
             return packet;
         }
         IEnumerator Send(bool decision)
@@ -210,14 +233,25 @@ namespace EvidenceVR
                 {
                     var reply=JsonUtility.FromJson<Reply>(request.downloadHandler.text);
                     lastServiceReply=received;PhysiologyStatus=reply.physiologyStatus;
+                    LastServiceError="";
+                    if(config.operatorManaged)
+                    {
+                        TestAssignmentConfirmed=reply.testSessionId==sessionId;
+                        TestSignalsReady=reply.testSignalsReady;
+                        if(!TestAssignmentConfirmed){engine.Pause(received,Time.frameCount,"test_assignment_mismatch");yield break;}
+                        if(reply.testStopRequested)engine.Abort(received,Time.frameCount,"operator_stop_requested");
+                    }
                     if(config.IsPersonalized)
                     {
                         if(!string.IsNullOrEmpty(reply.modelReportJson))File.WriteAllText(Path.Combine(owner.DataPath,"personal-model-report.json"),reply.modelReportJson);
-                        engine.ReceivePersonalModel(reply.modelStatus,reply.modelAdmitted,reply.modelAttempt,received,Time.frameCount);
+                        engine.ReceivePersonalModel(reply.modelStatus,reply.modelAdmitted,reply.modelAttempt,received,Time.frameCount,reply.modelTestUsable);
                     }
                     uncertainty=(received-packet.now)*.5;offset=reply.serverClock-(received+packet.now)*.5;
                     writers["clock_sync.jsonl"].WriteLine("{\"unity_sent\":"+packet.now.ToString("R",CultureInfo.InvariantCulture)+",\"unity_received\":"+received.ToString("R",CultureInfo.InvariantCulture)+",\"server_clock\":"+reply.serverClock.ToString("R",CultureInfo.InvariantCulture)+"}");
                     foreach(var item in sentEvents)events.Remove(item);
+                    if(packet.guardGaze!=null)foreach(var item in packet.guardGaze)guardGaze.Remove(item);
+                    if(config.evidenceGuardMode!="off" && !string.IsNullOrEmpty(reply.evidenceGuardStatus))
+                        Json("evidence_guard_status.jsonl",new TaskEvent{type="evidence_guard_status",actual=received,detail=reply.evidenceGuardStatus});
                     if(!string.IsNullOrEmpty(reply.featuresJson))Row("physio_features.csv",sessionId,config.version,received,reply.featuresJson);
                     if(!string.IsNullOrEmpty(reply.calibrationJson))File.WriteAllText(Path.Combine(owner.DataPath,"calibration.json"),reply.calibrationJson);
                     if(decision && reply.decision!=null)
@@ -236,12 +270,20 @@ namespace EvidenceVR
                                 new[]{"ON","OFF","HOLD","REST"}.Contains(d.action) &&
                                 (engine.Adaptive.Stage=="random" || d.action=="HOLD" || d.action=="REST" ||
                                  (d.physiologicalEligible && engine.PersonalModelAdmitted) ||
+                                 (engine.IsDirectBioadaptiveTest && config.allowCandidateModel && engine.PersonalModelTestUsable &&
+                                  d.engineeringModelEligible && d.basis=="engineering_candidate_rf") ||
                                  (d.basis=="behavioral_fallback" && engine.SupplementUsed && !engine.PersonalModelAdmitted));
+                        if(accept && !EvidenceGuardContract.Allows(config,d))
+                        {accept=false;engine.Note("evidence_guard_rejected","missing_or_invalid_upgrade_authorization;request="+d.requestId,received,Time.frameCount);}
                         if(accept && config.mode=="ACTIVE")engine.Adaptive.Pending=d;
                         engine.Note("controller_reply",accept?(config.mode=="SHADOW"?"shadow_not_executed":"accepted_for_boundary"):"rejected_stale_or_invalid",received,Time.frameCount);
                     }
                 }
-                else if(decision)engine.Note("controller_unavailable","rolling_fallback=HOLD;"+request.error,received,Time.frameCount);
+                else
+                {
+                    LastServiceError=request.downloadHandler.text.Length>0?request.downloadHandler.text:request.error;
+                    if(decision)engine.Note("controller_unavailable","rolling_fallback=HOLD;"+request.error,received,Time.frameCount);
+                }
             }
             if(!decision)busy=false;
         }
@@ -271,7 +313,7 @@ namespace EvidenceVR
                 if(Keyboard.current.digit2Key.wasPressedThisFrame)RequestLevel(2);
                 if(Keyboard.current.escapeKey.wasPressedThisFrame)StopNow();
             }
-            if(now>=nextGaze && (engine.Phase==TaskPhase.Running || EngineeringGazeRay.IsAllowed(config))){nextGaze=now+1.0/30;SampleGaze(now);}
+            if(now>=nextGaze){nextGaze=now+1.0/30;SampleGaze(now);}
             else if(engine.Phase!=TaskPhase.Running)GazeDebug?.Clear();
             if(now>=nextTelemetry){nextTelemetry=now+1;StartCoroutine(Send(false));}
         }
@@ -310,6 +352,7 @@ namespace EvidenceVR
             var sample=GazeRegions.Classify(valid,origin,direction,taskBounds,taskVisible,Media.Screen,videoVisible);
             if(sample.valid)GazeTrackingStatus="TRACKED EYES";
             else if(valid)GazeTrackingStatus="INVALID EYE POSE";
+            RecordConsoleGaze(now,sample,sphereBounds,focusTray!=null?focusTray.bounds:sphereBounds,taskBounds,taskVisible,videoVisible);
             bool rayPhase=engine.Phase==TaskPhase.Preparation || engine.Phase==TaskPhase.Instructions || engine.Phase==TaskPhase.Running;
             GazeRay?.Present(sample,GazeTrackingStatus,now,rayPhase);
             if(now>=nextGazeStatusLog && lastGazeStatus!=GazeTrackingStatus)
@@ -320,7 +363,8 @@ namespace EvidenceVR
                 Debug.Log("Eye gaze: "+detail);
             }
             // Preparation diagnostics never enter trial statistics or production gaze rows.
-            if(engine.Phase!=TaskPhase.Running){GazeDebug?.Clear();return;}
+            if(engine.Phase!=TaskPhase.Running){previousGuardGaze=null;GazeDebug?.Clear();return;}
+            RecordGuardGaze(now,sample,sphereVisible,videoVisible);
             gazeSamples++;if(sample.valid)gazeValid++;if(sample.task)gazeTask++;if(sample.video)gazeVideo++;
             Row("gaze_samples.csv",sessionId,config.version,now,engine.Block,engine.TrialIndex,engine.Practice?(config.IsPersonalized?1:2):engine.Adaptive.Level,sample.valid,
                 sample.origin.x,sample.origin.y,sample.origin.z,sample.direction.x,sample.direction.y,sample.direction.z,sample.task,sample.video,
@@ -377,6 +421,7 @@ namespace EvidenceVR
             }
 #endif
             StopAllCoroutines();
+            DisposePersonalProgress();
             if(engine!=null){engine.CanApplyAdaptiveChange=null;engine.OnEvent-=OnEvent;engine.OnTrial-=OnTrial;engine.OnTrainingBlock-=OnBlock;}
             if(GazeDebug!=null){GazeDebug.Clear();GazeDebug.OnStateChanged-=OnGazeVisualChanged;Destroy(GazeDebug.gameObject);}
             if(Media!=null){Media.OnMedia-=RecordMedia;Destroy(Media.gameObject);}

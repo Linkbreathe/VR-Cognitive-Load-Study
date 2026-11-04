@@ -10,8 +10,10 @@ namespace EvidenceVR
         public TMP_Text stage, rule, progress, comparison, timer, timerLabel, controls, feedback;
         public Transform bench, leftLeg, rightLeg;
         public const float TabletopHeight=.65f;
-        public const float SphereTrayClearanceMeters=.0864f;
-        public const string StimulusPlacementRevision="sphere-tray-clearance-v1";
+        public const float SphereTrayClearanceMeters=.025f;
+        public const float StimulusDiameterScale=1.08f;
+        public const float TraySurfaceHeight=TabletopHeight+.07f;
+        public const string StimulusPlacementRevision="low-stimulus-v2-movie-clearance";
         public const float InstructionForwardOffset=-.25f, HudForwardOffset=-.22f;
         public static readonly Color CorrectColor=LabPalette.Hex("70D69A"), IncorrectColor=LabPalette.Hex("F27D7D");
         public const string CountdownRevision="response-countdown-v2-centiseconds";
@@ -58,7 +60,7 @@ namespace EvidenceVR
                 var scale=leg.localScale; scale.y=height; leg.localScale=scale;
             }
             var plinth=bench.Find("StimulusPlinth");var plinthPosition=plinth.localPosition;
-            plinthPosition.y=Mathf.Max(TabletopHeight+.055f,anchor.position.y-.19f);plinth.localPosition=plinthPosition;
+            plinthPosition.y=TraySurfaceHeight-.025f;plinth.localPosition=plinthPosition;
             var stem=bench.Find("PlinthStem");float stemHeight=plinthPosition.y-.025f-TabletopHeight;
             stem.localPosition=new Vector3(0,TabletopHeight+stemHeight*.5f,0);
             stem.localScale=new Vector3(.09f,stemHeight*.5f,.09f);

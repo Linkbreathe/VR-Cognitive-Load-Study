@@ -2,6 +2,16 @@
 
 Date: 2026-11-02. Stage: Stage 2 engineering. Application remains `2.0.0-stage2-dev8`; last built Android package is dev7. Display revision: `mode-status-v4-source-identity`; selection revision: `lsl-source-selector-v2`. Training configuration, task behavior and `rolling10-stride2-v1` policy are unchanged.
 
+## 2026-11-03 — Receiving-service ownership and disconnect correction
+
+Revision: `lsl-bridge-disconnect-v1`, Editor-only. The window tracked only the Python PID it had launched. After a service restart, a same-project listener could keep receiving while the window displayed Disconnected with a disabled Disconnect button. A stale lock message could also survive process exit.
+
+The window now checks `/console/health` for an Evidence Console belonging to this exact project, then polls source status. A recognized externally started service locks source changes and enables Disconnect. Disconnect uses the existing launcher identity and recent-telemetry checks; it does not adopt that service as an Editor-owned process for shutdown. Stale lock wording clears when the service is gone. Poll generations discard replies from before connect/disconnect actions. Play Mode guards remain intact.
+
+Software evidence: compilation passed. The existing idle same-project listener was detected as Receiving with Disconnect enabled and the picker locked, then stopped using the window action. Scan/Connect/picker became enabled, Disconnect disabled and status Disconnected. Matching/missing/foreign application/project health checks passed. Port 8765 was verified closed; discovery still found `Gin_mock_p007_test` UID `660660ea-f206-4a10-9a59-40e37e119074` and the original `mock_p007_test` publisher. No publisher, mapping, task data or model was changed. Evidence: `Evidence/LslDisconnect/`; restore copy: `LslSourceWindow-before.cs` in that directory.
+
+No APK rebuild is needed for this Editor window. No Quest Pro or physiological acceptance is implied. Verification used installed Pipeline documentation `commands/scripts.md` and `commands/build-and-compilation.md`.
+
 ## Purpose
 
 The operator can choose LSL inputs outside VR, and the VR status identifies the stream rather than displaying REPLAY as its main label. Real-time transport and recording provenance are separate: a replay can stream in real time, but remains recorded input in audit data and cannot authorize physiological promotion. No source is silently relabeled as live physiology.

@@ -15,7 +15,7 @@ from sklearn.metrics import balanced_accuracy_score, roc_auc_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from personalized_signals import FEATURES
+from personalized_signals import FEATURES, REVISION as FEATURE_REVISION
 from personalized_validation import block_validation, circular_permutation_test
 
 VERSION = "2.0.0-stage2-dev11"
@@ -40,6 +40,15 @@ DEFAULT_POLICY = {
     "minimum_media_seconds": 10, "minimum_dwell_trials": 5,
     "enable_behavioral_fallback": True,
 }
+
+
+def resolve_policy_path(explicit=None, project_root=None):
+    """Both bridge entry points reuse the same saved policy; explicit paths win."""
+    if explicit is not None:
+        return Path(explicit).resolve()
+    root = Path(project_root) if project_root is not None else Path(__file__).resolve().parents[2]
+    saved = root / "UserSettings/personalized-policy.json"
+    return saved.resolve() if saved.is_file() else None
 
 
 def policy_config(overrides=None):
@@ -159,7 +168,8 @@ def train_personal(rows, participant, session, kind, seed, policy, folder):
     started = time.perf_counter(); p = policy_config(policy); folder = Path(folder)
     report = {"participant": participant, "session": session, "session_type": kind, "version": VERSION,
               "status": "personal_model_not_validated", "admitted": False, "reasons": [], "policy": p,
-              "features": FEATURES, "sklearn_version": sklearn.__version__, "candidate_windows": len(rows),
+              "features": FEATURES, "featureRevision": FEATURE_REVISION,
+              "sklearn_version": sklearn.__version__, "candidate_windows": len(rows),
               "validation": "leave_one_block_out; fixed five-trial score labels; within-block circular null",
               "score_semantics": "uncalibrated classifier score, not a state probability",
               "overlap": .8, "independent_sample_claim": False, "threshold_tuning": False}
@@ -234,6 +244,7 @@ def load_personal(path, participant, session, sha256):
         raise ValueError("Model hash mismatch")
     saved = joblib.load(path)
     if (saved["participant"] != participant or saved["session"] != session or not saved["report"]["admitted"] or
+            saved["report"].get("featureRevision") != FEATURE_REVISION or
             saved["report"]["version"] != VERSION or saved["report"]["policy"]["revision"] != DEFAULT_POLICY["revision"]):
         raise ValueError("Model identity or admission mismatch")
     return saved

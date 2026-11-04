@@ -16,12 +16,29 @@ import re
 import threading
 import time
 import sys
+import os
+import socket
+from urllib.parse import urlsplit, parse_qs
+from evidence_console import REVISION as CONSOLE_REVISION, WEB, snapshot, record_wave, finite_json, config_fingerprint
 
 from controller import BaselineAdaptiveController, VERSION, SUPPORTED_VERSIONS, baseline
 from features import extract_features, condition_coverage
 from lsl_sources import stream_identity, validate_config, matching_streams, observation_values
-from personalized_model import VERSION as PERSONAL_VERSION, PROTOCOL as PERSONAL_PROTOCOL
+from personalized_model import VERSION as PERSONAL_VERSION, PROTOCOL as PERSONAL_PROTOCOL, resolve_policy_path
 from personalized_runtime import PersonalSession
+from personalized_signals import REVISION as FEATURE_REVISION
+from test_session_store import TestSessionStore, REVISION as TEST_REVISION
+
+
+class StudyHTTPServer(ThreadingHTTPServer):
+    """Prevent Windows SO_REUSEADDR from admitting competing study listeners."""
+    allow_reuse_address = os.name != "nt"
+    allow_reuse_port = False
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 def append_json(path, value):
@@ -63,7 +80,7 @@ def physiology_display_status(sensors, now):
 
 
 class StudyService:
-    def __init__(self, output, calibration=None, policy=None, personalized_policy=None):
+    def __init__(self, output, calibration=None, policy=None, personalized_policy=None, evidence_guard_config=None, test_state_dir=None):
         self.output = Path(output)
         self.calibration = calibration or {}
         self.controller = BaselineAdaptiveController(policy)
@@ -71,7 +88,11 @@ class StudyService:
         self.latest = None
         self.lock = threading.RLock()
         self.sensors = {}
+        self.observation_display = {}
         self.personalized_policy = personalized_policy
+        self.evidence_guard_config = evidence_guard_config
+        self.console_info = {"output": str(self.output.resolve()), "lslSelection": None, "pid": os.getpid()}
+        self.test_store = TestSessionStore(test_state_dir if test_state_dir is not None else self.output / "operator", personalized_policy)
 
     def receive(self, packet, decide=False):
         packet = copy.deepcopy(packet)
@@ -85,9 +106,13 @@ class StudyService:
         if kind not in ("participant", "editor-test", "engineering", "synthetic"):
             raise ValueError("Unknown session type")
         with self.lock:
+            managed = packet.get("config", {}).get("operatorManaged", False)
+            test_folder = self.test_store.verify_packet(packet) if managed else None
+            if not managed and packet.get("config", {}).get("testSessionMode", "full") != "full":
+                raise ValueError("Test shortcuts require an operator assignment")
             session = self.sessions.get(sid)
             if session is None:
-                folder = self.output / kind / sid
+                folder = test_folder if managed else self.output / kind / sid
                 folder.mkdir(parents=True, exist_ok=True)
                 session = {"path": folder, "config":packet["config"], "kind":kind, "features":deque(maxlen=1000),
                            "conditions":[], "seen_events":set(), "decisions":{}, "packet":packet}
@@ -107,8 +132,14 @@ class StudyService:
                     "status":"in_progress", "clock":"Python perf_counter monotonic seconds; see clock_sync.jsonl"}, indent=2),encoding="utf-8")
                 (folder/"calibration.json").write_text(json.dumps(self.calibration,indent=2),encoding="utf-8")
                 if packet.get("configVersion") == PERSONAL_VERSION:
-                    session["personal"] = PersonalSession(packet, folder, self.personalized_policy)
+                    session["personal"] = PersonalSession(packet, folder, self.personalized_policy, self.test_store if managed else None)
+                    from evidence_guard_adapter import GuardAdapter
+                    session["guard"] = GuardAdapter(packet, folder, self.evidence_guard_config)
                 self.sessions[sid] = session
+                metadata_value = json.loads(metadata.read_text(encoding="utf-8"))
+                metadata_value["consoleRevision"] = CONSOLE_REVISION
+                metadata_value["consoleDisplayRevision"] = (WEB / "display-revision.txt").read_text(encoding="utf-8").strip()
+                metadata.write_text(json.dumps(metadata_value, indent=2), encoding="utf-8")
             if session["config"] != packet["config"] or session["kind"] != kind:
                 raise ValueError("Session configuration is immutable")
             if "personal" in session and packet["now"] < session["packet"]["now"]:
@@ -125,6 +156,12 @@ class StudyService:
                     continue
                 session["seen_events"].add(key)
                 append_json(session["path"]/"events.jsonl",event)
+                session.setdefault("console_events", deque(maxlen=128)).append(copy.deepcopy(event))
+                if event["type"] == "personal_execution":
+                    detail = dict(part.split("=", 1) for part in event.get("detail", "").split(";") if "=" in part)
+                    acks = session.setdefault("console_acks", {})
+                    acks[detail.get("request", "")] = dict(detail, time=event["actual"])
+                    while len(acks) > 64:del acks[next(iter(acks))]
                 if event["type"] in ("block_start", "adaptive_level_changed", "pause", "resume", "session_complete", "session_aborted"):
                     detail = dict(part.split("=",1) for part in event.get("detail","").split(";") if "=" in part)
                     condition = {"time":event["actual"], "level":int(detail.get("level", packet["level"])),
@@ -132,6 +169,7 @@ class StudyService:
                                  "running":event["type"] in ("block_start", "adaptive_level_changed", "resume")}
                     session["conditions"].append(condition)
                     if event["type"] in ("session_complete","session_aborted"):
+                        if managed: self.test_store.complete(sid, "complete" if event["type"] == "session_complete" else "aborted")
                         metadata_path=session["path"]/"session.json"
                         meta=json.loads(metadata_path.read_text(encoding="utf-8"));meta["status"]=event["type"]
                         metadata_path.write_text(json.dumps(meta,indent=2),encoding="utf-8")
@@ -141,6 +179,10 @@ class StudyService:
                      "calibrationJson":json.dumps(calibration),"physiologyStatus":physiology_display_status(self.sensors,time.perf_counter())}
             if "personal" in session:
                 reply.update(session["personal"].receive(packet, decide))
+                guarded = session["guard"].receive(packet, session["personal"], reply.get("decision"))
+                if guarded is not None:
+                    reply["decision"] = guarded
+                reply["evidenceGuardStatus"] = session["guard"].failure or session["guard"].mode
             elif decide:
                 key = packet["requestId"]
                 if key not in session["decisions"]:
@@ -150,10 +192,28 @@ class StudyService:
                         "calibration":self.calibration,"policy":self.controller.policy,"decision":decision})
                 reply["decision"] = session["decisions"][key]
             reply["serverClock"] = time.perf_counter()
+            if managed:
+                reply["testSessionId"] = sid
+                reply["testStopRequested"] = self.test_store.records[sid].get("stopRequested", False)
+                reply["testSignalsReady"] = {s.get("kind") for s in self.sensors.values()
+                    if s.get("connected") and 0 <= time.perf_counter() - s.get("last_sample", float("-inf")) <= 3} >= {"EEG", "ECG"}
+            if "decision" in reply:
+                delivered = reply["decision"]
+                personal = session.get("personal")
+                base = personal.decisions.get(delivered["requestId"], delivered) if personal else delivered
+                records = session.setdefault("console_decisions", {})
+                records[delivered["requestId"]] = copy.deepcopy({"base": base, "delivered": delivered, "time": packet["now"]})
+                records[delivered["requestId"]]["viewChecks"] = copy.deepcopy([r for r in session["guard"].console_audit
+                    if r.get("record") == "view_check" and r.get("judgment", "").endswith(":" + delivered["requestId"])]) if "guard" in session else []
+                while len(records) > 64:
+                    del records[next(iter(records))]
             return reply
 
     def record_signal(self, stream_config, raw_times, corrected_monotonic, samples, correction, source_id):
         with self.lock:
+            if stream_config["kind"] == "OBSERVE":
+                # Read-only source preview is independent of Unity recording/model state.
+                record_wave(self.observation_display, stream_config, corrected_monotonic, samples, source_id)
             if self.latest is None:
                 return
             session = self.sessions[self.latest]
@@ -161,8 +221,13 @@ class StudyService:
                 raise ValueError("Recorded/synthetic signals cannot be written into participant sessions")
             if time.perf_counter()-session.get("received",0)>5:
                 return
+            if session["config"].get("operatorManaged") and self.test_store.records[session["packet"]["sessionId"]]["state"] != "running":
+                if stream_config["kind"] != "OBSERVE": record_wave(session, stream_config, corrected_monotonic, samples, source_id)
+                return  # Monitoring may continue; a closed test must not accumulate more raw data.
             if "personal" in session:
                 session["personal"].ingest(stream_config, corrected_monotonic, samples, source_id)
+            if stream_config["kind"] != "OBSERVE":
+                record_wave(session, stream_config, corrected_monotonic, samples, source_id)
             append_json(session["path"]/"raw_signals.jsonl", {"stream":stream_config,"source_id":source_id,
                 "raw_lsl_timestamps":raw_times,"corrected_monotonic":corrected_monotonic,"samples":samples,
                 "lsl_time_correction":correction,"received_monotonic":time.perf_counter(),"synthetic":stream_config.get("synthetic",False)})
@@ -307,21 +372,84 @@ def make_handler(service):
         def log_message(self,*args):
             pass
         def reply(self,code,data,content_type="application/json"):
-            body=data if isinstance(data,bytes) else json.dumps(data,allow_nan=False).encode()
-            self.send_response(code);self.send_header("Content-Type",content_type);self.send_header("Content-Length",str(len(body)));self.end_headers();self.wfile.write(body)
+            body=data if isinstance(data,bytes) else json.dumps(finite_json(data),allow_nan=False).encode()
+            self.send_response(code);self.send_header("Content-Type",content_type);self.send_header("Content-Length",str(len(body)))
+            self.send_header("Cache-Control", "no-store");self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers();self.wfile.write(body)
         def do_GET(self):
-            if self.path=="/":self.reply(200,MONITOR,"text/html; charset=utf-8")
-            elif self.path=="/status":self.reply(200,service.status())
+            url = urlsplit(self.path)
+            assets = {"/": ("index.html", "text/html; charset=utf-8"), "/console.js": ("console.js", "text/javascript"), "/console.css": ("console.css", "text/css"),
+                      "/tests": ("tests.html", "text/html; charset=utf-8"), "/tests.js": ("tests.js", "text/javascript")}
+            if url.path in assets:
+                name, mime = assets[url.path]
+                self.reply(200, (WEB / name).read_bytes(), mime)
+            elif url.path == "/console/health":
+                self.reply(200, {"application": "Evidence Console", "revision": CONSOLE_REVISION,
+                                 "featureRevision": FEATURE_REVISION,
+                                 "project": str(Path(__file__).resolve().parents[2]), **service.console_info})
+            elif url.path == "/console/snapshot":
+                try:self.reply(200, snapshot(service, parse_qs(url.query).get("session", [None])[0]))
+                except KeyError:self.reply(404, {"error": "Unknown session"})
+            elif url.path == "/status":self.reply(200,service.status())
+            elif url.path == "/tests/status":
+                with service.lock:
+                    view = service.test_store.status()
+                    for record in view["sessions"]:
+                        running = service.sessions.get(record["sessionId"])
+                        if not running or "personal" not in running: continue
+                        personal = running["personal"]
+                        decisions = list(personal.decisions.values())
+                        windows = list(personal.windows.values())
+                        record["live"] = {"stage": running["packet"]["stage"], "modelStatus": personal.model_status,
+                            "telemetryAge": time.perf_counter() - running.get("received", 0),
+                            "control": decisions[-1] if decisions else {"action": "HOLD", "reason": "collecting_fresh_history", "basis": "none"},
+                            "lastWindowReason": windows[-1]["reason"] if windows else "waiting_for_completed_window"}
+                    self.reply(200, dict(view, signalRoles=[s["kind"] for s in service.test_store.streams],
+                        physiology=physiology_display_status(service.sensors, time.perf_counter()), eegUnitsConfirmed=service.test_store.policy["eeg_units_confirmed"]))
+            elif url.path == "/tests/models":
+                try:
+                    query = parse_qs(url.query)
+                    with service.lock:self.reply(200, service.test_store.list_models(query["root"][0], query["participant"][0]))
+                except (ValueError, KeyError, OSError) as error:self.reply(400, {"error": str(error)})
             else:self.reply(404,{"error":"Not found"})
         def do_POST(self):
-            if self.path not in ("/telemetry","/decide"):
+            if self.path not in ("/telemetry","/decide", "/tests/prepare", "/tests/claim", "/tests/archive", "/tests/stop", "/tests/open-folder", "/tests/choose-folder"):
                 self.reply(404,{"error":"Not found"});return
             try:
                 length=int(self.headers.get("Content-Length",0))
                 if not 0<length<=2_000_000:raise ValueError("Invalid packet length")
                 packet=json.loads(self.rfile.read(length),parse_constant=lambda x:(_ for _ in ()).throw(ValueError("Nonfinite JSON")))
-                self.reply(200,service.receive(packet,self.path=="/decide"))
-            except (ValueError,KeyError,TypeError,FileExistsError) as error:
+                if self.path in ("/telemetry", "/decide"):
+                    self.reply(200,service.receive(packet,self.path=="/decide")); return
+                if self.path not in ("/tests/claim", "/tests/archive"):
+                    import ipaddress
+                    if not ipaddress.ip_address(self.client_address[0]).is_loopback or self.headers.get("X-Test-Console") != TEST_REVISION:
+                        self.reply(403, {"error": "Use the study computer's local Test sessions page"}); return
+                if self.path == "/tests/choose-folder":
+                    import subprocess
+                    chosen = subprocess.run([sys.executable, str(Path(__file__).with_name("choose_test_folder.py"))], capture_output=True, text=True,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), timeout=120)
+                    if chosen.returncode: raise ValueError("Folder chooser unavailable; enter an absolute path")
+                    self.reply(200, {"folder": chosen.stdout.strip()}); return
+                with service.lock:
+                    if self.path == "/tests/prepare": result = service.test_store.prepare(packet)
+                    elif self.path == "/tests/claim": result = service.test_store.claim(packet)
+                    elif self.path == "/tests/archive": result = service.test_store.archive(packet)
+                    elif self.path == "/tests/open-folder":
+                        path = Path(packet["folder"]).resolve()
+                        allowed = {str(Path(service.test_store.settings["storageFolder"]).resolve())}
+                        allowed.update(str(Path(r["folder"]).resolve()) for r in service.test_store.records.values())
+                        if str(path) not in allowed or not path.is_dir(): raise ValueError("Select an existing configured storage/session folder")
+                        os.startfile(str(path)); result = {"ok": True}
+                    else:
+                        r = service.test_store.records[packet["sessionId"]]
+                        r["stopRequested"] = True
+                        if r["state"] in ("prepared", "claimed") or time.perf_counter() - service.sessions.get(r["sessionId"], {}).get("received", 0) > 5:
+                            r["revoked"] = True
+                            service.test_store.complete(r["sessionId"], "aborted")
+                        service.test_store.save(); result = {"ok": True}
+                    self.reply(200, result)
+            except (ValueError,KeyError,TypeError,OSError) as error:
                 self.reply(400,{"error":str(error)})
     return Handler
 
@@ -331,16 +459,27 @@ def main():
     parser.add_argument("--host",default="127.0.0.1");parser.add_argument("--port",type=int,default=8765)
     parser.add_argument("--output",type=Path,required=True);parser.add_argument("--calibration",type=Path)
     parser.add_argument("--lsl-config",type=Path);parser.add_argument("--policy",type=Path)
-    parser.add_argument("--personalized-policy", type=Path, help="Dev9 frozen pilot policy; defaults never admit a physiological model")
+    parser.add_argument("--personalized-policy", type=Path, help="Personal policy; defaults to UserSettings/personalized-policy.json when present, otherwise built-in non-admitting policy")
+    parser.add_argument("--evidence-guard-config", type=Path, help="Optional Stage 3 settings; mode is frozen in the Unity session config")
+    parser.add_argument("--test-state-dir", type=Path, help="Persistent test preferences/registry; default UserSettings/TestSessions/port-PORT")
     parser.add_argument("--log-file",type=Path)
     args=parser.parse_args()
+    args.personalized_policy = resolve_policy_path(args.personalized_policy)
     if args.log_file:
         args.log_file.parent.mkdir(parents=True,exist_ok=True)
         sys.stdout=args.log_file.open("a",encoding="utf-8",buffering=1);sys.stderr=sys.stdout
     read=lambda p:json.loads(p.read_text(encoding="utf-8-sig")) if p else None
-    service=StudyService(args.output,read(args.calibration),read(args.policy),read(args.personalized_policy))
+    # Reserve the port before touching persisted assignments. A rejected second listener must not revoke an active test.
+    server=StudyHTTPServer((args.host,args.port),make_handler(None))
+    state_dir=args.test_state_dir or Path(__file__).resolve().parents[2] / "UserSettings" / "TestSessions" / ("port-" + str(args.port))
+    service=StudyService(args.output,read(args.calibration),read(args.policy),read(args.personalized_policy),read(args.evidence_guard_config),state_dir)
     selected=validate_config(read(args.lsl_config)) if args.lsl_config else None
-    server=ThreadingHTTPServer((args.host,args.port),make_handler(service))
+    service.test_store.streams = selected["streams"] if selected else []
+    service.console_info.update(lslSelection=str(args.lsl_config.resolve()) if args.lsl_config else None,
+        lslHash=config_fingerprint(args.lsl_config, lsl=True) if args.lsl_config else None,
+        policyHash=config_fingerprint(args.personalized_policy) if args.personalized_policy else None,
+        host=args.host, port=args.port, policy=str(args.personalized_policy.resolve()) if args.personalized_policy else "built-in non-admitting policy")
+    server.RequestHandlerClass=make_handler(service)
     if args.lsl_config:
         args.output.mkdir(parents=True,exist_ok=True)
         (args.output/"lsl-selection.json").write_text(json.dumps(selected,indent=2),encoding="utf-8")

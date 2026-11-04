@@ -24,12 +24,18 @@ namespace EvidenceVR
         public const string PersonalQuestionnaireAdministration="interviewer_oral_headset_on-v1";
         public int PersonalDecisionId {get;private set;}
         public int TrainingOrdinal {get;private set;}
-        public string ProtocolStageLabel => Adaptive.Stage=="random" || Adaptive.Stage=="bioadaptive" ? "Training "+TrainingOrdinal :
+        public bool ABQuestionnaireSaved {get;private set;}
+        double abQuestionnaireSavedAt;
+        public double ABRestRemaining(double now)=>Adaptive.Config.IsLayerAB && Adaptive.Stage=="questionnaire_1" && ABQuestionnaireSaved?
+            Math.Max(0,Adaptive.Config.abInterConditionRestSeconds-(now-abQuestionnaireSavedAt)):0;
+        public void ReceiveABQuestionnaire(string stage,bool saved,double now)
+        {if(Adaptive.Config.IsLayerAB && stage==Adaptive.Stage && saved && !ABQuestionnaireSaved){ABQuestionnaireSaved=true;abQuestionnaireSavedAt=now;}}
+        public string ProtocolStageLabel => LayerABStudy.IsTraining(Adaptive.Stage) ? "Training "+TrainingOrdinal :
             Adaptive.Stage=="calibration"?"Calibration":Adaptive.Stage=="practice"?"Practice":
             Adaptive.Stage=="preparation" || Adaptive.Stage=="model_wait"?"Preparation":"Questionnaire / rest";
         int protocolLength, phaseOffset, blockStartIndex;
         public int PersonalProgressTotal => !IsPersonalized?0:Adaptive.Stage=="calibration"?12:
-            Adaptive.Stage=="practice"?14:Adaptive.Stage=="random" || Adaptive.Stage=="bioadaptive"?96:0;
+            Adaptive.Stage=="practice"?14:LayerABStudy.IsTraining(Adaptive.Stage)?96:0;
         public int PersonalProgressCompleted => PersonalProgressTotal==0 ||
             (Phase!=TaskPhase.Running && !(Phase==TaskPhase.Paused && resumePhase==TaskPhase.Running))?0:
             Math.Max(0,Math.Min(PersonalProgressTotal,ProtocolCompletedTrials-(Adaptive.Stage=="calibration"?phaseOffset+blockStartIndex:0)));
@@ -37,12 +43,13 @@ namespace EvidenceVR
         public string PersonalProgressCaption => Adaptive.Stage=="calibration"?
             (SupplementUsed?"Extra block ":"Block ")+Math.Max(1,Math.Min(SupplementUsed?2:Adaptive.Config.calibrationBlocks,TrialIndex/12+1))+"/"+(SupplementUsed?2:Adaptive.Config.calibrationBlocks):"Completed";
         bool skipPractice;
-        string firstTraining => Adaptive.Config.counterbalanceGroup/2==0?"random":"bioadaptive";
-        string secondTraining => firstTraining=="random"?"bioadaptive":"random";
+        string firstTraining => Adaptive.Config.IsLayerAB?LayerABStudy.Stage(Adaptive.Config,1):Adaptive.Config.counterbalanceGroup/2==0?"random":"bioadaptive";
+        string secondTraining => Adaptive.Config.IsLayerAB?LayerABStudy.Stage(Adaptive.Config,2):firstTraining=="random"?"bioadaptive":"random";
         public event Action<TrialResult> OnProtocolTrialEnd;
 
         void PersonalStage(string stage,int level,double now,int frame,TaskPhase phase=TaskPhase.Instructions)
         {
+            ABQuestionnaireSaved=false;
             Adaptive.SetPersonalStage(stage,level);ProtocolStageStarted=now;Phase=phase;Practice=stage=="practice";
             StimulusVisible=false;CurrentResult=null;Mode=TaskMode.Hard;TrialIndex=-1;
             ResetRolling(now,frame,"stage_change");Emit("protocol_stage",now,frame,now,stage);
@@ -62,6 +69,8 @@ namespace EvidenceVR
             if(Phase==TaskPhase.Running && Practice){skipPractice=true;Emit("practice_skip_requested",now,frame,now);return;}
             if(Phase==TaskPhase.Rest)
             {
+                if(Adaptive.Config.IsLayerAB && Adaptive.Stage.StartsWith("questionnaire_") &&
+                    (!ABQuestionnaireSaved || ABRestRemaining(now)>0))return;
                 if(Adaptive.Stage=="questionnaire_calibration")
                 {TrainingOrdinal=1;AcknowledgeOralQuestionnaire("calibration",now,frame);PersonalStage(firstTraining,0,now,frame);}
                 else if(Adaptive.Stage=="questionnaire_1")
@@ -112,7 +121,7 @@ namespace EvidenceVR
             FinishTrial();ProtocolCompletedTrials=phaseOffset+TrialIndex+1;
             Emit("trial_end",now,frame,Planned+4.5,UnityEngine.JsonUtility.ToJson(completed));
             OnProtocolTrialEnd?.Invoke(completed);
-            if((Adaptive.Stage=="random" || Adaptive.Stage=="bioadaptive") && ProtocolCompletedTrials%5==0 && ProtocolCompletedTrials<96)
+            if(LayerABStudy.IsTraining(Adaptive.Stage) && ProtocolCompletedTrials%5==0 && ProtocolCompletedTrials<96)
             {PersonalDecisionId++;Emit("personal_decision_due",now,frame,now,"completed_trials="+ProtocolCompletedTrials);}
         }
         void SummarizePersonalBlock(double now,int frame)
@@ -167,10 +176,10 @@ namespace EvidenceVR
         {
             if(!PersonalMountIntact){Adaptive.Pending=null;return;}
             var d=Adaptive.Pending;if(d==null)return;
-            if(!EvidenceGuardContract.Allows(Adaptive.Config,d))
+            if(!EvidenceGuardContract.Allows(Adaptive.Config,d,Adaptive.Stage))
             {Adaptive.Pending=null;Emit("evidence_guard_rejected",now,frame,now,"execution_authorization_missing;request="+d.requestId);return;}
             if(d.epoch!=RollingEpoch || d.level!=Adaptive.Level || d.evaluationId!=PersonalDecisionId ||
-                ProtocolCompletedTrials-d.lastTrial>5 || (Adaptive.Stage!="random" && Adaptive.Stage!="bioadaptive"))
+                ProtocolCompletedTrials-d.lastTrial>5 || !LayerABStudy.IsTraining(Adaptive.Stage))
             {Adaptive.Pending=null;Emit("personal_execution_rejected",now,frame,now,"stale_epoch_or_decision");return;}
             if(CanApplyAdaptiveChange!=null && !CanApplyAdaptiveChange())
             {Emit("personal_execution_deferred",now,frame,now,"active_media;request="+d.requestId);return;}
@@ -201,6 +210,7 @@ namespace EvidenceVR
             if(!admitted && !SupplementUsed)
             {SupplementUsed=true;PersonalStage("calibration",Adaptive.Config.counterbalanceGroup%2,now,frame);}
             else if(IsOperatorTest && Adaptive.Config.testSessionMode=="calibration")CompleteOperatorTest(now,frame);
+            else if(Adaptive.Config.IsLayerAB){TrainingOrdinal=1;PersonalStage(firstTraining,0,now,frame);}
             else PersonalStage("questionnaire_calibration",0,now,frame,TaskPhase.Rest);
         }
         void ResumePersonal(double now,int frame)

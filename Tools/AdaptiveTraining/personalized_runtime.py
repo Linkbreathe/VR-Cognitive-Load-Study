@@ -1,5 +1,6 @@
 """Personalized session orchestration; Unity only presents and acknowledges."""
 from __future__ import annotations
+from layer_ab import TRAINING, STAGES, enabled as ab_enabled, validate as validate_ab
 
 from collections import deque
 import json
@@ -37,6 +38,7 @@ class PersonalSession:
             raise ValueError("Personalized protocol mismatch")
         if self.config.get("calibrationBlocks") not in (4, 6, 8) or self.config.get("trainingTrials") != 96:
             raise ValueError("Protocol requires four/six/eight calibration blocks and 96 training trials")
+        validate_ab(self.config)
         self.folder.mkdir(parents=True, exist_ok=True)
         # Do not silently resume with stale signal buffers or a different model after a process restart.
         if (self.folder / "personal_protocol.json").exists():
@@ -163,7 +165,7 @@ class PersonalSession:
     def process_windows(self, packet):
         rows = sorted(self.trials.values(), key=lambda r: r["plannedOnset"])
         for i, last in enumerate(rows):
-            if last["trainingStage"] not in ("calibration", "random", "bioadaptive") or i < 4:
+            if last["trainingStage"] not in ("calibration", *TRAINING) or i < 4:
                 continue
             window = rows[i - 4:i + 1]
             if last["trainingStage"] == "calibration":
@@ -234,6 +236,8 @@ class PersonalSession:
         with self.lock:
             if packet["participantCode"] != self.participant or packet["config"] != self.config:
                 raise ValueError("Personal identity/configuration is immutable")
+            if (packet["stage"] in STAGES and not ab_enabled(self.config)) or (ab_enabled(self.config) and packet["stage"] in ("random", "bioadaptive")):
+                raise ValueError("Training stage does not match frozen study design")
             self.packet = packet
             for e in packet.get("events", []):
                 self.event(e)
@@ -269,7 +273,7 @@ class PersonalSession:
              "block": p["block"], "level": p["level"], "epoch": p["epoch"], "lastTrial": p["lastTrial"],
              "evaluationId": p["evaluationId"], "action": "HOLD", "reason": "insufficient_data", "basis": "none", "physiologicalEligible": False}
         count = p.get("completedTrials", 0)
-        if p["stage"] not in ("random", "bioadaptive") or count <= 0 or count % 5 or count >= 96:
+        if p["stage"] not in TRAINING or count <= 0 or count % 5 or count >= 96:
             d["reason"] = "not_a_five_trial_decision_boundary"; return d
         if not self.mount_intact:
             d["reason"] = "headset_or_electrode_movement_requires_new_session"; return d

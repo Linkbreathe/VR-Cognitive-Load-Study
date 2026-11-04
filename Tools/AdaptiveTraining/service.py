@@ -26,6 +26,8 @@ from features import extract_features, condition_coverage
 from lsl_sources import stream_identity, validate_config, matching_streams, observation_values
 from personalized_model import VERSION as PERSONAL_VERSION, PROTOCOL as PERSONAL_PROTOCOL, resolve_policy_path
 from personalized_runtime import PersonalSession
+import layer_ab
+from study_timing import StudyTiming
 from personalized_signals import REVISION as FEATURE_REVISION
 from test_session_store import TestSessionStore, REVISION as TEST_REVISION
 
@@ -80,8 +82,9 @@ def physiology_display_status(sensors, now):
 
 
 class StudyService:
-    def __init__(self, output, calibration=None, policy=None, personalized_policy=None, evidence_guard_config=None, test_state_dir=None):
+    def __init__(self, output, calibration=None, policy=None, personalized_policy=None, evidence_guard_config=None, test_state_dir=None, enable_lsl_markers=False):
         self.output = Path(output)
+        self.timing = StudyTiming(enable_lsl_markers)
         self.calibration = calibration or {}
         self.controller = BaselineAdaptiveController(policy)
         self.sessions = {}
@@ -150,12 +153,18 @@ class StudyService:
             append_json(session["path"]/"telemetry.jsonl", {"received_monotonic":now,"packet":packet})
             append_json(session["path"]/"clock_sync.jsonl", {"received_monotonic":now,"unity_now":packet["now"],
                 "offset":packet.get("clockOffset"), "uncertainty":packet.get("clockUncertainty",999)})
+            if layer_ab.enabled(session["config"]):
+                clock = packet.get("abClock")
+                if clock and clock.get("id") not in session.setdefault("ab_clocks_seen", set()):
+                    session["ab_clocks_seen"].add(clock.get("id"))
+                    append_json(session["path"]/"clock_sync_ab.jsonl", clock)
             for event in packet.get("events", []):
                 key = json.dumps(event, sort_keys=True)
                 if key in session["seen_events"]:
                     continue
                 session["seen_events"].add(key)
                 append_json(session["path"]/"events.jsonl",event)
+                if layer_ab.enabled(session["config"]):self.timing.record(session, packet, event)
                 session.setdefault("console_events", deque(maxlen=128)).append(copy.deepcopy(event))
                 if event["type"] == "personal_execution":
                     detail = dict(part.split("=", 1) for part in event.get("detail", "").split(";") if "=" in part)
@@ -191,6 +200,9 @@ class StudyService:
                     append_json(session["path"]/"controller_decisions.jsonl", {"packet":packet,"features":features,
                         "calibration":self.calibration,"policy":self.controller.policy,"decision":decision})
                 reply["decision"] = session["decisions"][key]
+            if layer_ab.enabled(session["config"]):
+                questionnaire = layer_ab.questionnaire_status(session)
+                reply.update(abQuestionnaireStage=questionnaire["stage"], abQuestionnaireSaved=questionnaire["saved"])
             reply["serverClock"] = time.perf_counter()
             if managed:
                 reply["testSessionId"] = sid
@@ -230,7 +242,8 @@ class StudyService:
                 record_wave(session, stream_config, corrected_monotonic, samples, source_id)
             append_json(session["path"]/"raw_signals.jsonl", {"stream":stream_config,"source_id":source_id,
                 "raw_lsl_timestamps":raw_times,"corrected_monotonic":corrected_monotonic,"samples":samples,
-                "lsl_time_correction":correction,"received_monotonic":time.perf_counter(),"synthetic":stream_config.get("synthetic",False)})
+                "lsl_to_perf_offset": corrected_monotonic[0]-raw_times[0]-correction if raw_times else None,
+                "service_clock_id":self.timing.clock_id, "lsl_time_correction":correction,"received_monotonic":time.perf_counter(),"synthetic":stream_config.get("synthetic",False)})
 
     def add_features(self, stream_config, times, samples, source_id):
         with self.lock:
@@ -380,6 +393,13 @@ def make_handler(service):
             url = urlsplit(self.path)
             assets = {"/": ("index.html", "text/html; charset=utf-8"), "/console.js": ("console.js", "text/javascript"), "/console.css": ("console.css", "text/css"),
                       "/tests": ("tests.html", "text/html; charset=utf-8"), "/tests.js": ("tests.js", "text/javascript")}
+            if url.path == "/clock":
+                self.reply(200,service.timing.snapshot());return
+            if url.path == "/ab-study":
+                self.reply(200,(WEB / "ab-study.html").read_bytes(),"text/html; charset=utf-8");return
+            if url.path == "/ab-study/status":
+                with service.lock:self.reply(200,{"sessions":[layer_ab.questionnaire_status(s) for s in service.sessions.values() if layer_ab.enabled(s["config"])]})
+                return
             if url.path in assets:
                 name, mime = assets[url.path]
                 self.reply(200, (WEB / name).read_bytes(), mime)
@@ -413,12 +433,18 @@ def make_handler(service):
                 except (ValueError, KeyError, OSError) as error:self.reply(400, {"error": str(error)})
             else:self.reply(404,{"error":"Not found"})
         def do_POST(self):
-            if self.path not in ("/telemetry","/decide", "/tests/prepare", "/tests/claim", "/tests/archive", "/tests/stop", "/tests/open-folder", "/tests/choose-folder"):
+            if self.path not in ("/ab-study/questionnaire", "/telemetry","/decide", "/tests/prepare", "/tests/claim", "/tests/archive", "/tests/stop", "/tests/open-folder", "/tests/choose-folder"):
                 self.reply(404,{"error":"Not found"});return
             try:
                 length=int(self.headers.get("Content-Length",0))
                 if not 0<length<=2_000_000:raise ValueError("Invalid packet length")
                 packet=json.loads(self.rfile.read(length),parse_constant=lambda x:(_ for _ in ()).throw(ValueError("Nonfinite JSON")))
+                if self.path == "/ab-study/questionnaire":
+                    import ipaddress
+                    if not ipaddress.ip_address(self.client_address[0]).is_loopback or self.headers.get("X-AB-Study") != layer_ab.REVISION:
+                        self.reply(403,{"error":"Use the local study computer questionnaire page"});return
+                    with service.lock:result=layer_ab.save_questionnaire(service.sessions[packet["sessionId"]],packet)
+                    self.reply(200,result);return
                 if self.path in ("/telemetry", "/decide"):
                     self.reply(200,service.receive(packet,self.path=="/decide")); return
                 if self.path not in ("/tests/claim", "/tests/archive"):
@@ -458,6 +484,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--host",default="127.0.0.1");parser.add_argument("--port",type=int,default=8765)
     parser.add_argument("--output",type=Path,required=True);parser.add_argument("--calibration",type=Path)
+    parser.add_argument("--lsl-markers", action="store_true", help="Publish timestamped A/B software event markers for LabRecorder")
     parser.add_argument("--lsl-config",type=Path);parser.add_argument("--policy",type=Path)
     parser.add_argument("--personalized-policy", type=Path, help="Personal policy; defaults to UserSettings/personalized-policy.json when present, otherwise built-in non-admitting policy")
     parser.add_argument("--evidence-guard-config", type=Path, help="Optional Stage 3 settings; mode is frozen in the Unity session config")
@@ -472,7 +499,7 @@ def main():
     # Reserve the port before touching persisted assignments. A rejected second listener must not revoke an active test.
     server=StudyHTTPServer((args.host,args.port),make_handler(None))
     state_dir=args.test_state_dir or Path(__file__).resolve().parents[2] / "UserSettings" / "TestSessions" / ("port-" + str(args.port))
-    service=StudyService(args.output,read(args.calibration),read(args.policy),read(args.personalized_policy),read(args.evidence_guard_config),state_dir)
+    service=StudyService(args.output,read(args.calibration),read(args.policy),read(args.personalized_policy),read(args.evidence_guard_config),state_dir,enable_lsl_markers=args.lsl_markers)
     selected=validate_config(read(args.lsl_config)) if args.lsl_config else None
     service.test_store.streams = selected["streams"] if selected else []
     service.console_info.update(lslSelection=str(args.lsl_config.resolve()) if args.lsl_config else None,

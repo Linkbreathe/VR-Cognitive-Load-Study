@@ -17,9 +17,10 @@ namespace EvidenceVR
     public static class EvidenceGuardContract
     {
         public const string Revision="evidence-guard-v3-minimal-1";
-        public static bool Allows(AdaptiveTrainingConfig config,AdaptiveDecision decision)
+        public static bool Allows(AdaptiveTrainingConfig config,AdaptiveDecision decision,string stage="")
         {
-            if(config.evidenceGuardMode!="enforce" || decision.action!="ON")return true;
+            if(config.IsLayerAB && string.IsNullOrEmpty(stage) && decision.action=="ON")return false;
+            if(LayerABStudy.GuardMode(config,stage)!="enforce" || decision.action!="ON")return true;
             return decision.guardMode=="enforce" && decision.guardRevision==Revision &&
                 decision.guardVerdict=="ALLOW" && decision.guardRequestId==decision.requestId;
         }

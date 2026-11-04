@@ -1,5 +1,6 @@
 """Optional Stage 3 boundary. Stage 2 decisions and RF artifacts remain untouched."""
 from copy import deepcopy
+from layer_ab import guard_mode
 from collections import deque
 from dataclasses import asdict
 import hashlib
@@ -17,7 +18,7 @@ def identity(value):
 
 class GuardAdapter:
     def __init__(self, packet, folder, config=None):
-        self.mode = packet["config"].get("evidenceGuardMode", "off")
+        self.mode = guard_mode(packet["config"], packet["stage"])
         self.console_audit = deque(maxlen=128)
         if self.mode not in ("off", "observe", "enforce"):
             raise ValueError("Unknown evidenceGuardMode")
@@ -53,6 +54,8 @@ class GuardAdapter:
                                    bool(quality), data, self.guard.epoch))
 
     def receive(self, packet, personal, decision=None):
+        self.mode = guard_mode(packet["config"], packet["stage"])
+        if self.guard is not None: self.guard.mode = self.mode
         if self.mode == "off":
             return decision
         started = time.perf_counter()

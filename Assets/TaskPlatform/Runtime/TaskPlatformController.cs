@@ -37,6 +37,7 @@ namespace EvidenceVR
         static readonly Color[] Colors = LabPalette.Stimuli;
         TaskConfig config;
         SessionRecorder recorder;
+        InputTimingAudit inputTiming;
         InputAction match, nonmatch, advance, pause, calibrate;
         Material sphereMaterial;
         bool checkedMatch, checkedNonmatch, calibrated, terminalRecorded;
@@ -93,6 +94,7 @@ namespace EvidenceVR
                 return;
             }
             if (Engine != null && !terminalRecorded) { Engine.Abort(Time.realtimeSinceStartupAsDouble, Time.frameCount, "restart"); recorder.Complete("aborted_restart"); }
+            inputTiming?.Dispose();inputTiming=null;
             recorder?.Dispose();
             var frozen=JsonUtility.FromJson<TaskConfig>(JsonUtility.ToJson(config));
             if(frozen.distractionSeed==0)frozen.distractionSeed=BitConverter.ToInt32(Guid.NewGuid().ToByteArray(),0);
@@ -105,9 +107,11 @@ namespace EvidenceVR
                 gazeDebugRequested:adaptiveConfig?.engineeringGazeHighlight??false,gazeDebugEnabled:GazeDebugHighlighter.IsAllowed(adaptiveConfig),
                 gazeRayRequested:adaptiveConfig?.engineeringGazeRay??false,gazeRayEnabled:EngineeringGazeRay.IsAllowed(adaptiveConfig) && adaptiveConfig.engineeringGazeRay,
                 evidenceGuardMode:adaptiveConfig?.evidenceGuardMode??"off",
-                assignedSessionId:adaptiveConfig?.operatorManaged==true?adaptiveConfig.testSessionId:null);
+                assignedSessionId:adaptiveConfig?.operatorManaged==true?adaptiveConfig.testSessionId:null,
+                studyDesign:adaptiveConfig?.studyDesign??"legacy");
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
+            if(adaptiveConfig?.IsLayerAB==true)inputTiming=new InputTimingAudit(Engine,match,nonmatch,advance,pause,calibrate);
             onsetCue?.Bind(Engine,config);
             if(adaptiveConfig==null)distractions?.Bind(Engine,Engine.Config,DataPath);
             else {distractions?.Cancel("adaptive_mode");AdaptiveRuntime=gameObject.AddComponent<AdaptiveRuntime>();AdaptiveRuntime.Bind(this,Engine.Adaptive.Config);}
@@ -245,7 +249,7 @@ namespace EvidenceVR
                 {
                     if (simultaneousLatch) Engine.Note("button_ignored", "simultaneous", now, Time.frameCount);
                     else if (previousTrial != Engine.TrialIndex || previousBlock != Engine.Block || previousPhase != Engine.Phase) Engine.Note("button_ignored", "boundary_frame", now, Time.frameCount);
-                    else Engine.Respond(ma, now, Time.frameCount);
+                    else if(Engine.Respond(ma, now, Time.frameCount))inputTiming?.LinkAcceptedResponse(ma?match:nonmatch,Time.frameCount);
                 }
                 if (advance.WasPressedThisFrame())
                 {
@@ -330,6 +334,7 @@ namespace EvidenceVR
         void OnApplicationFocus(bool focused) { if (!focused && !Application.isEditor && Engine != null) Engine.Pause(Time.realtimeSinceStartupAsDouble, Time.frameCount, "focus_lost"); }
         void OnDestroy()
         {
+            inputTiming?.Dispose();inputTiming=null;
             if (Engine != null && !terminalRecorded && setupError == null)
             {
                 try { Engine.Abort(Time.realtimeSinceStartupAsDouble, Time.frameCount, "application_exit"); recorder?.Complete("aborted_exit"); }

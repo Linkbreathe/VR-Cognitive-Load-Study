@@ -2,6 +2,8 @@
 
 ## Current status
 
+- **Layer A/B study candidate (2026-11-05):** `codex/layer-ab-timing-study`, opt-in `layer-ab-v1`, same scene/controller with A=observe and B=enforce. Short Raw TLX after each 96-trial condition; final preference only; saved-response receipts and 180-second inter-condition rest. Input-action press/release timestamps and original frame RT are retained separately, with dedicated four-stamp clock transfer, optional LSL event markers and aligned exports. 165 Python tests and 3,906 synthetic Unity checks passed; actual Unity HTTP handshake and local LSL loopback verified. Original startup override restored, Play stopped; no APK, participant efficacy or Quest Pro physical timing acceptance. [Operation, evidence and limits](LayerABStudyGuide.md).
+
 - `model-config-persistence-v1` (2026-11-04): Unity Connect and the console launcher now share saved-policy resolution; Unity retains channel labels/analysis units and reports field-specific model incompatibilities. The idle bridge was refreshed on 8765; the existing Gin V3 candidate loads with its original hash using the running configuration, and both replay roles are receiving. All 157 Python regressions, Unity compilation and metadata/actual-Connect checks passed. No new assignment, APK or device/scientific admission. [Review and evidence](ModelCompatibilityReview.md).
 
 - `console-intro-video-v2-two-pages` (2026-11-04): the revised introduction covers only Physiology and Patent decisions, with an English narrated edition and a separate pure screen recording containing no audio, captions, titles or decorative framing. The original full introduction is retained. Both use actual engineering/replay captures and preserve unavailable feature/decision states. Application behavior and participant/device acceptance are unchanged. [Production record and validation](../Recordings/EvidenceConsoleTwoPages-20261104/README.md).
@@ -438,3 +440,15 @@ These links preserve the detailed changes, rationale and checks made before this
 ## Entry requirements
 
 For every major update, record its date and version/revision, project stage, reason, concrete changes, validation performed, pending checks and relevant document/evidence links. Record protocol or comparability changes explicitly. Update the guide when operation changes and the acceptance record when verification changes. Preserve the distinction between synthetic/Editor evidence and participant or physical-device evidence.
+
+## 2026-11-05 — Isolated layer A/B experiment and response timing
+
+Stage: Stage 3 experimental comparison, revision `layer-ab-v1`. Reason: compare the same adaptive controller with and without evidence enforcement while retaining trial/button timing for LSL analysis and reducing questionnaire burden.
+
+- **Layer A/B study candidate (2026-11-05):** `codex/layer-ab-timing-study`, opt-in `layer-ab-v1`, same scene/controller with A=observe and B=enforce. Short Raw TLX after each 96-trial condition; final preference only; saved-response receipts and 180-second inter-condition rest. Input-action press/release timestamps and original frame RT are retained separately, with dedicated four-stamp clock transfer, optional LSL event markers and aligned exports. 165 Python tests and 3,906 synthetic Unity checks passed; actual Unity HTTP handshake and local LSL loopback verified. Original startup override restored, Play stopped; no APK, participant efficacy or Quest Pro physical timing acceptance. [Operation, evidence and limits](LayerABStudyGuide.md).
+
+Concrete changes: separate counterbalanced training stage IDs; unchanged model/behavior thresholds and scoring; configuration import/restore menu and separate 8766 launcher; six-item Raw TLX plus final preference with immutable per-session saves; raw performed/canceled action edges, accepted-response linkage, clock uncertainty and event-marker provenance; new timing/questionnaire CSV exports. Existing legacy protocol and external forms remain available.
+
+Validation: full Python regression 165/165; Unity compilation and 3,906 synthetic checks; source-to-service clock handshake plus retained event receipt; local liblsl marker timestamp loopback; synthetic questionnaire visual review and HTTP save tests. Full details and restore pointer are in the linked guide. Pending: real-time Quest Pro/network/amplifier timing, XDF recording acceptance, genuine tracked-eye coverage, personal-model qualification, oral-scale comprehension and participant effects. No scientific or physical acceptance was inferred from software tests.
+
+Local version isolation: pre-existing uncommitted development was checkpointed on `codex/pre-layer-ab-20261105` (`cfae28c8aa172983380e54eecb0871969fd0f6fd`); A/B changes are committed separately on `codex/layer-ab-timing-study`. `main` remains unchanged; no remote push or merge.

@@ -1,5 +1,7 @@
 # Experiment guide: current modes
 
+**Optional A/B study (2026-11-05):** use the separate `StartLayerABStudy.cmd` entry on port **8766**, then load an allocated `layer-ab-v1` configuration from **Evidence VR > Layer A-B study** while Unity is stopped. Both periods use the same adaptive controller: A observes the layer and B enforces it. The local `/ab-study` page collects six Raw TLX ratings after each period and a final preference; no IMI, repeated SSQ, adjustment-experience or calibration questions are included. Preserve Unity/Python folders and record `EvidenceVR_TaskEvents` with EEG/ECG in LabRecorder. [Full setup, reduced-questionnaire flow, timestamps, export and pending device acceptance](LayerABStudyGuide.md). The existing workflow below remains the legacy/test-console workflow, and its saved bootstrap was restored after validation.
+
 ## Gaze overview on Physiology
 
 Refresh the console and select **Physiology > Gaze overview**. **Last 10 seconds** shows a fading distribution; **Latest point** shows only the freshest valid projected eye position. Task/Movie percentages use valid tracked time; Valid tracking uses the observed window. This is a front-wall projection with schematic object outlines, not a calibrated screen heatmap.

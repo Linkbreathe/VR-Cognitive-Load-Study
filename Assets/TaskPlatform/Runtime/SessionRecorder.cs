@@ -29,16 +29,17 @@ namespace EvidenceVR
             public string gazeLinkCompatibilityRevision="not_used",gazeLinkCompatibilityInitialState="inactive";
             public string evidenceGuardMode="off",evidenceGuardRevision=EvidenceGuardContract.Revision;
             public string trialProgressRevision="not_used",personalCalibrationRevision="not_used";
+            public string studyDesign="legacy",inputTimingRevision="legacy-frame-polled";
             public TaskConfig config;
         }
         public string DirectoryPath { get; }
-        readonly StreamWriter trials, practice, events;
+        readonly StreamWriter trials, practice, events, inputEvents;
         readonly Metadata metadata;
         bool disposed;
         static string F(double n) => n.ToString("R", CultureInfo.InvariantCulture);
         static string B(bool b) => b ? "1" : "0";
         public SessionRecorder(string root, TaskConfig config, string participant = "anonymous", string kind = "participant", string presentationVersion = null,
-            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false,string evidenceGuardMode="off",string assignedSessionId=null)
+            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false,string evidenceGuardMode="off",string assignedSessionId=null,string studyDesign="legacy")
         {
             string id = assignedSessionId ?? DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
             if(!System.Text.RegularExpressions.Regex.IsMatch(id,"^[A-Za-z0-9_-]{1,100}$"))throw new ArgumentException("Invalid assigned session ID.");
@@ -53,23 +54,31 @@ namespace EvidenceVR
             if(presentationVersion!=null)metadata.gazeRayRevision=EngineeringGazeRay.Revision;
             metadata.gazeRayRequested=gazeRayRequested;metadata.gazeRayInitiallyEnabled=gazeRayEnabled;
             metadata.evidenceGuardMode=evidenceGuardMode;
+            metadata.studyDesign=studyDesign;
+            if(studyDesign==LayerABStudy.Revision)
+            {
+                metadata.inputTimingRevision=InputTimingAudit.Revision;metadata.evidenceGuardMode="per-condition:A=observe;B=enforce";
+                metadata.timingNote+=" Input-action timestamps are separately retained in Unity's realtime clock domain; callback latency and original scored RT remain distinct. See clock_sync_ab.jsonl for clock transfer. No physical switch or photon latency is measured.";
+                inputEvents=Writer("input_events.jsonl");
+            }
             if(presentationVersion==TaskEngine.PersonalPresentationRevision)
             {metadata.trialProgressRevision=TaskEngine.PersonalProgressRevision;metadata.personalCalibrationRevision=TaskEngine.PersonalCalibrationRevision;}
             if(presentationVersion!=null && Application.isEditor){metadata.gazeLinkCompatibilityRevision=QuestLinkEyeSpaceFeature.Revision;metadata.gazeLinkCompatibilityInitialState=QuestLinkEyeSpaceFeature.LastResult;}
             WriteMetadata();
             trials = Writer("trials.csv"); practice = Writer("practice_trials.csv"); events = Writer("events.jsonl");
             const string header = "block,trial,mode,practice,scored,color,seed,expected_match,responded,response_match,correct,timeout,interrupted,aborted,planned_onset_s,actual_onset_s,onset_frame,response_time_s,response_frame,rt_s,offset_time_s,close_time_s,level,training_stage,transition,phase_trial,block_trial,trial_end_s";
-            trials.WriteLine(header); practice.WriteLine(header);
+            string timingHeader=",input_event_id,input_event_time_s,input_rt_s";
+            trials.WriteLine(header+timingHeader); practice.WriteLine(header+timingHeader);
         }
         StreamWriter Writer(string name) => new StreamWriter(Path.Combine(DirectoryPath, name), false, new UTF8Encoding(false)) { AutoFlush = true };
         void WriteMetadata() => File.WriteAllText(Path.Combine(DirectoryPath, "session.json"), JsonUtility.ToJson(metadata, true), new UTF8Encoding(false));
-        public void Event(TaskEvent e) { if (!disposed) events.WriteLine(JsonUtility.ToJson(e)); }
+        public void Event(TaskEvent e) { if (!disposed){events.WriteLine(JsonUtility.ToJson(e));if(e.type=="input_edge")inputEvents?.WriteLine(e.detail);} }
         public void Trial(TrialResult t)
         {
             if (disposed) return;
-            (t.practice ? practice : trials).WriteLine(string.Join(",", t.block, t.trial, t.mode, B(t.practice), B(t.scored), t.color, t.seed, B(t.expectedMatch), B(t.responded), t.responded ? B(t.responseMatch) : "", B(t.correct), B(t.timeout), B(t.interrupted), B(t.aborted), F(t.plannedOnset), F(t.actualOnset), t.onsetFrame, F(t.responseTime), t.responseFrame, F(t.reactionTime), F(t.offsetTime), F(t.closeTime),t.level,t.trainingStage,B(t.transition),t.phaseTrial,t.blockTrial,F(t.trialEnd)));
+            (t.practice ? practice : trials).WriteLine(string.Join(",", t.block, t.trial, t.mode, B(t.practice), B(t.scored), t.color, t.seed, B(t.expectedMatch), B(t.responded), t.responded ? B(t.responseMatch) : "", B(t.correct), B(t.timeout), B(t.interrupted), B(t.aborted), F(t.plannedOnset), F(t.actualOnset), t.onsetFrame, F(t.responseTime), t.responseFrame, F(t.reactionTime), F(t.offsetTime), F(t.closeTime),t.level,t.trainingStage,B(t.transition),t.phaseTrial,t.blockTrial,F(t.trialEnd),t.inputEventId,F(t.inputEventTime),F(t.inputReactionTime)));
         }
         public void Complete(string status) { if (disposed) return; metadata.status = status; WriteMetadata(); Dispose(); }
-        public void Dispose() { if (disposed) return; disposed = true; trials?.Dispose(); practice?.Dispose(); events?.Dispose(); }
+        public void Dispose() { if (disposed) return; disposed = true; trials?.Dispose(); practice?.Dispose(); events?.Dispose(); inputEvents?.Dispose(); }
     }
 }

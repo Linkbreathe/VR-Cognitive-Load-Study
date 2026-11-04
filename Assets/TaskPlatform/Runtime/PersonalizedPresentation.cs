@@ -153,6 +153,12 @@ namespace EvidenceVR
                     owner.heading.text="Questions and rest";
                     owner.body.text="Keep your headset and sensors in place.\nThe experimenter will read the questions aloud\nand record your answers. Answer verbally.\nTell the experimenter if you need to remove the headset.";
                     owner.presentation.actionHint.text="X / ENTER  Confirm questions completed";
+                    if(config.IsLayerAB)
+                    {
+                        owner.body.text="Keep your headset and sensors in place.\nAnswer six workload ratings aloud.\n"+(stage=="questionnaire_2"?"Then give your preference between the two sessions.":"Tell the experimenter about any discomfort.");
+                        owner.presentation.actionHint.text=!engine.ABQuestionnaireSaved?"Waiting for the experimenter to save your answers":
+                            engine.ABRestRemaining(Time.realtimeSinceStartupAsDouble)>0?"Rest: "+Mathf.CeilToInt((float)engine.ABRestRemaining(Time.realtimeSinceStartupAsDouble))+" s":"X / ENTER  Continue";
+                    }
                 }
                 return;
             }

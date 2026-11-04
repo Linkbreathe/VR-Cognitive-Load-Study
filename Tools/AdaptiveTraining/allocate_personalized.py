@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--controller-url", required=True)
     parser.add_argument("--calibration-blocks", type=int, choices=[4, 6, 8], default=4)
+    parser.add_argument("--layer-ab", action="store_true", help="Two identical adaptive controllers with layer observe/enforce")
     parser.add_argument("--engineering", action="store_true")
     args = parser.parse_args()
     allocation = assignment(args.participant, args.index, args.allocation_seed)
@@ -35,6 +36,12 @@ def main():
     config.update({k: v for k, v in allocation.items() if k in config})
     config.update(enabled=True, mode="ACTIVE", sessionType="engineering" if args.engineering else "participant",
                   controllerUrl=args.controller_url, calibrationBlocks=args.calibration_blocks)
+    if args.layer_ab:
+        from layer_ab import REVISION, QUESTIONNAIRE, condition
+        config.update(studyDesign=REVISION, questionnaireRevision=QUESTIONNAIRE, evidenceGuardMode="observe",
+                      abInterConditionRestSeconds=180, operatorManaged=False, allowCandidateModel=False, testSessionMode="full",
+                      testSessionId="", testModelId="", testModelHash="", calibrationFormUrl="", trainingFormUrl=args.controller_url.rstrip("/")+"/ab-study")
+        allocation.update(studyDesign=REVISION, order=[condition(config,1),condition(config,2)])
     args.output.mkdir(parents=True, exist_ok=True)
     # Exclusive creation avoids silently overwriting an assigned participant's configuration.
     path = args.output / f"{args.participant}-adaptive-training-config.json"

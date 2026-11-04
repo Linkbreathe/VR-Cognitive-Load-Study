@@ -12,6 +12,9 @@ namespace EvidenceVR
         public int rollingWindowTrials=10, rollingStrideTrials=2;
         public string mode = "OFF";
         public string evidenceGuardMode = "off";
+        public string studyDesign="legacy", questionnaireRevision="legacy";
+        public float abInterConditionRestSeconds=180;
+        public bool IsLayerAB=>studyDesign==LayerABStudy.Revision;
         public string protocol = "training";
         public string controllerUrl = "http://127.0.0.1:8765";
         public string participantCode = "engineering";
@@ -51,6 +54,10 @@ namespace EvidenceVR
         }
         public void Validate()
         {
+            if(studyDesign!="legacy" && !IsLayerAB)throw new ArgumentException("Unknown study design.");
+            if(IsLayerAB && (!IsPersonalized || operatorManaged || mode!="ACTIVE" || evidenceGuardMode!="observe" ||
+                questionnaireRevision!=LayerABStudy.QuestionnaireRevision || abInterConditionRestSeconds!=180))
+                throw new ArgumentException("A/B study requires the frozen full-session protocol, observe/enforce assignment and short questionnaires.");
             if(operatorManaged && (!IsPersonalized || sessionType!="engineering" ||
                 !new[]{"full","calibration","bioadaptive"}.Contains(testSessionMode) || testRevision!="engineering-model-reuse-v1" ||
                 !System.Text.RegularExpressions.Regex.IsMatch(participantCode??"", "^[A-Za-z0-9_-]{1,80}$")))

@@ -33,6 +33,7 @@ namespace EvidenceVR
             public ConsoleGazeOverview gazeOverview;
             public string environmentRevision;
             public string testClientId;
+            public StudyClockSample abClock;
         }
         [Serializable] sealed class Reply
         {
@@ -45,6 +46,8 @@ namespace EvidenceVR
             public int modelAttempt;
             public string evidenceGuardStatus;
             public string testSessionId;
+            public string abQuestionnaireStage;
+            public bool abQuestionnaireSaved;
             public bool modelTestUsable,testStopRequested,testSignalsReady;
         }
         TaskPlatformController owner;
@@ -59,10 +62,10 @@ namespace EvidenceVR
         Bounds lastFocusBounds;
         bool focusBoundsRecorded;
         double nextGazeStatusLog;
-        public bool CanStart=>config.operatorManaged ? ServiceConnected && TestAssignmentConfirmed && TestSignalsReady && Media!=null && Media.EngineeringReady &&
+        public bool CanStart=>(!config.IsLayerAB || StudyClockReady) && (config.operatorManaged ? ServiceConnected && TestAssignmentConfirmed && TestSignalsReady && Media!=null && Media.EngineeringReady &&
             (!engine.IsDirectBioadaptiveTest || engine.PersonalModelTestUsable) :
             config.sessionType!="participant" || (Media!=null && Media.Ready &&
-            (!config.IsPersonalized || (ServiceConnected && PhysiologyStatus?.source=="live" && PhysiologyStatus?.connection=="receiving")));
+            (!config.IsPersonalized || (ServiceConnected && PhysiologyStatus?.source=="live" && PhysiologyStatus?.connection=="receiving"))));
         public bool TestAssignmentConfirmed {get;private set;}
         public bool TestSignalsReady {get;private set;}
         public string LastServiceError {get;private set;}="Waiting for the study computer";
@@ -100,6 +103,7 @@ namespace EvidenceVR
             Open("gaze_samples.csv","session_id,config_version,time_s,block,trial,level,valid,origin_x,origin_y,origin_z,direction_x,direction_y,direction_z,task_roi,video_roi,task_visible,video_visible,roi_revision,gaze_source,task_region_visible");
             Open("physio_features.csv","session_id,config_version,received_s,payload_json");
             Open("controller_decisions.jsonl",null);Open("clock_sync.jsonl",null);
+            if(config.IsLayerAB)Open("clock_sync_ab.jsonl",null);
             if(config.evidenceGuardMode!="off")Open("evidence_guard_status.jsonl",null);
             Open("rolling_evaluations.jsonl",null);
             Open("subjective_ratings.csv","session_id,config_version,time_s,item,rating_1_to_7");
@@ -213,6 +217,7 @@ namespace EvidenceVR
                 if(config.evidenceGuardMode!="off"){packet.guardGaze=guardGaze.ToArray();packet.environmentRevision=LabEnvironmentIdentity.CurrentRevision;}
             }
             packet.gazeOverview=ConsoleGazeSnapshot(packet.now);
+            if(config.IsLayerAB){packet.abClock=abClock;packet.clockUncertainty=StudyClockReady?uncertainty:999;}
             return packet;
         }
         IEnumerator Send(bool decision)
@@ -243,10 +248,11 @@ namespace EvidenceVR
                     }
                     if(config.IsPersonalized)
                     {
+                        if(config.IsLayerAB)engine.ReceiveABQuestionnaire(reply.abQuestionnaireStage,reply.abQuestionnaireSaved,received);
                         if(!string.IsNullOrEmpty(reply.modelReportJson))File.WriteAllText(Path.Combine(owner.DataPath,"personal-model-report.json"),reply.modelReportJson);
                         engine.ReceivePersonalModel(reply.modelStatus,reply.modelAdmitted,reply.modelAttempt,received,Time.frameCount,reply.modelTestUsable);
                     }
-                    uncertainty=(received-packet.now)*.5;offset=reply.serverClock-(received+packet.now)*.5;
+                    if(!config.IsLayerAB){uncertainty=(received-packet.now)*.5;offset=reply.serverClock-(received+packet.now)*.5;}
                     writers["clock_sync.jsonl"].WriteLine("{\"unity_sent\":"+packet.now.ToString("R",CultureInfo.InvariantCulture)+",\"unity_received\":"+received.ToString("R",CultureInfo.InvariantCulture)+",\"server_clock\":"+reply.serverClock.ToString("R",CultureInfo.InvariantCulture)+"}");
                     foreach(var item in sentEvents)events.Remove(item);
                     if(packet.guardGaze!=null)foreach(var item in packet.guardGaze)guardGaze.Remove(item);
@@ -263,7 +269,7 @@ namespace EvidenceVR
                             d.configVersion==config.version && d.level==engine.Adaptive.Level && new[]{"UP","HOLD","DOWN","REST"}.Contains(d.action) &&
                             (config.controlBasis!="physiological"||d.action!="UP"||d.physiologicalEligible);
                         if(config.IsPersonalized)
-                            accept=engine.Phase==TaskPhase.Running && (engine.Adaptive.Stage=="random" || engine.Adaptive.Stage=="bioadaptive") &&
+                            accept=engine.Phase==TaskPhase.Running && LayerABStudy.IsTraining(engine.Adaptive.Stage) &&
                                 engine.Adaptive.Stage==packet.stage && received-packet.now<4.5 && !Media.BlockFailed &&
                                 d.evaluationId==engine.PersonalDecisionId && d.epoch==engine.RollingEpoch && d.lastTrial==packet.lastTrial &&
                                 d.sessionId==sessionId && d.requestId==packet.requestId && d.configVersion==config.version && d.level==engine.Adaptive.Level &&
@@ -273,7 +279,7 @@ namespace EvidenceVR
                                  (engine.IsDirectBioadaptiveTest && config.allowCandidateModel && engine.PersonalModelTestUsable &&
                                   d.engineeringModelEligible && d.basis=="engineering_candidate_rf") ||
                                  (d.basis=="behavioral_fallback" && engine.SupplementUsed && !engine.PersonalModelAdmitted));
-                        if(accept && !EvidenceGuardContract.Allows(config,d))
+                        if(accept && !EvidenceGuardContract.Allows(config,d,engine.Adaptive.Stage))
                         {accept=false;engine.Note("evidence_guard_rejected","missing_or_invalid_upgrade_authorization;request="+d.requestId,received,Time.frameCount);}
                         if(accept && config.mode=="ACTIVE")engine.Adaptive.Pending=d;
                         engine.Note("controller_reply",accept?(config.mode=="SHADOW"?"shadow_not_executed":"accepted_for_boundary"):"rejected_stale_or_invalid",received,Time.frameCount);
@@ -304,6 +310,7 @@ namespace EvidenceVR
         }
         public void Tick(double now)
         {
+            if(config.IsLayerAB && !disposed && !clockBusy && now>=nextClock){nextClock=now+1;StartCoroutine(SyncStudyClock());}
             if(disposed)return;
             Media.Tick(now);
             if(Keyboard.current!=null)

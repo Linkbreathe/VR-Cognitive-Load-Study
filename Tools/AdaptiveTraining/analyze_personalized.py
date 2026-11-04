@@ -8,6 +8,7 @@ from pathlib import Path
 import statistics
 
 from personalized_signals import movie_fraction
+import layer_ab
 
 
 def read_csv(path):
@@ -41,7 +42,8 @@ def summarize(folder):
               "mount_interruptions": mount_interruptions,
               "model_effectively_admitted": bool(model.get("admitted") and not mount_interruptions),
               "training": {}, "interpretation": "Descriptive only. Overlapping windows are not independent observations; exposure and order must be considered."}
-    for stage in ("random", "bioadaptive"):
+    result["study_design"]=config.get("studyDesign","legacy")
+    for stage in (layer_ab.STAGES if layer_ab.enabled(config) else ("random", "bioadaptive")):
         rows = [r for r in trials if r["training_stage"] == stage]
         exposures = [e for e in media if e["stage"] == stage]
         pending = {}; intervals = []; incomplete = 0
@@ -65,7 +67,7 @@ def summarize(folder):
             "level_seconds_from_trials": {str(l): sum(float(r["trial_end_s"]) - float(r["planned_onset_s"]) for r in rows if int(r["level"]) == l and r["interrupted"] != "1") for l in (0, 1)},
             "switch_count": len(switches), "switches": switches,
             "label": "mount_interrupted_requires_restart" if mount_interruptions else
-                "behavioral_fallback_or_engineering" if stage == "bioadaptive" and not model.get("admitted") else stage}
+                "behavioral_fallback_or_engineering" if stage in ("bioadaptive", *layer_ab.STAGES) and not model.get("admitted") else stage}
     return result
 
 

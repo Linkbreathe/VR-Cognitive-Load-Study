@@ -103,6 +103,8 @@ namespace EvidenceVR
         public string trainingStage;
         public double plannedOnset, actualOnset, reactionTime = -1, responseTime = -1, offsetTime = -1, closeTime = -1;
         public int onsetFrame, responseFrame = -1;
+        public long inputEventId=-1;
+        public double inputEventTime=-1,inputReactionTime=-1;
     }
 
     [Serializable]
@@ -111,6 +113,8 @@ namespace EvidenceVR
         public string type, detail;
         public double actual, planned, deviation;
         public int frame, block, trial;
+        public string stage,condition;
+        public int trainingOrdinal,phaseTrial;
     }
 
     public sealed partial class TaskEngine
@@ -205,7 +209,8 @@ namespace EvidenceVR
             var partial=TrainingBlock.Summarize(Results,Block,Adaptive.Level,Adaptive.Stage);partial.valid=false;OnTrainingBlock?.Invoke(partial);
             Phase=TaskPhase.Complete;StimulusVisible=false;Emit("session_complete",now,frame,now,Adaptive.Outcome);return true;
         }
-        void Emit(string type, double now, int frame, double planned, string detail = "") => OnEvent?.Invoke(new TaskEvent { type = type, actual = now, planned = planned, deviation = now - planned, frame = frame, block = Block, trial = TrialIndex, detail = detail });
+        void Emit(string type, double now, int frame, double planned, string detail = "") => OnEvent?.Invoke(new TaskEvent { type = type, actual = now, planned = planned, deviation = now - planned, frame = frame, block = Block, trial = TrialIndex, detail = detail,
+            stage=Adaptive?.Stage??"fixed",condition=LayerABStudy.Condition(Adaptive?.Stage),trainingOrdinal=TrainingOrdinal,phaseTrial=CurrentResult?.phaseTrial??-1 });
         public void Note(string type, string detail, double now, int frame, double? planned = null) => Emit(type, now, frame, planned ?? now, detail);
         public double BlockElapsed(double now) => Phase==TaskPhase.Running || (Phase==TaskPhase.Paused && resumePhase==TaskPhase.Running) ? Math.Max(0,(Phase==TaskPhase.Paused ? pauseStart : now)-origin-pausedTotal) : 0;
         public double RestRemaining(double now) => Math.Max(0, restEnd - now);
@@ -246,6 +251,7 @@ namespace EvidenceVR
             closed = false; StimulusVisible = true;
             CurrentResult = new TrialResult { block = Block, trial = TrialIndex, color = Current.color, mode = (int)Mode, seed = unchecked(config.seed + Block * 104729), practice = Practice, scored = Current.scored, expectedMatch = Current.expectedMatch, plannedOnset = Planned, actualOnset = now, onsetFrame = frame };
             if(Adaptive!=null){CurrentResult.level=Practice?2:Adaptive.Level;CurrentResult.trainingStage=Practice?"practice":Adaptive.Stage;CurrentResult.transition=!Practice && Current.scored && transitionRemaining>0;if(CurrentResult.transition)transitionRemaining--;}
+            if(IsPersonalized){CurrentResult.phaseTrial=phaseOffset+TrialIndex;CurrentResult.blockTrial=TrialIndex-blockStartIndex;CurrentResult.level=Practice?1:Adaptive.Level;}
             Emit("stimulus_on", now, frame, Planned, "color=" + Current.color);
             Emit("trial_countdown_start",now,frame,Planned,"seconds="+config.responseSeconds.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+";response_allowed="+Current.scored);
         }

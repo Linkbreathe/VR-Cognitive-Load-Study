@@ -1,5 +1,11 @@
 # Current acceptance record
 
+## 2026-11-05 — Layer A/B study candidate
+
+**Implemented/software-verified:** opt-in `layer-ab-v1` on `codex/layer-ab-timing-study`; two identical base adaptive conditions with observe/enforce authority, short questionnaires and saved receipts, raw input-action edges plus unchanged scored RT, four-stamp clock transfer, optional LSL markers and offline alignment. 165 Python tests and 3,906 synthetic Unity assertions passed. Actual Unity HTTP clock/event handshake and local liblsl explicit-timestamp loopback passed. Questionnaire page visually inspected; save/retry/receipt verified by real HTTP tests. Original startup configuration restored; Play Mode stopped; prior auto-tick retained. [Guide, evidence and restore point](LayerABStudyGuide.md).
+
+**Pending:** no new APK or Quest Pro/controller/photon/amplifier/network timing acceptance; no participant or physiological-model qualification, full real-time A/B efficacy study or validated synchronization accuracy. Software uncertainty flags and local synthetic loopback are not physical acceptance.
+
 ## 2026-11-04 — Persistent model configuration
 
 **Implemented/software-verified:** `model-config-persistence-v1`. Unity Connect and the console launcher load the saved personal policy consistently. Unity preserves channel labels and explicit analysis units; remembered mappings reject changed known label order. Compatibility errors identify differing fields without weakening gates. All 157 Python regressions, Unity compilation, six metadata/layout checks and actual Connect passed. The existing Gin V3 artifact loads under the current service configuration with its original hash; unified launcher reuse and both replay signal roles were verified. [Review and evidence](ModelCompatibilityReview.md).

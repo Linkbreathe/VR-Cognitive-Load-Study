@@ -2,7 +2,7 @@
 
 ## Layer A/B study (2026-11-05)
 
-For `layer-ab-v1`, use the new [six-item workload and final preference Google Forms](LayerABGoogleForms.md). The local questionnaire webpage is removed. Confirm successful submissions with X/Enter; first confirmation starts 180 seconds of rest. The legacy forms below remain unchanged and do not apply to A/B.
+For `layer-ab-v1`, use the [two-page Raw TLX (six items) / UEQ+ Attractiveness (four items) and separate final preference Google Forms](LayerABGoogleForms.md). The local questionnaire webpage is removed. Confirm successful submissions with X/Enter; first confirmation starts 180 seconds of rest. The legacy forms below remain unchanged and do not apply to A/B.
 
 # Oral questionnaire administration for dev11
 

@@ -1,5 +1,11 @@
 # Current acceptance record
 
+## 2026-11-05 — Two-page TLX and overall impression questionnaires
+
+**Implemented/browser-verified:** `raw-tlx6-ueq4-preference-google-forms-v3`. Same post-condition URL; page 1 retains six Raw TLX ratings and linkage fields, page 2 adds the four standard UEQ+ Attractiveness items with seven response positions. One scale per page; all ten ratings required, none preselected. Final preference and optional reason remain separate. NASA/UEQ+ public-use evidence was checked before editing. Published navigation and item endpoints were inspected, temporary drafts cleared, and zero submitted responses confirmed. Private response-summary settings are retained. [Sources, scores, operation and browser evidence](LayerABGoogleForms.md).
+
+**Software:** eight targeted A/B Python tests passed after synchronizing revision constants, engineering allocations and the spoken questionnaire prompt. Unity compilation completed; console errors are zero and compilation failure is false. No Play Mode or full-suite rerun was needed for these metadata/text changes. Controller, scoring, button edges/hold duration/RT and LSL code are unchanged. **Pending:** actual submission/export/join rehearsal, oral comprehension review, new device build, Quest Pro and physical timing acceptance. Earlier full-suite and Play Mode results below apply to their recorded revisions; this update makes no efficacy claim.
+
 ## 2026-11-05 — Google Forms replaces local A/B questionnaires
 
 **Implemented/software-verified:** `raw-tlx6-preference-google-forms-v2`; two new published Google Forms (six Raw TLX items per condition; one final preference and optional reason). Removed local questionnaire UI, save/status routes, answer persistence and Unity receipt dependency. Operator confirmation starts the fixed rest and records `submission_verified=false`. Input-action timestamps, hold duration, scored RT, LSL timing and controller rules are retained. 165 Python tests passed; Unity compilation passed and 3,934 synthetic Play Mode checks passed, including four allocation groups, complete phase budgets, manual confirmation/rest gates, duplicate suppression, three external acknowledgements and retained input edges/RT. The PASS log was read back; Play Mode was stopped.

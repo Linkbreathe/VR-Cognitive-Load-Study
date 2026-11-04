@@ -155,7 +155,7 @@ namespace EvidenceVR
                     owner.presentation.actionHint.text="X / ENTER  Confirm questions completed";
                     if(config.IsLayerAB)
                     {
-                        owner.body.text="Keep your headset and sensors in place.\nAnswer six workload ratings aloud.\n"+(stage=="questionnaire_2"?"Then give your preference between the two sessions.":"Tell the experimenter about any discomfort.");
+                        owner.body.text="Keep your headset and sensors in place.\nAnswer six workload and four overall impression ratings aloud.\n"+(stage=="questionnaire_2"?"Then give your preference between the two sessions.":"Tell the experimenter about any discomfort.");
                         owner.presentation.actionHint.text=!engine.ABQuestionnaireAcknowledged?"Experimenter: X / ENTER after Google Forms submission":
                             engine.ABRestRemaining(Time.realtimeSinceStartupAsDouble)>0?"Rest: "+Mathf.CeilToInt((float)engine.ABRestRemaining(Time.realtimeSinceStartupAsDouble))+" s":"X / ENTER  Continue";
                     }

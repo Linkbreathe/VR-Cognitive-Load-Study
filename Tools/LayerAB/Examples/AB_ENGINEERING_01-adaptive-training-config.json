@@ -45,7 +45,7 @@
   "trainingFormUrl": "https://docs.google.com/forms/d/e/1FAIpQLSeIC0ZO2EYBvbqF-zqy50panjnd_gNcXdG6wTTMkksT93FYLA/viewform",
   "questionnaireAdministration": "interviewer_oral_headset_on-v1",
   "studyDesign": "layer-ab-v1",
-  "questionnaireRevision": "raw-tlx6-preference-google-forms-v2",
+  "questionnaireRevision": "raw-tlx6-ueq4-preference-google-forms-v3",
   "evidenceGuardMode": "observe",
   "abInterConditionRestSeconds": 180,
   "operatorManaged": false,

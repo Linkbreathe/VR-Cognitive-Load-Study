@@ -48,7 +48,7 @@ def main():
             with urlopen(url+'/clock',timeout=.5) as response:status=json.load(response)
             if status['markerStatus']!='available':raise RuntimeError('LSL marker outlet unavailable: '+status['markerStatus'])
             webbrowser.open(links['training']['responder'])
-            print('Workload form:',links['training']['responder'],'Final preference:',links['preference']['responder'])
+            print('Post-condition form:',links['training']['responder'],'Final preference:',links['preference']['responder'])
             print('Service PID:',child.pid,'Log:',log,'Markers:',status['markerSourceId']);return
         except (OSError,ValueError):time.sleep(.25)
     raise RuntimeError('Service readiness timed out; inspect '+str(log))

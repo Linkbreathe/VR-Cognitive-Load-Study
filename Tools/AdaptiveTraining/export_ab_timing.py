@@ -51,19 +51,22 @@ def export(unity, service, output):
             for label,column in [('onset','actual_onset_s'),('response','response_time_s'),('input','input_event_time_s')]:
                 row.update({label+'_'+k:v for k,v in align(float(t.get(column,-1)),clocks).items()})
             trials.append(row)
-    questionnaires=[]
-    for ordinal in (1,2):
-        path=service/f'questionnaire_{ordinal}.json'
-        if path.exists():
-            q=json.loads(path.read_text());questionnaires.append({'session_id':unity.name,'ordinal':ordinal,'condition':condition(config,ordinal),
-                'raw_tlx':q['raw_tlx'],**q['answers']['tlx'],'preference':q['answers']['preference'],'reason':q['answers']['reason'],
-                'discomfort':q['answers']['discomfort']})
+    acknowledgements=[]
+    for e in events:
+        if e.get('type') != 'external_questionnaire_acknowledged':continue
+        occasion=e.get('detail_json','')
+        ordinal={'training_1':1,'training_2':2}.get(occasion)
+        acknowledgements.append({'session_id':unity.name,'participant_code':config.get('participantCode',''),
+            'occasion':occasion,'ordinal':ordinal,'condition':condition(config,ordinal) if ordinal else '',
+            'operator_acknowledged_unity_s':e['actual'],'submission_verified':False,
+            'event_perf_s':e.get('event_perf_s'),'alignment_status':e.get('alignment_status'),
+            'questionnaire_revision':config.get('questionnaireRevision','')})
     output.mkdir(parents=True,exist_ok=False)
     write_csv(output/'events_aligned.csv',events);write_csv(output/'trials_aligned.csv',trials)
-    write_csv(output/'questionnaires.csv',questionnaires)
+    write_csv(output/'questionnaire_acknowledgements.csv',acknowledgements)
     report={'session_id':unity.name,'clock_ids':sorted(ids),'clock_samples':len(clocks),'events':len(events),'trials':len(trials),
         'unqualified_event_times':sum(r.get('alignment_status')!='estimated' for r in events),
-        'questionnaires':len(questionnaires),'reference':'event_perf_s matches raw_signals.jsonl corrected_monotonic',
+        'questionnaire_acknowledgements':len(acknowledgements),'questionnaire_responses':'External Google Forms export; join participant code + session ID + training occasion. Operator acknowledgements are not verified submission receipts.','reference':'event_perf_s matches raw_signals.jsonl corrected_monotonic',
         'lsl_reference':'event_lsl_local_s is the service-host LSL clock, not arbitrary XDF importer timestamps',
         'limitations':'Software onset and input action timestamps only. <=50 ms network estimate and <=5 s clock distance are engineering flags, not measured device accuracy. Preserve raw_signals.jsonl, raw LSL timestamps, correction, clock offset and XDF clock history. No causal/physiological qualification.'}
     (output/'timing_report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')

@@ -1,3 +1,9 @@
+# Questionnaire administration
+
+## Layer A/B study (2026-11-05)
+
+For `layer-ab-v1`, use the new [six-item workload and final preference Google Forms](LayerABGoogleForms.md). The local questionnaire webpage is removed. Confirm successful submissions with X/Enter; first confirmation starts 180 seconds of rest. The legacy forms below remain unchanged and do not apply to A/B.
+
 # Oral questionnaire administration for dev11
 
 For dev11, the experimenter reads all questions and scale endpoints aloud and enters the participant's spoken answers in Google Forms. The participant keeps the headset and electrodes in place after calibration and between Training 1 and Training 2. Read verbatim, do not coach answers, and allow rest without adjusting the equipment. This user-selected procedure supersedes dev9's headset-removal instructions. Administration revision is `interviewer_oral_headset_on-v1`; it is saved in the Unity configuration and acknowledgement events. The method was introduced in dev10 and is retained in dev11. See [validity revision](PersonalizedValidityReview.md) and [current flow](NoRestProtocolReview.md).

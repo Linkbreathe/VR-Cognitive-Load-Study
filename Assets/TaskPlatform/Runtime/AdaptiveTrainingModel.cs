@@ -39,7 +39,7 @@ namespace EvidenceVR
         public bool IsPersonalized => version==PersonalVersion && protocol=="personalized-rf-v2";
         public int calibrationBlocks=4, trainingTrials=96;
         public string assignmentId="engineering-unallocated";
-        public string calibrationFormUrl="", trainingFormUrl="";
+        public string calibrationFormUrl="", trainingFormUrl="", preferenceFormUrl="";
         public string questionnaireAdministration=TaskEngine.PersonalQuestionnaireAdministration;
         public static AdaptiveTrainingConfig Personalized() => new AdaptiveTrainingConfig {
             version=PersonalVersion, protocol="personalized-rf-v2", enabled=true, mode="ACTIVE",

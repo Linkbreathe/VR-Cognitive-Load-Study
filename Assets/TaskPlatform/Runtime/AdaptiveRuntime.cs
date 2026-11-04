@@ -46,8 +46,6 @@ namespace EvidenceVR
             public int modelAttempt;
             public string evidenceGuardStatus;
             public string testSessionId;
-            public string abQuestionnaireStage;
-            public bool abQuestionnaireSaved;
             public bool modelTestUsable,testStopRequested,testSignalsReady;
         }
         TaskPlatformController owner;
@@ -248,7 +246,6 @@ namespace EvidenceVR
                     }
                     if(config.IsPersonalized)
                     {
-                        if(config.IsLayerAB)engine.ReceiveABQuestionnaire(reply.abQuestionnaireStage,reply.abQuestionnaireSaved,received);
                         if(!string.IsNullOrEmpty(reply.modelReportJson))File.WriteAllText(Path.Combine(owner.DataPath,"personal-model-report.json"),reply.modelReportJson);
                         engine.ReceivePersonalModel(reply.modelStatus,reply.modelAdmitted,reply.modelAttempt,received,Time.frameCount,reply.modelTestUsable);
                     }

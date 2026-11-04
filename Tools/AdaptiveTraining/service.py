@@ -200,9 +200,6 @@ class StudyService:
                     append_json(session["path"]/"controller_decisions.jsonl", {"packet":packet,"features":features,
                         "calibration":self.calibration,"policy":self.controller.policy,"decision":decision})
                 reply["decision"] = session["decisions"][key]
-            if layer_ab.enabled(session["config"]):
-                questionnaire = layer_ab.questionnaire_status(session)
-                reply.update(abQuestionnaireStage=questionnaire["stage"], abQuestionnaireSaved=questionnaire["saved"])
             reply["serverClock"] = time.perf_counter()
             if managed:
                 reply["testSessionId"] = sid
@@ -395,11 +392,6 @@ def make_handler(service):
                       "/tests": ("tests.html", "text/html; charset=utf-8"), "/tests.js": ("tests.js", "text/javascript")}
             if url.path == "/clock":
                 self.reply(200,service.timing.snapshot());return
-            if url.path == "/ab-study":
-                self.reply(200,(WEB / "ab-study.html").read_bytes(),"text/html; charset=utf-8");return
-            if url.path == "/ab-study/status":
-                with service.lock:self.reply(200,{"sessions":[layer_ab.questionnaire_status(s) for s in service.sessions.values() if layer_ab.enabled(s["config"])]})
-                return
             if url.path in assets:
                 name, mime = assets[url.path]
                 self.reply(200, (WEB / name).read_bytes(), mime)
@@ -433,18 +425,12 @@ def make_handler(service):
                 except (ValueError, KeyError, OSError) as error:self.reply(400, {"error": str(error)})
             else:self.reply(404,{"error":"Not found"})
         def do_POST(self):
-            if self.path not in ("/ab-study/questionnaire", "/telemetry","/decide", "/tests/prepare", "/tests/claim", "/tests/archive", "/tests/stop", "/tests/open-folder", "/tests/choose-folder"):
+            if self.path not in ("/telemetry","/decide", "/tests/prepare", "/tests/claim", "/tests/archive", "/tests/stop", "/tests/open-folder", "/tests/choose-folder"):
                 self.reply(404,{"error":"Not found"});return
             try:
                 length=int(self.headers.get("Content-Length",0))
                 if not 0<length<=2_000_000:raise ValueError("Invalid packet length")
                 packet=json.loads(self.rfile.read(length),parse_constant=lambda x:(_ for _ in ()).throw(ValueError("Nonfinite JSON")))
-                if self.path == "/ab-study/questionnaire":
-                    import ipaddress
-                    if not ipaddress.ip_address(self.client_address[0]).is_loopback or self.headers.get("X-AB-Study") != layer_ab.REVISION:
-                        self.reply(403,{"error":"Use the local study computer questionnaire page"});return
-                    with service.lock:result=layer_ab.save_questionnaire(service.sessions[packet["sessionId"]],packet)
-                    self.reply(200,result);return
                 if self.path in ("/telemetry", "/decide"):
                     self.reply(200,service.receive(packet,self.path=="/decide")); return
                 if self.path not in ("/tests/claim", "/tests/archive"):

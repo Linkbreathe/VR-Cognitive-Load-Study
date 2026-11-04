@@ -62,12 +62,21 @@ public static class LayerABValidation
                     now=t.plannedOnset+4.5;e.Tick(now,i);
                 }
                 Check(e.Results.Count-start==96,"Exactly 96 trials");Check(e.Adaptive.Stage=="questionnaire_"+ordinal,"Correct scheduled questionnaire");
-                e.Advance(now,1);Check(e.Phase==TaskPhase.Rest,"Cannot acknowledge unsaved questionnaire");
-                e.ReceiveABQuestionnaire(e.Adaptive.Stage,true,now);
-                if(ordinal==1){e.Advance(now+179,1);Check(e.Phase==TaskPhase.Rest,"Rest cannot be skipped");now+=180;}
+                Check(!e.ABQuestionnaireAcknowledged,"No external submission is assumed before operator confirmation");
                 e.Advance(now,1);
+                Check(e.ABQuestionnaireAcknowledged,"Operator confirmation is recorded without a local web receipt");
+                if(ordinal==1)
+                {
+                    Check(e.Phase==TaskPhase.Rest,"Confirmation starts rest");
+                    e.Advance(now+179,1);Check(e.Phase==TaskPhase.Rest,"Rest cannot be skipped");
+                    Check(events.Count(x=>x.type=="external_questionnaire_acknowledged")==1,"Repeated rest input does not duplicate acknowledgement");
+                    now+=180;e.Advance(now,1);
+                    Check(!e.ABQuestionnaireAcknowledged,"Next condition resets confirmation");
+                }
             }
-            Check(e.Phase==TaskPhase.Complete,"Complete only after final TLX/preference receipt");
+            Check(e.Phase==TaskPhase.Complete,"Complete after final TLX and preference operator confirmation");
+            Check(events.Count(x=>x.type=="external_questionnaire_acknowledged")==3,"Two workload acknowledgements plus final preference");
+            Check(events.Where(x=>x.type=="questionnaire_administration").All(x=>x.detail.Contains("submission_verified=false")),"Manual confirmation never claims Google verification");
             var on=new AdaptiveDecision{action="ON",requestId="r"};
             Check(EvidenceGuardContract.Allows(c,on,"layer_a"),"A does not gate base action");
             Check(!EvidenceGuardContract.Allows(c,on,"layer_b"),"B rejects missing authorization");
@@ -75,8 +84,8 @@ public static class LayerABValidation
             Check(EvidenceGuardContract.Allows(c,on,"layer_b"),"B accepts valid authorization");
         }
         InputEdges();
-        string result="LAYER AB PASS: "+checks+" synthetic checks; timing, four allocation groups, short questionnaire receipts and raw input edges. No participant/device validation.";
-        Directory.CreateDirectory("Evidence/LayerAB");File.WriteAllText("Evidence/LayerAB/unity-validation.txt",result);Debug.Log(result);return result;
+        string result="LAYER AB PASS: "+checks+" synthetic checks; timing, four allocation groups, Google Forms operator confirmations and raw input edges. No participant/device validation.";
+        Directory.CreateDirectory("Evidence/LayerAB");File.WriteAllText("Evidence/LayerAB/GoogleForms/unity-validation.txt",result);Debug.Log(result);return result;
     }
     static void InputEdges()
     {

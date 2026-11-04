@@ -42,10 +42,10 @@
   "trainingTrials": 96,
   "assignmentId": "allocation-v1-20261105-0",
   "calibrationFormUrl": "",
-  "trainingFormUrl": "http://127.0.0.1:8766/ab-study",
+  "trainingFormUrl": "https://docs.google.com/forms/d/e/1FAIpQLSeIC0ZO2EYBvbqF-zqy50panjnd_gNcXdG6wTTMkksT93FYLA/viewform",
   "questionnaireAdministration": "interviewer_oral_headset_on-v1",
   "studyDesign": "layer-ab-v1",
-  "questionnaireRevision": "raw-tlx6-preference-v1",
+  "questionnaireRevision": "raw-tlx6-preference-google-forms-v2",
   "evidenceGuardMode": "observe",
   "abInterConditionRestSeconds": 180,
   "operatorManaged": false,
@@ -53,5 +53,6 @@
   "testSessionMode": "full",
   "testSessionId": "",
   "testModelId": "",
-  "testModelHash": ""
+  "testModelHash": "",
+  "preferenceFormUrl": "https://docs.google.com/forms/d/e/1FAIpQLSeqZYypO-Gm_ZMSr8K_qVQxLf-7cDv6JbCU2oPjkY-TDCcymA/viewform"
 }

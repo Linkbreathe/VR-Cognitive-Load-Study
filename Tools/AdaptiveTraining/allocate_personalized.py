@@ -38,9 +38,11 @@ def main():
                   controllerUrl=args.controller_url, calibrationBlocks=args.calibration_blocks)
     if args.layer_ab:
         from layer_ab import REVISION, QUESTIONNAIRE, condition
+        links = json.loads((root / "Tools/LayerAB/questionnaire-links.json").read_text(encoding="utf-8"))
         config.update(studyDesign=REVISION, questionnaireRevision=QUESTIONNAIRE, evidenceGuardMode="observe",
                       abInterConditionRestSeconds=180, operatorManaged=False, allowCandidateModel=False, testSessionMode="full",
-                      testSessionId="", testModelId="", testModelHash="", calibrationFormUrl="", trainingFormUrl=args.controller_url.rstrip("/")+"/ab-study")
+                      testSessionId="", testModelId="", testModelHash="", calibrationFormUrl="", trainingFormUrl=links["training"]["responder"],
+                      preferenceFormUrl=links["preference"]["responder"])
         allocation.update(studyDesign=REVISION, order=[condition(config,1),condition(config,2)])
     args.output.mkdir(parents=True, exist_ok=True)
     # Exclusive creation avoids silently overwriting an assigned participant's configuration.

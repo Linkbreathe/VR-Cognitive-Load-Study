@@ -1,4 +1,4 @@
-"""Start the isolated A/B service and questionnaire page; never start a participant run."""
+"""Start the isolated A/B service and external Google Forms; never start a participant run."""
 import argparse
 from datetime import datetime, timezone
 import json
@@ -22,6 +22,7 @@ def main():
     p.add_argument('--output',type=Path,default=Path('D:/ExperimentData/LayerAB'))
     p.add_argument('--lsl-config',type=Path,default=root/'UserSettings/lsl-source-selection.json')
     p.add_argument('--personalized-policy',type=Path);p.add_argument('--engineering',action='store_true')
+    links=json.loads((root/'Tools/LayerAB/questionnaire-links.json').read_text(encoding='utf-8'))
     a=p.parse_args();policy=resolve_policy_path(a.personalized_policy,root)
     selected=validate_config(json.loads(a.lsl_config.read_text(encoding='utf-8-sig')))
     if not {s['kind'] for s in selected['streams']} >= {'EEG','ECG'}:
@@ -46,7 +47,9 @@ def main():
         try:
             with urlopen(url+'/clock',timeout=.5) as response:status=json.load(response)
             if status['markerStatus']!='available':raise RuntimeError('LSL marker outlet unavailable: '+status['markerStatus'])
-            webbrowser.open(url+'/ab-study');print('Service PID:',child.pid,'Log:',log,'Markers:',status['markerSourceId']);return
+            webbrowser.open(links['training']['responder'])
+            print('Workload form:',links['training']['responder'],'Final preference:',links['preference']['responder'])
+            print('Service PID:',child.pid,'Log:',log,'Markers:',status['markerSourceId']);return
         except (OSError,ValueError):time.sleep(.25)
     raise RuntimeError('Service readiness timed out; inspect '+str(log))
 

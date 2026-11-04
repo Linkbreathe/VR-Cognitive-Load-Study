@@ -91,37 +91,42 @@ class LayerABTests(unittest.TestCase):
             self.assertAlmostEqual(calls[0][1],110.05+row['lsl_minus_perf_s'])
             self.assertNotIn('marker_sent',json.loads(calls[0][0][0]))
 
-    def test_short_questionnaire_validated_idempotent_and_http_receipt(self):
+    def test_local_questionnaire_routes_removed_clock_preserved(self):
         with tempfile.TemporaryDirectory() as d:
-            service=StudyService(d,test_state_dir=Path(d)/'state');p=ab_packet('questionnaire_1');service.receive(p)
-            server=StudyHTTPServer(('127.0.0.1',0),make_handler(service));thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+            service=StudyService(d,test_state_dir=Path(d)/'state');p=ab_packet('questionnaire_1')
+            reply=service.receive(p)
+            self.assertNotIn('abQuestionnaireSaved',reply)
+            self.assertNotIn('abQuestionnaireStage',reply)
+            server=StudyHTTPServer(('127.0.0.1',0),make_handler(service))
+            thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
             url=f'http://127.0.0.1:{server.server_port}'
-            def post(payload):
-                req=urllib.request.Request(url+'/ab-study/questionnaire',json.dumps(payload).encode(),{'Content-Type':'application/json','X-AB-Study':layer_ab.REVISION})
-                with urllib.request.urlopen(req) as r:return json.load(r)
             try:
                 with urllib.request.urlopen(url+'/clock') as r:clock=json.load(r)
                 self.assertGreaterEqual(clock['serverSent'],clock['serverReceived'])
-                with urllib.request.urlopen(url+'/ab-study') as r:self.assertIn(b'Raw NASA-TLX',r.read())
-                q={'sessionId':p['sessionId'],'ordinal':1,'revision':layer_ab.QUESTIONNAIRE,'tlx':dict.fromkeys(layer_ab.TLX,50),
-                   'preference':'','reason':'','discomfort':'none_reported'}
-                self.assertEqual(post(q)['raw_tlx'],50);self.assertEqual(post(q)['condition'],'A')
-                p['now']+=1;self.assertTrue(service.receive(p)['abQuestionnaireSaved'])
-                q['tlx']['mental']=55
-                with self.assertRaises(urllib.error.HTTPError):post(q)
-                p['stage']='questionnaire_2';p['now']+=1;service.receive(p);q['ordinal']=2;q['preference']='no_preference'
-                self.assertEqual(post(q)['condition'],'B')
+                for path in ['/ab-study','/ab-study/status']:
+                    with self.assertRaises(urllib.error.HTTPError) as error:urllib.request.urlopen(url+path)
+                    self.assertEqual(error.exception.code,404)
+                req=urllib.request.Request(url+'/ab-study/questionnaire',b'{}',{'Content-Type':'application/json'})
+                with self.assertRaises(urllib.error.HTTPError) as error:urllib.request.urlopen(req)
+                self.assertEqual(error.exception.code,404)
+                self.assertEqual(list(Path(d).rglob('questionnaire_*.json')),[])
             finally:server.shutdown();server.server_close();thread.join()
 
-    def test_no_missing_ratings_and_no_early_submission(self):
+    def test_allocation_uses_published_google_forms(self):
+        import subprocess
+        import sys
+        root=Path(__file__).resolve().parents[2]
+        links=json.loads((root/'Tools/LayerAB/questionnaire-links.json').read_text())
         with tempfile.TemporaryDirectory() as d:
-            p=ab_packet();s={'config':p['config'],'packet':p,'path':Path(d),'kind':'synthetic'}
-            q={'sessionId':p['sessionId'],'ordinal':1,'revision':layer_ab.QUESTIONNAIRE,'tlx':dict.fromkeys(layer_ab.TLX,50),'discomfort':'none_reported'}
-            with self.assertRaises(ValueError):layer_ab.save_questionnaire(s,q)
-            p['stage']='questionnaire_1'
-            for bad in [True,None,-1,101,3]:
-                q['tlx']['mental']=bad
-                with self.assertRaises(ValueError):layer_ab.save_questionnaire(s,q)
+            subprocess.run([sys.executable,str(root/'Tools/AdaptiveTraining/allocate_personalized.py'),
+                '--layer-ab','--engineering','--participant','SYNTHETIC_FORMS','--index','0',
+                '--allocation-seed','20261105','--controller-url','http://127.0.0.1:8766','--output',d],check=True,capture_output=True)
+            config=json.loads((Path(d)/'SYNTHETIC_FORMS-adaptive-training-config.json').read_text())
+            layer_ab.validate(config)
+            self.assertEqual(config['trainingFormUrl'],links['training']['responder'])
+            self.assertEqual(config['preferenceFormUrl'],links['preference']['responder'])
+            self.assertEqual(config['calibrationFormUrl'],'')
+            self.assertEqual(config['questionnaireRevision'],links['revision'])
 
     def test_export_preserves_original_rt_and_missing_response(self):
         with tempfile.TemporaryDirectory() as d:
@@ -129,11 +134,19 @@ class LayerABTests(unittest.TestCase):
             (u/'adaptive-training-config.json').write_text(json.dumps(ab_packet()['config']))
             clock={'id':'1','clockId':'c','unitySent':10,'unityReceived':10.02,'serverReceived':110.01,'serverSent':110.01,'lslAvailable':True,'lslClock':210.01,'lslSamplePerf':110.01}
             (u/'clock_sync_ab.jsonl').write_text(json.dumps(clock)+'\n')
-            (u/'events.jsonl').write_text(json.dumps({'type':'button','actual':10.5,'detail':'match:accepted'})+'\n')
+            (u/'events.jsonl').write_text('\n'.join(json.dumps(e) for e in [
+                {'type':'button','actual':10.5,'detail':'match:accepted'},
+                {'type':'external_questionnaire_acknowledged','actual':10.6,'detail':'training_1'}])+'\n')
             (u/'trials.csv').write_text('actual_onset_s,response_time_s,input_event_time_s,rt_s\n10.1,10.5,10.48,0.4\n11,-1,-1,-1\n')
             report=export(u,s,root/'out');self.assertEqual(report['unqualified_event_times'],0)
             text=(root/'out'/'trials_aligned.csv').read_text();self.assertIn('0.4',text);self.assertIn('not_recorded',text)
             self.assertEqual((u/'trials.csv').read_text().count('\n'),3)
+            self.assertEqual(report['questionnaire_acknowledgements'],1)
+            self.assertFalse((root/'out'/'questionnaires.csv').exists())
+            import csv
+            with (root/'out'/'questionnaire_acknowledgements.csv').open() as f:ack=list(csv.DictReader(f))[0]
+            self.assertEqual(ack['submission_verified'],'False');self.assertEqual(ack['condition'],'A')
+            self.assertEqual(ack['occasion'],'training_1')
 
 
 if __name__=='__main__':unittest.main()

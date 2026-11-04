@@ -1,0 +1,13 @@
+{
+  "revision": "raw-tlx6-preference-google-forms-v2",
+  "created": "2026-11-05",
+  "provider": "google_forms",
+  "training": {
+    "responder": "https://docs.google.com/forms/d/e/1FAIpQLSeIC0ZO2EYBvbqF-zqy50panjnd_gNcXdG6wTTMkksT93FYLA/viewform",
+    "edit": "https://docs.google.com/forms/d/1wV0sCvKddY8j4sFaUxLETLqFSuxs24RBgXCcdTrb7PU/edit"
+  },
+  "preference": {
+    "responder": "https://docs.google.com/forms/d/e/1FAIpQLSeqZYypO-Gm_ZMSr8K_qVQxLf-7cDv6JbCU2oPjkY-TDCcymA/viewform",
+    "edit": "https://docs.google.com/forms/d/1xiB5ZjopRAanD6GGLAgFfSrH-IxdsL98pZA2l1Bu2Dk/edit"
+  }
+}

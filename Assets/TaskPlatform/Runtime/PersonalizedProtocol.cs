@@ -24,12 +24,10 @@ namespace EvidenceVR
         public const string PersonalQuestionnaireAdministration="interviewer_oral_headset_on-v1";
         public int PersonalDecisionId {get;private set;}
         public int TrainingOrdinal {get;private set;}
-        public bool ABQuestionnaireSaved {get;private set;}
-        double abQuestionnaireSavedAt;
-        public double ABRestRemaining(double now)=>Adaptive.Config.IsLayerAB && Adaptive.Stage=="questionnaire_1" && ABQuestionnaireSaved?
-            Math.Max(0,Adaptive.Config.abInterConditionRestSeconds-(now-abQuestionnaireSavedAt)):0;
-        public void ReceiveABQuestionnaire(string stage,bool saved,double now)
-        {if(Adaptive.Config.IsLayerAB && stage==Adaptive.Stage && saved && !ABQuestionnaireSaved){ABQuestionnaireSaved=true;abQuestionnaireSavedAt=now;}}
+        public bool ABQuestionnaireAcknowledged {get;private set;}
+        double abQuestionnaireAcknowledgedAt;
+        public double ABRestRemaining(double now)=>Adaptive.Config.IsLayerAB && Adaptive.Stage=="questionnaire_1" && ABQuestionnaireAcknowledged?
+            Math.Max(0,Adaptive.Config.abInterConditionRestSeconds-(now-abQuestionnaireAcknowledgedAt)):0;
         public string ProtocolStageLabel => LayerABStudy.IsTraining(Adaptive.Stage) ? "Training "+TrainingOrdinal :
             Adaptive.Stage=="calibration"?"Calibration":Adaptive.Stage=="practice"?"Practice":
             Adaptive.Stage=="preparation" || Adaptive.Stage=="model_wait"?"Preparation":"Questionnaire / rest";
@@ -49,7 +47,7 @@ namespace EvidenceVR
 
         void PersonalStage(string stage,int level,double now,int frame,TaskPhase phase=TaskPhase.Instructions)
         {
-            ABQuestionnaireSaved=false;
+            ABQuestionnaireAcknowledged=false;
             Adaptive.SetPersonalStage(stage,level);ProtocolStageStarted=now;Phase=phase;Practice=stage=="practice";
             StimulusVisible=false;CurrentResult=null;Mode=TaskMode.Hard;TrialIndex=-1;
             ResetRolling(now,frame,"stage_change");Emit("protocol_stage",now,frame,now,stage);
@@ -69,14 +67,22 @@ namespace EvidenceVR
             if(Phase==TaskPhase.Running && Practice){skipPractice=true;Emit("practice_skip_requested",now,frame,now);return;}
             if(Phase==TaskPhase.Rest)
             {
-                if(Adaptive.Config.IsLayerAB && Adaptive.Stage.StartsWith("questionnaire_") &&
-                    (!ABQuestionnaireSaved || ABRestRemaining(now)>0))return;
+                if(Adaptive.Config.IsLayerAB && (Adaptive.Stage=="questionnaire_1" || Adaptive.Stage=="questionnaire_2"))
+                {
+                    if(!ABQuestionnaireAcknowledged)
+                    {
+                        ABQuestionnaireAcknowledged=true;abQuestionnaireAcknowledgedAt=now;
+                        AcknowledgeOralQuestionnaire("training_"+TrainingOrdinal,now,frame);
+                        if(Adaptive.Stage=="questionnaire_2")AcknowledgeOralQuestionnaire("final_preference",now,frame);
+                    }
+                    if(ABRestRemaining(now)>0)return;
+                }
                 if(Adaptive.Stage=="questionnaire_calibration")
                 {TrainingOrdinal=1;AcknowledgeOralQuestionnaire("calibration",now,frame);PersonalStage(firstTraining,0,now,frame);}
                 else if(Adaptive.Stage=="questionnaire_1")
-                {TrainingOrdinal=2;AcknowledgeOralQuestionnaire("training_1",now,frame);PersonalStage(secondTraining,0,now,frame);}
+                {TrainingOrdinal=2;if(!Adaptive.Config.IsLayerAB)AcknowledgeOralQuestionnaire("training_1",now,frame);PersonalStage(secondTraining,0,now,frame);}
                 else if(Adaptive.Stage=="questionnaire_2")
-                {AcknowledgeOralQuestionnaire("training_2",now,frame);Phase=TaskPhase.Complete;Emit("session_complete",now,frame,now,PersonalModelStatus);}
+                {if(!Adaptive.Config.IsLayerAB)AcknowledgeOralQuestionnaire("training_2",now,frame);Phase=TaskPhase.Complete;Emit("session_complete",now,frame,now,PersonalModelStatus);}
                 return;
             }
             if(Phase!=TaskPhase.Instructions)return;
@@ -86,7 +92,8 @@ namespace EvidenceVR
         void AcknowledgeOralQuestionnaire(string occasion,double now,int frame)
         {
             Emit("external_questionnaire_acknowledged",now,frame,now,occasion);
-            Emit("questionnaire_administration",now,frame,now,"occasion="+occasion+";method="+PersonalQuestionnaireAdministration+";submission_verified=false");
+            Emit("questionnaire_administration",now,frame,now,"occasion="+occasion+";method="+PersonalQuestionnaireAdministration+";submission_verified=false"+
+                (Adaptive.Config.IsLayerAB?";provider=google_forms;revision="+Adaptive.Config.questionnaireRevision+";confirmation=operator":""));
         }
         public void ReportPersonalMountMovement(double now,int frame,string reason)
         {

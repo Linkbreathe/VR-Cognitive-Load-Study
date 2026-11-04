@@ -1,5 +1,11 @@
 # Current acceptance record
 
+## 2026-11-05 — Google Forms replaces local A/B questionnaires
+
+**Implemented/software-verified:** `raw-tlx6-preference-google-forms-v2`; two new published Google Forms (six Raw TLX items per condition; one final preference and optional reason). Removed local questionnaire UI, save/status routes, answer persistence and Unity receipt dependency. Operator confirmation starts the fixed rest and records `submission_verified=false`. Input-action timestamps, hold duration, scored RT, LSL timing and controller rules are retained. 165 Python tests passed; Unity compilation passed and 3,934 synthetic Play Mode checks passed, including four allocation groups, complete phase budgets, manual confirmation/rest gates, duplicate suppression, three external acknowledgements and retained input edges/RT. The PASS log was read back; Play Mode was stopped.
+
+**Browser-verified:** signed-out responder views, required fields, all TLX options and neutral preference; no answers submitted. **Pending:** actual operator submission/export linkage, real-time A/B rehearsal, new device build, Quest Pro/physical synchronization and participant effects. Historical acceptance below remains historical. [Detailed operation and evidence](LayerABGoogleForms.md).
+
 ## 2026-11-05 — Layer A/B study candidate
 
 **Implemented/software-verified:** opt-in `layer-ab-v1` on `codex/layer-ab-timing-study`; two identical base adaptive conditions with observe/enforce authority, short questionnaires and saved receipts, raw input-action edges plus unchanged scored RT, four-stamp clock transfer, optional LSL markers and offline alignment. 165 Python tests and 3,906 synthetic Unity assertions passed. Actual Unity HTTP clock/event handshake and local liblsl explicit-timestamp loopback passed. Questionnaire page visually inspected; save/retry/receipt verified by real HTTP tests. Original startup configuration restored; Play Mode stopped; prior auto-tick retained. [Guide, evidence and restore point](LayerABStudyGuide.md).

@@ -1,5 +1,7 @@
 # Questionnaire administration
 
+Current A/B questionnaire revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Use the seven-point adaptation of Raw TLX on page 1 (six required 1-7 ratings), UEQ+ on page 2, and final preference after Training 2. See [scoring and literature](SevenPointTLXReview.md).
+
 ## Layer A/B study (2026-11-05)
 
 For `layer-ab-v1`, use the [two-page Raw TLX (six items) / UEQ+ Attractiveness (four items) and separate final preference Google Forms](LayerABGoogleForms.md). The local questionnaire webpage is removed. Confirm successful submissions with X/Enter; first confirmation starts 180 seconds of rest. The legacy forms below remain unchanged and do not apply to A/B.

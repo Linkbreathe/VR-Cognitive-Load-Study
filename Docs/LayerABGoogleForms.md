@@ -1,6 +1,8 @@
 # Layer A/B Google Forms revision
 
-Date: 2026-11-05. Revision: `raw-tlx6-ueq4-preference-google-forms-v3`. Branch: `codex/layer-ab-timing-study`. This supersedes v2 for new sessions; the form URLs are unchanged.
+Date: 2026-11-05. Revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Branch: `codex/layer-ab-timing-study`. This supersedes v3 for new sessions; the form URLs are unchanged.
+
+Current v4 uses a seven-point adaptation of Raw NASA-TLX. See [verified CHI precedents, scoring and current validation](SevenPointTLXReview.md). Historical v2/v3 validation below applies only to those versions.
 
 ## Forms and administration
 
@@ -9,7 +11,7 @@ Date: 2026-11-05. Revision: `raw-tlx6-ueq4-preference-google-forms-v3`. Branch: 
 | Immediately after Training 1 and Training 2 | [Two-page post-condition questionnaire](https://docs.google.com/forms/d/e/1FAIpQLSeIC0ZO2EYBvbqF-zqy50panjnd_gNcXdG6wTTMkksT93FYLA/viewform) | [Edit](https://docs.google.com/forms/d/1wV0sCvKddY8j4sFaUxLETLqFSuxs24RBgXCcdTrb7PU/edit) | Page 1: participant code, session ID, training occasion and six Raw TLX ratings. Page 2: four UEQ+ Attractiveness ratings. All 13 fields required. |
 | After both pages of the second post-condition form, once per session | [Final preference](https://docs.google.com/forms/d/e/1FAIpQLSeqZYypO-Gm_ZMSr8K_qVQxLf-7cDv6JbCU2oPjkY-TDCcymA/viewform) | [Edit](https://docs.google.com/forms/d/1xiB5ZjopRAanD6GGLAgFfSrH-IxdsL98pZA2l1Bu2Dk/edit) | Participant code, session ID, preference; reason optional (4 fields total) |
 
-Workload dimensions: Mental Demand, Physical Demand, Temporal Demand, Performance, Effort and Frustration; 0-100 in steps of 5, no preselected rating. Performance anchors are Perfect=0 and Failure=100; other dimensions are Very low=0 and Very high=100. Calculate Raw TLX as the mean of six complete ratings, without weighting or filling missing values. Read wording and endpoints consistently; oral administration requires pilot comprehension review.
+Workload dimensions: Mental Demand, Physical Demand, Temporal Demand, Performance, Effort and Frustration; 1-7 using horizontal single-choice scales, no preselected rating. Performance anchors are Perfect=1 and Failure=7; other dimensions are Very low=1 and Very high=7. Calculate Raw TLX as the mean of six complete ratings, without weighting or filling missing values. Read wording and endpoints consistently; oral administration requires pilot comprehension review.
 
 Page 2 uses the standard four-item **UEQ+ Attractiveness** scale, measuring overall liking rather than visual beauty. Retain its introductory sentence, "In my opinion, the product is generally:", and specify that the product is the VR system during the just-completed condition. The four endpoint pairs, in order, are annoying/enjoyable, bad/good, unpleasant/pleasant, and unfriendly/friendly. Each item has seven positions: 1 = left term, 7 = right term, midpoint 4, no preselection. Compute the mean of the four complete ratings after subtracting 4 from each (-3 to +3). Higher scores indicate a more positive overall impression. Do not combine this score with TLX. Do not fill missing values. The importance question is omitted because no importance-weighted UX KPI is planned. This is the UEQ+ four-item scale, not an arbitrary shortened original six-item UEQ Attractiveness scale.
 
@@ -19,7 +21,7 @@ The two Google Forms sections are actual pages with Next/Back navigation and a p
 
 Verified before editing on 2026-11-05:
 
-- [NASA's official TLX page](https://www.nasa.gov/human-systems-integration-division/nasa-task-load-index-tlx/) explicitly permits worldwide use and modification without obtaining NASA permission. [Hart's review](https://www.nasa.gov/wp-content/uploads/2026/01/hfes-2006-paper.pdf) discusses the unweighted Raw TLX approach. Our dropdown/oral presentation remains an adapted administration, not a claim of interface equivalence.
+- [NASA's official TLX page](https://www.nasa.gov/human-systems-integration-division/nasa-task-load-index-tlx/) explicitly permits worldwide use and modification without obtaining NASA permission. [Hart's review](https://www.nasa.gov/wp-content/uploads/2026/01/hfes-2006-paper.pdf) discusses the unweighted Raw TLX approach. Our seven-point/oral presentation remains an adapted administration, not a claim of interface equivalence.
 - The [official UEQ+ site](https://ueqplus.ueq-research.org/) provides the instruments and materials free of charge for constructing research-specific questionnaires. The authors' [UEQ+ benchmark paper](https://revistas.unir.net/index.php/ijimai/article/download/278/123) explicitly states that UEQ+ and the supplied materials are free to use. The [official Handbook v4](https://ueqplus.ueq-research.org/Material/UEQ%2B_Handbook_V4.pdf), printed page 5, specifies these four English items; page 19 permits omitting importance ratings when only scale scores are required.
 - Free research use does not mean public domain or a blanket copyright waiver. Keep attribution; no CC/public-domain license is asserted. The final preference question is a study-authored descriptive item, not a validated psychometric scale.
 - Publicly accessible instruments and responder links do not make collected answers public. Shared response summaries and email collection remain off; owner editing remains restricted. The Google account shown to a signed-in operator is not collected as an answer.
@@ -36,7 +38,7 @@ After the first submission succeeds, X/Enter records one acknowledgement and sta
 
 The aligned export writes `questionnaire_acknowledgements.csv`, not questionnaire scores. Export both Google response tables separately. Join participant code and exact session ID; the post-condition table contains both scales and additionally uses Training occasion. Map Training 1/2 and preference through the saved allocation. Flag missing, duplicate or mismatched answers. Google submission wall-clock times and operator confirmation are not per-answer RT or LSL acquisition timestamps. Task button edges and original RT remain available for signal alignment.
 
-Old v1 and v2 questionnaire allocations fail the revision check; generate fresh allocations for new sessions. Do not rewrite recorded configurations or answers. Do not pool old six-item-only responses with the revised procedure without retaining version provenance. No new APK accompanies this source update.
+Old v1, v2 and v3 questionnaire allocations fail the revision check; generate fresh allocations for new sessions. Do not rewrite recorded configurations or answers. Do not pool old six-item-only responses with the revised procedure without retaining version provenance. No new APK accompanies this source update.
 
 ## Validation and remaining checks
 

@@ -1,5 +1,12 @@
 # Current acceptance record
 
+## 2026-11-05 — Seven-point Raw TLX adaptation (v4)
+
+User-approved revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Six TLX dropdowns were replaced in the existing Google Form with required horizontal 1-7 scales, retaining the questions and two-page flow. Five dimensions use Very low=1 / Very high=7; Performance uses Perfect=1 / Failure=7. The unweighted mean of all six complete ratings is reported on 1-7, higher meaning greater workload; no additional reversal is required for this Performance orientation. Missing ratings remain missing. UEQ+ and final preference remain unchanged. Button timing, RT, LSL and controller code are unchanged. Earlier validation entries describe earlier versions.
+
+Literature and implementation rationale: [Seven-point TLX review](SevenPointTLXReview.md). Published controls, all six ranges, required flags and endpoints were inspected; no answers entered or submitted. Evidence: `Evidence/LayerAB/GoogleFormsV4/published.txt` and `tlx-seven-point.png`. Software validation is recorded in the review. Actual submission/export rehearsal, oral comprehension and Quest Pro acceptance remain pending. Do not pool 0-100 and 1-7 records or relabel old allocations; create new allocations. No APK or device acceptance is claimed.
+
+
 ## 2026-11-05 — Two-page TLX and overall impression questionnaires
 
 **Implemented/browser-verified:** `raw-tlx6-ueq4-preference-google-forms-v3`. Same post-condition URL; page 1 retains six Raw TLX ratings and linkage fields, page 2 adds the four standard UEQ+ Attractiveness items with seven response positions. One scale per page; all ten ratings required, none preselected. Final preference and optional reason remain separate. NASA/UEQ+ public-use evidence was checked before editing. Published navigation and item endpoints were inspected, temporary drafts cleared, and zero submitted responses confirmed. Private response-summary settings are retained. [Sources, scores, operation and browser evidence](LayerABGoogleForms.md).

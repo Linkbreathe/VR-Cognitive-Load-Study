@@ -1,7 +1,7 @@
 # Layer A/B study and timestamp alignment
 
 Date: 2026-11-05 (work began 2026-11-04). Branch: `codex/layer-ab-timing-study`.
-Study revision: `layer-ab-v1`. Questionnaire revision: `raw-tlx6-ueq4-preference-google-forms-v3`.
+Study revision: `layer-ab-v1`. Questionnaire revision: `raw-tlx7-ueq4-preference-google-forms-v4`.
 This is an implemented, software-tested experimental candidate. It is not participant efficacy or physical timing acceptance.
 
 ## Isolation and comparison
@@ -40,7 +40,7 @@ This command creates an allocation, not scientific/device authorization. Run a q
 
 ## Short questionnaires
 
-Both conditions use the same six Raw NASA-TLX dimensions, rated 0–100 in steps of 5. Performance is Perfect=0 to Failure=100; all other dimensions are Very low=0 to Very high. Calculate the unweighted mean from six complete exported ratings; missing values remain missing. Preserve the original dimension definitions and introduce them consistently during preparation; do not improvise explanations between conditions. Oral administration and dropdown entry are adapted procedures requiring pilot review, not claimed equivalent to the original interface. [NASA instrument resources](https://www.nasa.gov/human-systems-integration-division/nasa-task-load-index-tlx/).
+Both conditions use the same six Raw NASA-TLX dimensions, rated 1–7 using horizontal single-choice scales. Performance is Perfect=1 to Failure=7; all other dimensions are Very low=1 to Very high=7. Calculate the unweighted mean from six complete exported ratings; missing values remain missing. Preserve the original dimension definitions and introduce them consistently during preparation; do not improvise explanations between conditions. Oral administration and seven-point entry are adapted procedures requiring pilot review, not claimed equivalent to the original interface. [NASA instrument resources](https://www.nasa.gov/human-systems-integration-division/nasa-task-load-index-tlx/).
 
 The second page contains the four standard UEQ+ Attractiveness pairs: annoying/enjoyable, bad/good, unpleasant/pleasant, and unfriendly/friendly. Use seven response positions (1 = left endpoint, 7 = right endpoint). Recode each complete response as rating minus 4, then average the four items (-3 to +3; higher is a more positive overall impression). Keep this score separate from Raw TLX. No importance/KPI question is included. Both conditions receive the same two pages immediately after their training. See [instrument sources, permission evidence and form verification](LayerABGoogleForms.md).
 

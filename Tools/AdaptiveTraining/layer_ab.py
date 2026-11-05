@@ -1,7 +1,7 @@
 """Frozen A/B allocation and external Google Forms questionnaire revision."""
 
 REVISION = "layer-ab-v1"
-QUESTIONNAIRE = "raw-tlx6-ueq4-preference-google-forms-v3"
+QUESTIONNAIRE = "raw-tlx7-ueq4-preference-google-forms-v4"
 STAGES = ("layer_a", "layer_b")
 TRAINING = ("random", "bioadaptive", *STAGES)
 

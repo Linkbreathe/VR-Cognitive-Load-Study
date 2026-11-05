@@ -1,5 +1,7 @@
 # Experiment guide: current modes
 
+Current A/B questionnaire revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Use the seven-point adaptation of Raw TLX on page 1 (six required 1-7 ratings), UEQ+ on page 2, and final preference after Training 2. See [scoring and literature](SevenPointTLXReview.md).
+
 **Optional A/B study (2026-11-05):** use the separate `StartLayerABStudy.cmd` entry on port **8766**, then load an allocated `layer-ab-v1` configuration from **Evidence VR > Layer A-B study** while Unity is stopped. Both periods use the same adaptive controller: A observes the layer and B enforces it. The new [Google Forms](LayerABGoogleForms.md) collect six Raw TLX ratings on page 1 and four UEQ+ Attractiveness ratings on page 2 immediately after each period, then a separate final preference after Training 2. Complete both pages before submitting. After successful submissions, the experimenter presses X/Enter in Unity; the first confirmation starts 180 seconds of rest. The local questionnaire page and save endpoints are removed; no IMI, repeated SSQ, adjustment-experience or calibration questions are included. Preserve Unity/Python folders and record `EvidenceVR_TaskEvents` with EEG/ECG in LabRecorder. [Full setup, reduced-questionnaire flow, timestamps, export and pending device acceptance](LayerABStudyGuide.md). The existing workflow below remains the legacy/test-console workflow, and its saved bootstrap was restored after validation.
 
 ## Gaze overview on Physiology

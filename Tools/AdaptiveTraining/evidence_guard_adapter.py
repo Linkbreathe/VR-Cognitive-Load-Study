@@ -1,6 +1,7 @@
 """Optional Stage 3 boundary. Stage 2 decisions and RF artifacts remain untouched."""
 from copy import deepcopy
-from layer_ab import guard_mode
+from layer_ab import PROBE, guard_mode
+from probe_control import ProbeReview
 from collections import deque
 from dataclasses import asdict
 import hashlib
@@ -19,6 +20,8 @@ def identity(value):
 class GuardAdapter:
     def __init__(self, packet, folder, config=None):
         self.mode = guard_mode(packet["config"], packet["stage"])
+        self.probe = ProbeReview() if packet['config'].get('studyDesign')==PROBE else None
+        self.probe_reviews = {}
         self.console_audit = deque(maxlen=128)
         if self.mode not in ("off", "observe", "enforce"):
             raise ValueError("Unknown evidenceGuardMode")
@@ -67,6 +70,8 @@ class GuardAdapter:
             if reported_scene != self.scene:
                 self.guard.reset("stage", self.now)
                 self.scene = reported_scene
+            if self.probe and self.probe.stage!=packet["stage"]:
+                self.probe.reset(packet["stage"])
             for e in sorted(packet.get("events", []), key=lambda e: e["actual"]):
                 key = identity(e)
                 if key in self.seen:
@@ -82,7 +87,11 @@ class GuardAdapter:
                     target = int(detail["level"])
                     self.guard.on_enactment(Enactment("ack:" + key, detail.get("request", ""), self.sid,
                         when, int(detail.get("previous_level", self.level)), target, detail.get("scene", self.scene)))
+                    if self.probe and detail.get("request") in self.probe_reviews:
+                        self.probe.enact(when,int(detail["previous_level"]),target,self.probe_reviews[detail["request"]])
                     self.level = target
+                if self.probe and typ in ("adaptive_media_failure","adaptive_media_interrupted","pause","personal_mount_interrupted"):
+                    self.probe.failed_media=True
                 if typ == "adaptive_level_changed":
                     self.level = int(detail.get("level", packet["level"]))
                 self._evidence("event:" + key, "session" if typ in ("pause", "resume", "personal_mount_interrupted") else "task",
@@ -129,7 +138,7 @@ class GuardAdapter:
                             physiological_change_confirmed=False)
                 # Read-only diagnostic. Never changes model, prediction, base decision or authorization.
                 features = r.get("features", [])
-                if personal.model is not None and r.get("valid") and len(features) == 4:
+                if personal.model is not None and r.get("valid") and len(features) == 3:
                     try:
                         x = list(features); x[-1] = self.guard.config.movie_reference
                         alternate = float(personal.model.predict_proba([x])[0, 1])
@@ -146,6 +155,19 @@ class GuardAdapter:
                 if saved != decision or epoch != self.guard.epoch:
                     raise ValueError("Stale or mutated decision retry")
                 return deepcopy(result)
+            if self.probe and decision["basis"]=="probe_or_controller":
+                review=self.probe.assess(packet,personal,decision,self.guard,self.scene)
+                self.probe_reviews[key]=review
+                proposed=decision["action"]
+                recommended=review["recommended"]
+                verdict="ALLOW" if recommended in ("ON","OFF") else "DEFER" if proposed!="HOLD" else "NO_CHANGE"
+                effective=recommended if self.mode=="enforce" else proposed
+                output=dict(decision,action=effective,guardMode=self.mode,guardRevision=REVISION,
+                            guardVerdict=verdict,guardRequestId=key,guardReason=review["reason"])
+                self._persist(dict(record="host_decision",base=decision,review=dict(review,verdict=verdict,
+                              effective_action=effective,request_id=key),delivered=output))
+                self.results[key]=(deepcopy(decision),self.guard.epoch,deepcopy(output))
+                return output
             from evidence_guard import Judgment, Proposal
             paths = []
             if decision["action"] == "ON":
@@ -157,7 +179,16 @@ class GuardAdapter:
                     paths = [(jid,)]
                 else:
                     rows = sorted([t for t in personal.trials.values() if t["trainingStage"] == packet["stage"] and t["phaseTrial"] < packet["completedTrials"]], key=lambda t: t["phaseTrial"])[-20:]
-                    ids = tuple("trial:" + t["trainingStage"] + ":" + str(t["phaseTrial"]) for t in rows)
+                    preview = packet.get("closedBehavior") if getattr(personal,"sliding",False) else None
+                    if preview and preview.get("phaseTrial")==packet["completedTrials"]-1:
+                        rows = (rows+[preview])[-20:]
+                        end = preview["closeTime"]
+                        pid = "closed_response:"+key
+                        self._evidence(pid,"trial",preview["actualOnset"],end,preview["level"],
+                            preview["scored"] and not (preview["aborted"] or preview["interrupted"] or preview["transition"]),
+                            dict(preview,visible_start=preview["actualOnset"],visible_end=min(end,preview["actualOnset"]+4),
+                                 media_exposure_seconds=personal.exposure(preview["actualOnset"],end)*(end-preview["actualOnset"])))
+                    ids = tuple(pid if preview and t is preview else "trial:" + t["trainingStage"] + ":" + str(t["phaseTrial"]) for t in rows)
                     jid = "challenge:" + key
                     if len(rows) == 20 and decision["basis"] in ("personalized_rf", "behavioral_fallback"):
                         self.guard.add_judgment(Judgment(jid, "training_challenge", ids, packet["level"], self.scene,
@@ -166,6 +197,8 @@ class GuardAdapter:
                         if decision["basis"] == "personalized_rf":
                             recent = [r for r in personal.predictions if r["stage"] == packet["stage"] and r["trial"] < packet["completedTrials"]][-5:]
                             good = [r for r in recent if r["valid"] and r.get("score") is not None and r["level"] == packet["level"] and r["start"] >= personal.last_change]
+                            if getattr(personal,"sliding",False):
+                                good=[r for r in recent if r["trial"]==decision.get("predictionTrial") and r["valid"] and r.get("score") is not None]
                             sid = "model_support:" + key
                             self.guard.add_judgment(Judgment(sid, "current_stable", tuple("signal:" + r["stage"] + ":" + str(r["trial"]) for r in good), packet["level"], self.scene))
                             path.append(sid)

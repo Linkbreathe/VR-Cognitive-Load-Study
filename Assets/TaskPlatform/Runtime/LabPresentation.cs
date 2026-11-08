@@ -26,17 +26,18 @@ namespace EvidenceVR
         {
             var e=controller.Engine; if(e==null) return;
             var c=controller.SessionConfig;
-            string signature=$"{e.Phase}|{e.Mode}|{e.Block}|{e.TrialIndex}|{e.CurrentResult?.responded}|{e.CurrentResult?.timeout}|{controller.Calibrated}|{controller.MatchChecked}|{controller.NonmatchChecked}|{Math.Ceiling(e.RestRemaining(Time.realtimeSinceStartupAsDouble))}";
+            bool calibrationIntro=e.IsPersonalized && (e.Adaptive.Stage=="load_rest_ready" || e.Adaptive.Stage=="load_math_ready");
+            string signature=$"{calibrationIntro}|{e.Phase}|{e.Mode}|{e.Block}|{e.TrialIndex}|{e.CurrentResult?.responded}|{e.CurrentResult?.timeout}|{controller.Calibrated}|{controller.MatchChecked}|{controller.NonmatchChecked}|{Math.Ceiling(e.RestRemaining(Time.realtimeSinceStartupAsDouble))}";
             if(signature==lastSignature) return; lastSignature=signature;
             setupCards.SetActive(e.Phase==TaskPhase.Preparation);
             bool preparing=e.Phase==TaskPhase.Preparation;
             if(preparationFooter!=null)
             {
                 preparationFooter.SetActive(preparing);
-                matchKey.transform.parent.parent.gameObject.SetActive(!preparing);
-                nonmatchKey.transform.parent.parent.gameObject.SetActive(!preparing);
+                matchKey.transform.parent.parent.gameObject.SetActive(!preparing && !calibrationIntro);
+                nonmatchKey.transform.parent.parent.gameObject.SetActive(!preparing && !calibrationIntro);
             }
-            exampleCards.SetActive(e.Phase==TaskPhase.Instructions && e.Mode==TaskMode.Hard);
+            exampleCards.SetActive(e.Phase==TaskPhase.Instructions && e.Mode==TaskMode.Hard && !calibrationIntro);
             matchKey.text=Key(c.matchAction); nonmatchKey.text=Key(c.nonmatchAction);
             controller.badge.text=e.Block>=0 && e.Block<4 ? Stage(e) : "EVIDENCE  /  TASK LAB";
             controller.footer.text="";
@@ -61,6 +62,21 @@ namespace EvidenceVR
                     actionHint.text=ready ? next+"   Begin practice" : "Complete all three checks to continue";
                     pauseHint.text="SEATED TASK  /  NO MOVEMENT REQUIRED"; break;
                 case TaskPhase.Instructions:
+                    if(calibrationIntro)
+                    {
+                        bool math=e.Adaptive.Stage=="load_math_ready";
+                        controller.badge.text=math?"PERSONAL CALIBRATION   /   2 OF 2":"PERSONAL CALIBRATION   /   1 OF 2";
+                        controller.heading.text=math?"Calculate":"Relax";
+                        controller.body.rectTransform.anchoredPosition=new Vector2(0,90);
+                        controller.body.rectTransform.sizeDelta=new Vector2(1080,330);
+                        controller.body.text=math
+                            ? "Solve the expression, then check the four numbers.\n\n15 × 14 − 34 + 62 = 238\n221     246     238     257\n\n238 appears in the list. For this example, press A."
+                            : "Keep your eyes open and watch the forest trail for three minutes.";
+                        controller.footer.text=math?"A   Result is listed          B   Result is absent":"";
+                        pauseHint.text=math?"18 questions   /   10 seconds each":"3 minutes";
+                        actionHint.text=math?"X / ENTER    Begin arithmetic":"X / ENTER    Begin forest walk";
+                        break;
+                    }
                     controller.heading.text=e.Mode==TaskMode.Easy ? "0-back  /  Color match" : "2-back  /  Remember two";
                     controller.body.text=e.Mode==TaskMode.Easy ? "Always compare with "+TaskPlatformController.ColorNames[c.targetColor]+".\nSame color: "+Key(c.matchAction)+". Different color: "+Key(c.nonmatchAction)+".\n\nFirst "+c.warmupTrials+" colors: observe only." : "Compare with the color TWO positions earlier.\nSame color: "+Key(c.matchAction)+". Different color: "+Key(c.nonmatchAction)+".\nFirst "+c.warmupTrials+" colors: remember only; do not respond.";
                     exampleCaption.text="Example: #3 matches #1. Press "+Key(c.matchAction)+".\nNext: #4 compares with #2, then #5 with #3.";

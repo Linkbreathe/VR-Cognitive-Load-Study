@@ -7,9 +7,62 @@ import hashlib
 import json
 from pathlib import Path
 import time
+import threading
 
-REVISION = "evidence-console-v1.3-persistent-model-config"
+
+REVISION = "evidence-console-v1.21-decision-gaze"
 WEB = Path(__file__).with_name("console")
+
+
+class EegRateMonitor:
+    """Measure delivered sample rows on the receiver clock, independent of Unity."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.source = None
+        self.nominal = None
+        self.receipts = deque()
+        self.total = 0
+
+    def select(self, config):
+        with self.lock:
+            self.source = config.get("name") or config["source_id"]
+            self.nominal = config["sample_rate"]
+            self.receipts.clear()
+            self.total = 0
+
+    def received(self, now, timestamps):
+        with self.lock:
+            if self.receipts and now - self.receipts[-1][0] >= 1:
+                self.receipts.clear()
+            self.total += len(timestamps)
+            valid = all(math.isfinite(t) for t in timestamps) and all(
+                b > a for a, b in zip(timestamps, timestamps[1:]))
+            if self.receipts:
+                valid = valid and timestamps[0] > self.receipts[-1][2]
+            self.receipts.append((now, self.total, timestamps[-1], valid))
+            # Retain one anchor at or before the two-second boundary.
+            while len(self.receipts) > 1 and self.receipts[1][0] <= now - 2:
+                self.receipts.popleft()
+
+    def status(self, now):
+        with self.lock:
+            result = {"source": self.source, "nominalHz": self.nominal, "actualHz": None, "deliveryHz": None}
+            if self.source is None:
+                return dict(result, state="unconfigured")
+            if not self.receipts or now - self.receipts[-1][0] >= 1:
+                return dict(result, state="no_samples", actualHz=0, deliveryHz=0)
+            start, first_count, first_lsl, _ = self.receipts[0]
+            end, last_count, last_lsl, _ = self.receipts[-1]
+            if end - start < 1:
+                return dict(result, state="measuring")
+            count = last_count - first_count
+            delivery = count / (end - start)
+            if not all(row[3] for row in self.receipts) or last_lsl <= first_lsl:
+                return dict(result, state="timestamps", deliveryHz=round(delivery, 1))
+            hz = count / (last_lsl - first_lsl)
+            state = "low" if min(hz, delivery) < self.nominal * 0.90 else "receiving"
+            return dict(result, state=state, actualHz=round(hz, 1), deliveryHz=round(delivery, 1))
 
 
 def config_fingerprint(path, lsl=False):
@@ -30,8 +83,8 @@ def finite_json(value):
     return value
 
 
-def record_wave(session, config, times, samples, source_id):
-    if config["kind"] not in ("EEG", "ECG", "OBSERVE") or not times:
+def record_wave(session, config, times, samples, source_id, retain_seconds=6):
+    if config["kind"] not in ("EEG", "OBSERVE") or not times:
         return
     streams = session.setdefault("console_waves", {})
     key = config["kind"]
@@ -48,7 +101,7 @@ def record_wave(session, config, times, samples, source_id):
             rows.clear()  # A clock restart must never join two incompatible time ranges.
         rows.append((t, [v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
                          else None for v in values[:16]]))
-    while rows and rows[0][0] < rows[-1][0] - 6:
+    while rows and rows[0][0] < rows[-1][0] - retain_seconds:
         rows.popleft()
 
 
@@ -58,6 +111,7 @@ def waves(session, now):
         rows = list(stream["rows"])
         if not rows:
             continue
+        rows = [row for row in rows if row[0] >= rows[-1][0] - 6]
         config = stream["config"]
         # Min/max envelopes retain visible peaks. Insert a break at actual timestamp gaps.
         stride = max(1, math.ceil(len(rows) / 300))
@@ -113,7 +167,8 @@ def snapshot(service, session_id=None):
             personal = s.get("personal")
             if personal:
                 with personal.lock:
-                    result.update(windows=deepcopy(list(personal.windows.values())[-64:]),
+                    result.update(calibrationQuality=personal.calibration_quality(), windows=deepcopy(list(personal.windows.values())[-64:]),
+                                  playback={"videoPlaying": bool(personal.video_playing)},
                                   predictions=deepcopy(list(personal.predictions)[-64:]),
                                   model={"status": personal.model_status, "report": deepcopy(personal.report),
                                          "mountIntact": personal.mount_intact, "policy": deepcopy(personal.policy)})
@@ -124,6 +179,9 @@ def snapshot(service, session_id=None):
                 core = adapter.guard
                 if core:
                     for decision in result["decisions"]:
+                        key=decision["delivered"]["requestId"]
+                        if key in adapter.probe_reviews:
+                            decision["probeReview"]=deepcopy(adapter.probe_reviews[key])
                         review = core.reviews.get(decision["delivered"]["requestId"])
                         if review:
                             decision["review"] = deepcopy(review[2])

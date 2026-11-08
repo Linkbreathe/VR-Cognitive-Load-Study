@@ -24,3 +24,8 @@
 /Tools/EvidenceGuard/dist/
 # Keep original downloaded media local; runtime assets retain provenance.
 /MediaSources/
+# Local recordings, exploratory analysis and separately provisioned calibration media.
+/Recordings/
+/Temporary/
+/Assets/Resources/CalibrationForest.mp4
+/Assets/Resources/CalibrationForest.mp4.meta

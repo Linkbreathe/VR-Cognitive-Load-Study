@@ -34,6 +34,70 @@ class ReuseTests(unittest.TestCase):
 
     def tearDown(self): self.temp.cleanup()
 
+    def test_independent_assignments_and_qualified_comparison_restart(self):
+        from layer_ab import SLIDING, condition, validate
+        for mode in ("practice","practice_eeg","calibration_rehearsal","control_calibration","comparison_rehearsal"):
+            r, p = self.prepared(sessionMode=mode, order="BA")
+            validate(p["config"])
+            self.service.receive(p)
+            if mode=="comparison_rehearsal":
+                self.assertEqual((p["config"]["trainingTrials"],p["config"]["rollingWindowTrials"],p["config"]["rollingStrideTrials"]),(60,5,2))
+                self.assertEqual(condition(p["config"],1),"B")
+                self.assertFalse(p["config"]["testModelId"])
+            self.store.complete(r["sessionId"],"complete")
+        _, _, folder = self.model(admitted=True)
+        with self.assertRaisesRegex(ValueError, "response-close"):
+            self.prepared(sessionMode="comparison", modelId="fixture-model")
+        artifact = folder / "model.joblib"
+        bundle = joblib.load(artifact)
+        bundle["report"].update(windowRevision=SLIDING,supported_level_patterns=["0,0,0,0,0","1,1,1,1,1"])
+        joblib.dump(bundle, artifact)
+        write(folder/"manifest.json", dict(read(folder/"manifest.json"),sha256=digest(artifact)))
+        self.service.test_store = self.store = TestSessionStore(self.store.state_dir,self.store.policy)
+        self.store.streams = [{"kind": "EEG", "sample_rate":250, "channels":[0], "scale_to_units":1},
+                              {"kind":"ECG","sample_rate":250,"channels":[1],"scale_to_units":1}]
+        with self.assertRaises((FileNotFoundError,ValueError)):
+            self.prepared(sessionMode="comparison",modelId="fixture-model",participantCode="OTHER")
+        r,p=self.prepared(sessionMode="comparison",modelId="fixture-model")
+        reply=self.service.receive(p)
+        self.assertTrue(reply["modelTestUsable"])
+        self.assertFalse(reply["testSignalsReady"])
+        self.assertEqual(r["sourceModel"]["modelId"],"fixture-model")
+        self.store.complete(r["sessionId"],"complete")
+        bundle["report"]["admitted"]=False
+        joblib.dump(bundle,artifact)
+        write(folder/"manifest.json",dict(read(folder/"manifest.json"),admitted=False,sha256=digest(artifact)))
+        with self.assertRaisesRegex(ValueError, "unvalidated candidate"):
+            self.prepared(sessionMode="comparison",modelId="fixture-model")
+        r,p=self.prepared(sessionMode="comparison_candidate",modelId="fixture-model")
+        reply=self.service.receive(p)
+        self.assertTrue(reply["modelTestUsable"])
+        self.assertFalse(reply["modelAdmitted"])
+        self.assertEqual(reply["modelStatus"],"engineering_candidate_loaded")
+
+    def test_comparison_order_balances_new_ids_and_reuses_existing_order(self):
+        orders=[]
+        for code in ("FIRST","SECOND","FIRST"):
+            record=self.store.prepare(dict(self.request,sessionMode="comparison_rehearsal",participantCode=code))
+            orders.append(record["config"]["counterbalanceGroup"])
+            self.store.complete(record["sessionId"],"complete")
+        self.assertEqual(orders,[0,2,0])
+
+    def test_comparison_environment_frozen_through_claim_and_archive(self):
+        for environment in ('desktop_fixed_gaze','quest_pro'):
+            r,p=self.prepared(sessionMode='comparison_rehearsal',comparisonEnvironment=environment)
+            self.service.receive(p)
+            self.assertEqual(p['config']['comparisonEnvironment'],environment)
+            meta=read(Path(r['folder'])/'service'/'personal_protocol.json')
+            self.assertEqual(meta['gazeInput']['simulated'],environment=='desktop_fixed_gaze')
+            changed=copy.deepcopy(p)
+            changed['config']['comparisonEnvironment']='quest_pro' if environment=='desktop_fixed_gaze' else 'desktop_fixed_gaze'
+            with self.assertRaisesRegex(ValueError,'differs'):
+                self.store.verify_packet(changed)
+            self.store.complete(r['sessionId'],'complete')
+        with self.assertRaisesRegex(ValueError,'engineering comparison'):
+            self.store.prepare(dict(self.request,comparisonEnvironment='desktop_fixed_gaze'))
+
     def prepared(self, **changes):
         r = self.store.prepare(dict(self.request, **changes))
         claim = self.store.claim({"clientId": "device1", "controllerUrl": "http://127.0.0.1:8765"})
@@ -45,7 +109,7 @@ class ReuseTests(unittest.TestCase):
         folder = self.root / "data/TEST001/models/fixture-model"
         folder.mkdir(parents=True)
         model = forest(dict(self.store.policy, n_estimators=7), 4)
-        x = np.array([[0, 0, 60, 0]] * 12 + [[2, 2, 90, .5]] * 12)
+        x = np.array([[0, 0, 0]] * 12 + [[2, 2, .5]] * 12)
         model.fit(x, [0] * 12 + [1] * 12)
         report = {"admitted": admitted, "version": VERSION, "policy": self.store.policy, "featureRevision": FEATURE_REVISION,
                   "status": "personal_model_validated" if admitted else "personal_model_not_validated", "reasons": [] if admitted else ["engineering_or_replay_session"]}
@@ -149,7 +213,7 @@ class ReuseTests(unittest.TestCase):
         self.store.policy = dict(original, theta_channels=[0, 1], eeg_units_confirmed=True)
         with self.assertRaises(ValueError) as error:
             self.store.load_model(self.root / "data", "TEST001", "fixture-model", True)
-        self.assertIn("policy.theta_channels: saved=[0], current=[0, 1]", str(error.exception))
+        self.assertIn("policy.theta_channels: saved=[0, 1, 2, 3, 4], current=[0, 1]", str(error.exception))
         self.assertIn("policy.eeg_units_confirmed: saved=false, current=true", str(error.exception))
         self.store.policy = dict(original, unknown_policy_field=None)
         with self.assertRaisesRegex(ValueError, "policy.unknown_policy_field"):

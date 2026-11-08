@@ -3,22 +3,33 @@ import unittest
 import json
 import tempfile
 from pathlib import Path
-from lsl_sources import validate_config, stream_identity, matching_streams, observation_values
+from unittest.mock import patch
+from lsl_sources import discover, validate_config, stream_identity, matching_streams, observation_values
 from service import physiology_display_status
 
 
 class SourceSelectionTests(unittest.TestCase):
     def setUp(self):
-        self.eeg=dict(kind="EEG",source_id="source-a",name="Combined amplifier",sample_rate=250,
-                      channels=[0,1],channel_count=4,scale_to_units=1,amplitude_limit=150,
-                      window_seconds=12,data_origin="recorded_xdf_replay",synthetic=False)
+        self.eeg = json.loads(Path(__file__).with_name("lsl-config.example.json").read_text())["streams"][0]
 
-    def test_replay_cannot_be_reclassified_by_unchecking_synthetic(self):
-        self.assertTrue(validate_config({"streams":[self.eeg]})["streams"][0]["synthetic"])
+    def test_discovery_lists_all_resolved_outlets(self):
+        import pylsl
+        outlets = [pylsl.StreamInfo("Event outlet", "Markers", 1, 0, "string", ""),
+                   pylsl.StreamInfo("Other amplifier", "EEG", 2, 128, "float32", "custom")]
+        with patch.object(pylsl, "resolve_streams", return_value=outlets), patch.object(pylsl, "StreamInlet") as inlet:
+            inlet.return_value.info.side_effect = outlets
+            rows = discover()["streams"]
+        self.assertEqual([row["name"] for row in rows], [info.name() for info in outlets])
 
-    def test_combined_source_can_feed_two_explicit_mappings(self):
-        ecg=dict(self.eeg,kind="ECG",channels=[2,3],differential=True,window_seconds=30)
-        self.assertEqual(len(validate_config({"streams":[self.eeg,ecg]})["streams"]),2)
+    def test_eeg_profile_allows_other_outlet_identities(self):
+        self.assertEqual(validate_config({"streams":[self.eeg]})["streams"][0]["channels"], list(range(8)))
+        validate_config({"streams":[dict(self.eeg,name="Renamed amplifier",source_id="new-id")]})
+        for origin in ("unknown", "synthetic", "recorded_csv_replay", "recorded_xdf_replay"):
+            validate_config({"streams":[dict(self.eeg, data_origin=origin)]})
+        for change in (
+                       dict(kind="ECG"), dict(channel_labels=list(reversed(self.eeg["channel_labels"])))):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate_config({"streams":[dict(self.eeg, **change)]})
 
     def test_invalid_indices_rates_origins_and_differential_are_rejected(self):
         for change in [dict(channels=[4]),dict(channels=[-1]),dict(channels=[0,0]),dict(channels=[]),
@@ -35,14 +46,14 @@ class SourceSelectionTests(unittest.TestCase):
         stream=dict(self.eeg,sample_rate=2)
         with self.assertRaises(ValueError):validate_config({"streams":[stream]})
         stream.update(kind="FEATURES",window_seconds=1)
-        self.assertEqual(validate_config({"streams":[stream]})["streams"][0]["kind"],"FEATURES")
+        with self.assertRaises(ValueError):validate_config({"streams":[stream]})
 
     def test_empty_and_duplicate_inputs_rejected(self):
         for rows in [[],[self.eeg,copy.deepcopy(self.eeg)]]:
             with self.assertRaises(ValueError):validate_config({"streams":rows})
 
     def test_source_name_is_independent_of_replay_origin_and_receipt(self):
-        sensor=dict(self.eeg,connected=True,last_sample=9)
+        sensor=dict(self.eeg,name="Combined amplifier",source_id="source-a",data_origin="recorded_xdf_replay",connected=True,last_sample=9)
         status=physiology_display_status({"EEG:source-a":sensor},10)
         self.assertEqual(status["sourceName"],"Combined amplifier")
         self.assertEqual(status["source"],"recorded_replay")
@@ -52,7 +63,7 @@ class SourceSelectionTests(unittest.TestCase):
         self.assertEqual(lost["connection"],"disconnected")
 
     def test_one_combined_name_keeps_both_channel_roles(self):
-        sensor=dict(self.eeg,connected=True,last_sample=9)
+        sensor=dict(self.eeg,name="Combined amplifier",source_id="source-a",data_origin="recorded_xdf_replay",connected=True,last_sample=9)
         status=physiology_display_status({"EEG":sensor,"ECG":dict(sensor,kind="ECG")},10)
         self.assertEqual(status["sourceName"],"Combined amplifier")
         self.assertEqual([s["kind"] for s in status["streams"]],["EEG","ECG"])
@@ -88,7 +99,7 @@ class SourceSelectionTests(unittest.TestCase):
 
     def test_receive_only_accepts_irregular_text_and_missing_source_id_with_uid(self):
         stream=dict(self.eeg,kind="OBSERVE",sample_rate=0,uid="chosen-marker",source_id="",channel_format=3,window_seconds=1)
-        self.assertEqual(validate_config({"streams":[stream]})["streams"][0]["sample_rate"],0)
+        validate_config({"streams":[stream]})
         sample=[["stimulus/start","condition=hard"]]
         stream["channel_labels"]=["event","condition"]
         self.assertEqual([v["value"] for v in observation_values(stream,sample)],sample[0])

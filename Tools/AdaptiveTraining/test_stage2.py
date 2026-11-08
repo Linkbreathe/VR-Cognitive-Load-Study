@@ -155,13 +155,11 @@ class FeatureTests(unittest.TestCase):
             # One missing sample is tolerated; a longer missing interval must be rejected.
             if len(times)!=len(t):times=np.r_[t[:100],t[110:]];signal=np.r_[x[:100],x[110:]]
             self.assertEqual(extract_features("EEG",times,signal,250,12,10)[1]["quality"],0)
-    def test_ecg_known_rr(self):
-        t=np.arange(0,60,1/250);x=np.zeros(len(t))
-        for beat in range(1,60):x+=np.exp(-((t-beat)/.012)**2)
-        values,q=extract_features("ECG",t,x,250,60,5)
-        self.assertGreater(q["quality"],.99)
-        self.assertAlmostEqual(next(f["value"] for f in values if f["name"]=="ecg_heart_rate"),60,delta=.5)
-        self.assertLess(next(f["value"] for f in values if "rmssd" in f["name"]),5)
+    def test_removed_cardiac_role(self):
+        t = np.arange(0, 12, 1/250)
+        with self.assertRaises(ValueError):
+            extract_features("ECG", t, np.sin(t), 250, 12, 5)
+
     def test_condition_crossing_and_pause(self):
         events=[dict(time=0,level=0,stage="baseline",running=True),dict(time=10,level=1,stage="training",running=True)]
         levels,stages,covered=condition_coverage(5,15,events);self.assertEqual(levels,[0,1]);self.assertTrue(covered)

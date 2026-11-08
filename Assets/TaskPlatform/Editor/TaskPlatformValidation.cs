@@ -12,7 +12,6 @@ namespace EvidenceVR.Editor
     {
         static int assertions;
         static void Check(bool condition, string message) { assertions++; if (!condition) throw new Exception("Validation failed: " + message); }
-        [MenuItem("Evidence VR/Run Automated Validation")]
         public static string Run()
         {
             assertions = 0;

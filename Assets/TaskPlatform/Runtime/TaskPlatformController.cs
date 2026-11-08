@@ -46,6 +46,12 @@ namespace EvidenceVR
         string setupError;
         bool floorTracking, calibrationPending;
         readonly List<XRDisplaySubsystem> displays = new List<XRDisplaySubsystem>();
+        readonly List<XRDisplaySubsystem> desktopStoppedDisplays=new List<XRDisplaySubsystem>();
+        UnityEngine.InputSystem.XR.TrackedPoseDriver desktopPoseDriver;
+        bool desktopViewActive,desktopPoseWasEnabled;
+        StereoTargetEyeMask savedStereoEyes;
+        Vector3 savedHeadPosition;
+        Quaternion savedHeadRotation;
         TaskPhase lastPhase = (TaskPhase)(-1);
         int lastTrial = -2;
 
@@ -103,12 +109,13 @@ namespace EvidenceVR
             if(adaptiveConfig!=null)config=Engine.Config;
             recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, adaptiveConfig==null?"TaskPlatformData":"AdaptiveTrainingData"), Engine.Config,
                 participant:adaptiveConfig?.participantCode??"anonymous",kind:Application.isEditor?"editor-test":adaptiveConfig?.sessionType??"participant",
-                presentationVersion:adaptiveConfig==null?null:adaptiveConfig.IsPersonalized?TaskEngine.PersonalPresentationRevision:"adaptive-lab-v2.0-rolling-countdown",
+                presentationVersion:adaptiveConfig==null?null:adaptiveConfig.CompactComparison?AdaptiveMedia.ContinuousRevision:adaptiveConfig.Probe?"probe-dialogue20-front-v1":adaptiveConfig.IsPersonalized?TaskEngine.PersonalPresentationRevision:"adaptive-lab-v2.0-rolling-countdown",
                 gazeDebugRequested:adaptiveConfig?.engineeringGazeHighlight??false,gazeDebugEnabled:GazeDebugHighlighter.IsAllowed(adaptiveConfig),
                 gazeRayRequested:adaptiveConfig?.engineeringGazeRay??false,gazeRayEnabled:EngineeringGazeRay.IsAllowed(adaptiveConfig) && adaptiveConfig.engineeringGazeRay,
                 evidenceGuardMode:adaptiveConfig?.evidenceGuardMode??"off",
                 assignedSessionId:adaptiveConfig?.operatorManaged==true?adaptiveConfig.testSessionId:null,
-                studyDesign:adaptiveConfig?.studyDesign??"legacy");
+                studyDesign:adaptiveConfig?.studyDesign??"legacy",comparison:adaptiveConfig?.Comparison??false,
+                comparisonEnvironment:adaptiveConfig?.comparisonEnvironment??"quest_pro");
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
             if(adaptiveConfig?.IsLayerAB==true)inputTiming=new InputTimingAudit(Engine,match,nonmatch,advance,pause,calibrate);
@@ -130,7 +137,7 @@ namespace EvidenceVR
                 throw new InvalidOperationException("Finish the current test before changing identity.");
             assigned.Validate();
             if(!assigned.operatorManaged || string.IsNullOrEmpty(assigned.testSessionId))throw new ArgumentException("Missing test assignment.");
-            adaptiveConfig=assigned;startingAssignedTest=true;
+            adaptiveConfig=assigned;ConfigureComparisonView(assigned.DesktopComparison);startingAssignedTest=true;
             try {BeginSession();Debug.Log("OPERATOR TEST START: "+assigned.participantCode+";mode="+assigned.testSessionMode+";session="+assigned.testSessionId);}
             finally {startingAssignedTest=false;}
         }
@@ -141,6 +148,31 @@ namespace EvidenceVR
             if(spatialView!=null){spatialView.instructions.enabled=true;spatialView.taskCanvas.enabled=false;}
             if(presentation!=null){presentation.setupCards.SetActive(false);presentation.exampleCards.SetActive(false);presentation.actionHint.text="Waiting for Test sessions";}
             heading.text="Engineering test setup";body.text=message;badge.text="ENGINEERING TEST";
+        }
+        void ConfigureComparisonView(bool desktop)
+        {
+            if(desktop==desktopViewActive)return;
+            var camera=head.GetComponent<Camera>();
+            if(desktop)
+            {
+                savedHeadPosition=head.localPosition;savedHeadRotation=head.localRotation;
+                desktopPoseDriver=head.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
+                desktopPoseWasEnabled=desktopPoseDriver!=null && desktopPoseDriver.enabled;
+                if(desktopPoseDriver!=null)desktopPoseDriver.enabled=false;
+                if(camera!=null){savedStereoEyes=camera.stereoTargetEye;camera.stereoTargetEye=StereoTargetEyeMask.None;}
+                var activeDisplays=new List<XRDisplaySubsystem>();SubsystemManager.GetSubsystems(activeDisplays);
+                foreach(var display in activeDisplays)if(display.running){display.Stop();desktopStoppedDisplays.Add(display);}
+                head.localPosition=new Vector3(0,1.2f,0);head.localRotation=Quaternion.identity;
+            }
+            else
+            {
+                head.localPosition=savedHeadPosition;head.localRotation=savedHeadRotation;
+                if(desktopPoseDriver!=null)desktopPoseDriver.enabled=desktopPoseWasEnabled;
+                if(camera!=null)camera.stereoTargetEye=savedStereoEyes;
+                foreach(var display in desktopStoppedDisplays)display.Start();desktopStoppedDisplays.Clear();
+            }
+            desktopViewActive=desktop;
+            Debug.Log("Comparison environment: "+(desktop?"Desktop; fixed gaze 75% / 70%; keyboard controls":"Quest Pro; tracked headset and real eyes required"));
         }
         IEnumerator PlaceAfterTrackingReady(TaskEngine owner)
         {
@@ -161,6 +193,10 @@ namespace EvidenceVR
         void ConfigureTrackingSpace()
         {
             floorTracking=false;
+            if(adaptiveConfig?.DesktopComparison==true)
+            {
+                var seated=head.parent.position;seated.y=TrackingRigHeight(false,head.localPosition.y);head.parent.position=seated;return;
+            }
             var inputs=new List<XRInputSubsystem>();SubsystemManager.GetSubsystems(inputs);
             foreach(var input in inputs)if(input.running)
             {
@@ -182,7 +218,7 @@ namespace EvidenceVR
             if(Engine==owner && Engine!=null && Engine.Phase==TaskPhase.Preparation)
             {
                 var inputs=new List<XRInputSubsystem>();SubsystemManager.GetSubsystems(inputs);
-                foreach(var input in inputs)if(input.running){floorTracking=input.GetTrackingOriginMode()==TrackingOriginModeFlags.Floor;break;}
+                foreach(var input in inputs)if(adaptiveConfig?.DesktopComparison!=true && input.running){floorTracking=input.GetTrackingOriginMode()==TrackingOriginModeFlags.Floor;break;}
                 var position=head.parent.position;position.y=TrackingRigHeight(floorTracking,head.localPosition.y);head.parent.position=position;
                 Engine.Note("tracking_calibration","origin="+(floorTracking ? "floor" : "seated_device_fallback")+";local_eye_y="+head.localPosition.y+";rig_y="+head.parent.position.y,Time.realtimeSinceStartupAsDouble,Time.frameCount);
                 PlaceTask(true);
@@ -316,7 +352,7 @@ namespace EvidenceVR
         {
             if(!Engine.IsPersonalized)return;
             var headset=InputDevices.GetDeviceAtXRNode(XRNode.Head);
-            if(headset.isValid && headset.TryGetFeatureValue(UnityEngine.XR.CommonUsages.userPresence,out bool present) && !present)
+            if(adaptiveConfig?.DesktopComparison!=true && headset.isValid && headset.TryGetFeatureValue(UnityEngine.XR.CommonUsages.userPresence,out bool present) && !present)
                 Engine.ReportPersonalMountMovement(now,Time.frameCount,"xr_user_presence_false");
             if(Keyboard.current!=null && Keyboard.current.hKey.wasPressedThisFrame)
                 Engine.ReportPersonalMountMovement(now,Time.frameCount,"operator_reported_headset_or_electrode_movement");
@@ -334,6 +370,7 @@ namespace EvidenceVR
         void OnApplicationFocus(bool focused) { if (!focused && !Application.isEditor && Engine != null) Engine.Pause(Time.realtimeSinceStartupAsDouble, Time.frameCount, "focus_lost"); }
         void OnDestroy()
         {
+            if(desktopViewActive)ConfigureComparisonView(false);
             inputTiming?.Dispose();inputTiming=null;
             if (Engine != null && !terminalRecorded && setupError == null)
             {

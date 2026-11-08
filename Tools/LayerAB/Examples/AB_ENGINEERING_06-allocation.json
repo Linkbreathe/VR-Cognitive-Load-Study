@@ -1,0 +1,14 @@
+{
+  "participantCode": "AB_ENGINEERING_06",
+  "counterbalanceGroup": 0,
+  "seed": 48796775,
+  "assignmentId": "allocation-v1-20261105-5",
+  "enrollment_index": 5,
+  "allocation_seed": 20261105,
+  "studyDesign": "layer-ab-probe-v2",
+  "slidingRevision": "sliding-five-close-v1",
+  "order": [
+    "A",
+    "B"
+  ]
+}

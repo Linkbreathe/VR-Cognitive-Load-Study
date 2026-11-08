@@ -24,7 +24,6 @@ namespace EvidenceVR.Editor
     public static class TaskPlatformBuilder
     {
         public const string ScenePath = "Assets/TaskPlatform/Scenes/NBackExperiment.unity";
-        [MenuItem("Evidence VR/Build Experiment Scene")]
         public static void CreateScene()
         {
             if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before building the scene.");
@@ -98,7 +97,6 @@ namespace EvidenceVR.Editor
             text.rectTransform.anchoredPosition = position; text.rectTransform.sizeDelta = size;
             return text;
         }
-        [MenuItem("Evidence VR/Configure Quest Android")]
         public static void ConfigureQuest()
         {
             var getOrCreate = typeof(XRGeneralSettingsPerBuildTarget).GetMethod("GetOrCreate", BindingFlags.NonPublic | BindingFlags.Static);
@@ -129,7 +127,6 @@ namespace EvidenceVR.Editor
             GraphicsSettings.defaultRenderPipeline = mobile; QualitySettings.renderPipeline = mobile; QualitySettings.vSyncCount = 0; EditorUtility.SetDirty(mobile);
             AssetDatabase.SaveAssets(); Debug.Log("Quest Android configured: ARM64, IL2CPP, OpenXR, Touch / Touch Pro.");
         }
-        [MenuItem("Evidence VR/Configure Serialized Input")]
         public static void ConfigureInput()
         {
             const string path = "Assets/TaskPlatform/Config/TaskControls.inputactions";
@@ -176,7 +173,6 @@ namespace EvidenceVR.Editor
             a.AddBinding("<QuestProTouchController>{"+hand+"}/"+control);
             a.AddBinding("<Keyboard>/"+key);
         }
-        [MenuItem("Evidence VR/Build Quest APK")]
         public static void BuildQuest()
         {
             Directory.CreateDirectory("Builds/Quest"); Directory.CreateDirectory("Evidence");

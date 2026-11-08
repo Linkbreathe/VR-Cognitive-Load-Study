@@ -19,17 +19,19 @@ import sys
 import os
 import socket
 from urllib.parse import urlsplit, parse_qs
-from evidence_console import REVISION as CONSOLE_REVISION, WEB, snapshot, record_wave, finite_json, config_fingerprint
+from evidence_console import REVISION as CONSOLE_REVISION, WEB, EegRateMonitor, snapshot, record_wave, finite_json, config_fingerprint
 
 from controller import BaselineAdaptiveController, VERSION, SUPPORTED_VERSIONS, baseline
 from features import extract_features, condition_coverage
 from lsl_sources import stream_identity, validate_config, matching_streams, observation_values
 from personalized_model import VERSION as PERSONAL_VERSION, PROTOCOL as PERSONAL_PROTOCOL, resolve_policy_path
 from personalized_runtime import PersonalSession
+from mindtooth_monitor import NeurometricMonitor, workload_ready
 import layer_ab
+import workload_rf
 from study_timing import StudyTiming
 from personalized_signals import REVISION as FEATURE_REVISION
-from test_session_store import TestSessionStore, REVISION as TEST_REVISION
+from test_session_store import TestSessionStore, REVISION as TEST_REVISION, signal_contract
 
 
 class StudyHTTPServer(ThreadingHTTPServer):
@@ -54,7 +56,7 @@ def append_json(path, value):
 
 
 def latest_features(features):
-    """Retain the latest value of every stream/feature, including slower ECG outputs."""
+    """Retain the latest value of every stream/feature, in acquisition order."""
     latest={}
     for feature in features:
         latest[(feature["source_id"],feature["name"])]=feature
@@ -69,7 +71,7 @@ def physiology_display_status(sensors, now):
     fresh=0
     for sensor in rows:
         origin=sensor.get("data_origin","unknown")
-        origins.add("recorded_replay" if origin=="recorded_xdf_replay" else "synthetic" if sensor.get("synthetic")
+        origins.add("recorded_replay" if origin in ("recorded_xdf_replay","recorded_csv_replay") else "synthetic" if sensor.get("synthetic")
             else "live" if origin=="live_sensor" else "unknown")
         if sensor.get("connected") and 0<=now-sensor.get("last_sample",float("-inf"))<=3:fresh+=1
     source=next(iter(origins)) if len(origins)==1 else "mixed" if origins & {"recorded_replay","synthetic"} else "unknown"
@@ -84,6 +86,7 @@ def physiology_display_status(sensors, now):
 class StudyService:
     def __init__(self, output, calibration=None, policy=None, personalized_policy=None, evidence_guard_config=None, test_state_dir=None, enable_lsl_markers=False):
         self.output = Path(output)
+        self.neurometrics = NeurometricMonitor()
         self.timing = StudyTiming(enable_lsl_markers)
         self.calibration = calibration or {}
         self.controller = BaselineAdaptiveController(policy)
@@ -91,6 +94,7 @@ class StudyService:
         self.latest = None
         self.lock = threading.RLock()
         self.sensors = {}
+        self.eeg_rate = EegRateMonitor()
         self.observation_display = {}
         self.personalized_policy = personalized_policy
         self.evidence_guard_config = evidence_guard_config
@@ -187,7 +191,12 @@ class StudyService:
             reply = {"serverClock":time.perf_counter(), "featuresJson":json.dumps(latest_features(features)),
                      "calibrationJson":json.dumps(calibration),"physiologyStatus":physiology_display_status(self.sensors,time.perf_counter())}
             if "personal" in session:
-                reply.update(session["personal"].receive(packet, decide))
+                personal = session["personal"]
+                if personal.config.get("testSessionMode") == "vendor_workload" and managed:
+                    sample = self.neurometrics.snapshot()["values"]
+                    identity = self.test_store.records[sid]["vendorIdentity"]
+                    personal.vendor_sample = sample if all(sample.get(k) == v for k, v in identity.items()) else {}
+                reply.update(personal.receive(packet, decide))
                 guarded = session["guard"].receive(packet, session["personal"], reply.get("decision"))
                 if guarded is not None:
                     reply["decision"] = guarded
@@ -205,12 +214,20 @@ class StudyService:
                 reply["testSessionId"] = sid
                 reply["testStopRequested"] = self.test_store.records[sid].get("stopRequested", False)
                 reply["testSignalsReady"] = {s.get("kind") for s in self.sensors.values()
-                    if s.get("connected") and 0 <= time.perf_counter() - s.get("last_sample", float("-inf")) <= 3} >= {"EEG", "ECG"}
+                    if s.get("connected") and 0 <= time.perf_counter() - s.get("last_sample", float("-inf")) <= 3} >= {"EEG"}
+            if managed and packet["config"]["testSessionMode"] == "comparison":
+                rate = self.eeg_rate.status(time.perf_counter())
+                live_eeg = any(s.get("kind")=="EEG" and s.get("data_origin")=="live_sensor"
+                               and not s.get("synthetic") for s in self.test_store.streams)
+                reply["testSignalsReady"] = bool(reply["testSignalsReady"] and live_eeg and
+                    self.test_store.policy["eeg_units_confirmed"] and rate["state"]=="receiving")
             if "decision" in reply:
                 delivered = reply["decision"]
                 personal = session.get("personal")
                 base = personal.decisions.get(delivered["requestId"], delivered) if personal else delivered
                 records = session.setdefault("console_decisions", {})
+                if managed and session["config"].get("testSessionMode") in layer_ab.COMPARISON_MODES and delivered["requestId"] not in records:
+                    append_json(session["path"] / "comparison_deliveries.jsonl", dict(time=packet["now"], stage=packet["stage"], decision=delivered))
                 records[delivered["requestId"]] = copy.deepcopy({"base": base, "delivered": delivered, "time": packet["now"]})
                 records[delivered["requestId"]]["viewChecks"] = copy.deepcopy([r for r in session["guard"].console_audit
                     if r.get("record") == "view_check" and r.get("judgment", "").endswith(":" + delivered["requestId"])]) if "guard" in session else []
@@ -218,14 +235,37 @@ class StudyService:
                     del records[next(iter(records))]
             return reply
 
+    def preview_workload(self, request):
+        """Score the selected model on the receiver clock without creating a task session."""
+        store = self.test_store
+        saved, meta = store.load_model(request["storageFolder"], request["participantCode"], request["modelId"], True)
+        if meta["featureRevision"] != workload_rf.REVISION:
+            raise ValueError("Live preview requires a forest / arithmetic workload model.")
+        result = dict(modelId=meta["modelId"], modelHash=meta["sha256"], score=None)
+        with self.lock:
+            eeg = self.observation_display.get("console_waves", {}).get("EEG")
+            if not eeg or not eeg["rows"]:
+                return dict(result, reason="waiting_for_live_eeg")
+            config, rows = eeg["config"], list(eeg["rows"])
+        if signal_contract([config]) != meta["signalContract"]:
+            return dict(result, reason="live_signal_mapping_mismatch")
+        epochs, diagnostics = workload_rf.measure_live_buffer(config, rows, store.policy, time.perf_counter())
+        result.update(diagnostics)
+        if epochs is not None:
+            result["score"] = workload_rf.score(saved["reference"], epochs)
+        return result
+
     def record_signal(self, stream_config, raw_times, corrected_monotonic, samples, correction, source_id):
         with self.lock:
-            if stream_config["kind"] == "OBSERVE":
+            if stream_config["kind"] in ("EEG", "OBSERVE"):
                 # Read-only source preview is independent of Unity recording/model state.
-                record_wave(self.observation_display, stream_config, corrected_monotonic, samples, source_id)
+                record_wave(self.observation_display, stream_config, corrected_monotonic, samples, source_id,
+                            retain_seconds=12 if stream_config["kind"] == "EEG" else 6)
             if self.latest is None:
                 return
             session = self.sessions[self.latest]
+            if session["config"].get("testSessionMode") in ("practice", "calibration_rehearsal", "comparison_rehearsal"):
+                return
             if session["kind"]=="participant" and stream_config.get("synthetic"):
                 raise ValueError("Recorded/synthetic signals cannot be written into participant sessions")
             if time.perf_counter()-session.get("received",0)>5:
@@ -244,7 +284,7 @@ class StudyService:
 
     def add_features(self, stream_config, times, samples, source_id):
         with self.lock:
-            if self.latest is None:
+            if self.latest is None or stream_config.get("units") not in ("uV", "µV"):
                 return
             sid = self.latest
             session = self.sessions[sid]
@@ -264,12 +304,10 @@ class StudyService:
                 "source_id":source_id,"quality":quality,"features":values,"window_start":start,"window_end":end,
                 "levels":levels,"stages":stages,"coverage_complete":covered})
             for f in values:
-                if stream_config.get("feature_scope")=="hrv_only" and "rmssd" not in f["name"]:
-                    continue
                 record=dict(f,sessionId=sid,configVersion=packet["configVersion"],source_id=source_id,quality=quality["quality"],
                     quality_reason=quality["reason"],window_start=start,window_end=end,
                     levels=levels,stages=stages,coverage_complete=covered,synthetic=stream_config.get("synthetic",False),
-                    clock_uncertainty=packet.get("clockUncertainty",999),algorithm="engineering-welch-rr-v1")
+                    clock_uncertainty=packet.get("clockUncertainty",999),algorithm="engineering-welch-eeg-v2")
                 session["features"].append(record)
                 path=session["path"]/"physio_features.csv"
                 exists=path.exists()
@@ -293,7 +331,10 @@ class StudyService:
 
 def lsl_worker(service, config):
     import pylsl
+    monitor_eeg = config["kind"] == "EEG" or (config.get("stream_type", "").upper() == "EEG" and config.get("sample_rate", 0) > 0)
     while True:
+        if monitor_eeg:
+            service.eeg_rate.select(config)
         stream_id=config["source_id"]
         sensor_key=config["kind"]+":"+stream_id
         service.sensors.setdefault(sensor_key,{})
@@ -315,8 +356,11 @@ def lsl_worker(service, config):
                 raise ValueError("Outlet sample format differs from selected source")
             config=dict(config,synthetic=config.get("synthetic",False) or recorded,
                         name=identity["name"],uid=identity["uid"],stream_type=identity["stream_type"],channel_count=identity["channel_count"],channel_format=identity["channel_format"],channel_labels=identity["channel_labels"],
-                        data_origin="recorded_xdf_replay" if recorded else config.get("data_origin","live_sensor"))
+                        data_origin=identity["data_origin"] if recorded else config.get("data_origin","live_sensor"))
             validate_config({"streams":[config]})
+            if config["kind"] == "EEG":
+                with service.lock:
+                    service.observation_display.get("console_waves", {}).pop("EEG", None)
             service.sensors[sensor_key].update(name=config["name"],uid=config["uid"],stream_type=config["stream_type"],data_origin=config["data_origin"],synthetic=config["synthetic"])
             rate=identity["sample_rate"]
             if abs(rate-config["sample_rate"])>.01:
@@ -329,6 +373,8 @@ def lsl_worker(service, config):
             while True:
                 samples,timestamps=inlet.pull_chunk(timeout=.25,max_samples=max(1,min(int(rate) if rate else 256,8192)))
                 now=time.perf_counter()
+                if monitor_eeg and samples:
+                    service.eeg_rate.received(now, timestamps)
                 if now>=next_correction:
                     correction=inlet.time_correction(timeout=1);next_correction=now+5
                 if not samples:
@@ -341,9 +387,6 @@ def lsl_worker(service, config):
                 service.sensors[sensor_key].update(connected=True,state="receiving",last_sample=now)
                 channels=config["channels"]
                 selected=[[sample[i] if config["kind"]=="OBSERVE" else sample[i]*config.get("scale_to_units",1) for i in channels] for sample in samples]
-                if config.get("differential"):
-                    if len(channels)!=2:raise ValueError("Differential ECG requires exactly two columns")
-                    selected=[[row[0]-row[1]] for row in selected]
                 service.record_signal(config,timestamps,corrected,selected,correction,stream_id)
                 if config["kind"] in ("FEATURES","OBSERVE"):
                     service.sensors[sensor_key].update(external_values=observation_values(config,selected),
@@ -354,10 +397,6 @@ def lsl_worker(service, config):
                     next_feature=now+2
                     window=[r for r in rows if r[0]>=rows[-1][0]-config["window_seconds"]]
                     service.add_features(config,[r[0] for r in window],[r[1] for r in window],stream_id)
-                    if config["kind"]=="ECG" and config.get("hrv_window_seconds",60)==60:
-                        hrv=[r for r in rows if r[0]>=rows[-1][0]-60]
-                        hrv_config=dict(config,window_seconds=60,feature_scope="hrv_only")
-                        service.add_features(hrv_config,[r[0] for r in hrv],[r[1] for r in hrv],stream_id)
         except Exception as error:
             service.sensors[sensor_key].update(connected=False,state=str(error))
             time.sleep(1)
@@ -371,7 +410,7 @@ MONITOR = b'''<!doctype html><html lang="en"><meta charset="utf-8"><title>Stage 
 <div id="state">Waiting for service...</div><pre id="task"></pre><pre id="sensors"></pre><pre id="features"></pre><pre id="decisions"></pre>
 <script>async function refresh(){try{let s=await(await fetch('/status')).json();let t=s.task;
 document.getElementById('state').textContent=t?'Session '+s.session+' | telemetry age '+(s.clock-s.latest_telemetry).toFixed(1)+' s':'No Unity session connected';
-document.getElementById('origin').textContent=Object.values(s.sensors).some(x=>x.synthetic)?'RECORDED XDF REPLAY / SIMULATION - NOT LIVE PHYSIOLOGY. Cannot authorize physiological promotion.':'Engineering observations. Feature validity and physiological calibration are separate requirements.';
+document.getElementById('origin').textContent=Object.values(s.sensors).some(x=>x.synthetic)?'RECORDED REPLAY / SIMULATION - NOT LIVE PHYSIOLOGY. Cannot authorize physiological promotion.':'Engineering observations. Feature validity and physiological calibration are separate requirements.';
 document.getElementById('task').textContent=t?JSON.stringify({stage:t.stage,level:t.level,block:t.block,trial:t.trial,media:t.mediaId,mode:t.config.mode,basis:t.config.controlBasis,gazeValid:t.gazeValidFraction,gazeTask:t.gazeTaskFraction,gazeVideo:t.gazeVideoFraction,lastBlock:t.blocks.at(-1)},null,2):'Task unavailable';
 for(let k of ['sensors','features','decisions'])document.getElementById(k).textContent=k.toUpperCase()+'\n'+JSON.stringify(s[k],null,2);
 }catch(e){document.getElementById('state').textContent='Service disconnected';}}refresh();setInterval(refresh,1000);</script></html>'''
@@ -389,9 +428,16 @@ def make_handler(service):
         def do_GET(self):
             url = urlsplit(self.path)
             assets = {"/": ("index.html", "text/html; charset=utf-8"), "/console.js": ("console.js", "text/javascript"), "/console.css": ("console.css", "text/css"),
+                      "/eeg-rate.js": ("eeg-rate.js", "text/javascript"),
+                      "/comparison": ("comparison.html", "text/html; charset=utf-8"),
+                      "/comparison.js": ("comparison.js", "text/javascript"),
+                      "/workspace.css": ("workspace.css", "text/css"),
+                      "/decision-evidence.js": ("decision-evidence.js", "text/javascript"),
                       "/tests": ("tests.html", "text/html; charset=utf-8"), "/tests.js": ("tests.js", "text/javascript")}
             if url.path == "/clock":
                 self.reply(200,service.timing.snapshot());return
+            if url.path == "/console/eeg-rate":
+                self.reply(200, service.eeg_rate.status(time.perf_counter()));return
             if url.path in assets:
                 name, mime = assets[url.path]
                 self.reply(200, (WEB / name).read_bytes(), mime)
@@ -400,7 +446,7 @@ def make_handler(service):
                                  "featureRevision": FEATURE_REVISION,
                                  "project": str(Path(__file__).resolve().parents[2]), **service.console_info})
             elif url.path == "/console/snapshot":
-                try:self.reply(200, snapshot(service, parse_qs(url.query).get("session", [None])[0]))
+                try:self.reply(200, dict(snapshot(service, parse_qs(url.query).get("session", [None])[0]), neurometrics=service.neurometrics.snapshot()))
                 except KeyError:self.reply(404, {"error": "Unknown session"})
             elif url.path == "/status":self.reply(200,service.status())
             elif url.path == "/tests/status":
@@ -412,12 +458,34 @@ def make_handler(service):
                         personal = running["personal"]
                         decisions = list(personal.decisions.values())
                         windows = list(personal.windows.values())
-                        record["live"] = {"stage": running["packet"]["stage"], "modelStatus": personal.model_status,
+                        record["live"] = {"videoPlaying": bool(personal.video_playing), "stage": running["packet"]["stage"], "modelStatus": personal.model_status,
+                            "completedTrials": running["packet"].get("completedTrials"),
+                            "gazeStatus": (running["packet"].get("gazeOverview") or {}).get("status"),
                             "telemetryAge": time.perf_counter() - running.get("received", 0),
                             "control": decisions[-1] if decisions else {"action": "HOLD", "reason": "collecting_fresh_history", "basis": "none"},
+                            "calibrationQuality": personal.calibration_quality(),
                             "lastWindowReason": windows[-1]["reason"] if windows else "waiting_for_completed_window"}
-                    self.reply(200, dict(view, signalRoles=[s["kind"] for s in service.test_store.streams],
-                        physiology=physiology_display_status(service.sensors, time.perf_counter()), eegUnitsConfirmed=service.test_store.policy["eeg_units_confirmed"]))
+                    self.reply(200, dict(view, neurometrics=service.neurometrics.snapshot(), signalRoles=[s["kind"] for s in service.test_store.streams],
+                        physiology=physiology_display_status(service.sensors, time.perf_counter()), eegUnitsConfirmed=service.test_store.policy["eeg_units_confirmed"] and any(
+                            s["kind"] == "EEG" and s.get("units") in ("uV", "µV") for s in service.test_store.streams)))
+            elif url.path == "/tests/comparison-report":
+                from comparison_report import report
+                try:
+                    key = parse_qs(url.query)["session"][0]
+                    with service.lock:
+                        assignment = service.test_store.records[key]
+                        if assignment["config"]["testSessionMode"] not in layer_ab.COMPARISON_MODES:
+                            raise ValueError("Choose an A/B comparison session.")
+                        folder = Path(assignment["folder"]) / "service"
+                    if not (folder/"personal_protocol.json").is_file():
+                        raise ValueError("Waiting for Unity to acknowledge this assignment and create its records.")
+                    result = report(folder)
+                    result["recordingClient"] = assignment.get("clientId")
+                    if assignment.get("clientId") == "seeded-simulator":
+                        result["taskInputSource"] = "simulated_answers_gaze_playback_receipts"
+                    self.reply(200, result)
+                except (ValueError, KeyError, OSError) as error:
+                    self.reply(400, {"error": "Comparison records unavailable: " + str(error)})
             elif url.path == "/tests/models":
                 try:
                     query = parse_qs(url.query)
@@ -425,7 +493,7 @@ def make_handler(service):
                 except (ValueError, KeyError, OSError) as error:self.reply(400, {"error": str(error)})
             else:self.reply(404,{"error":"Not found"})
         def do_POST(self):
-            if self.path not in ("/telemetry","/decide", "/tests/prepare", "/tests/claim", "/tests/archive", "/tests/stop", "/tests/open-folder", "/tests/choose-folder"):
+            if self.path not in ("/telemetry","/decide", "/tests/workload-preview", "/tests/neurometrics", "/tests/thresholds", "/tests/prepare", "/tests/claim", "/tests/archive", "/tests/stop", "/tests/open-folder", "/tests/choose-folder"):
                 self.reply(404,{"error":"Not found"});return
             try:
                 length=int(self.headers.get("Content-Length",0))
@@ -437,6 +505,8 @@ def make_handler(service):
                     import ipaddress
                     if not ipaddress.ip_address(self.client_address[0]).is_loopback or self.headers.get("X-Test-Console") != TEST_REVISION:
                         self.reply(403, {"error": "Use the study computer's local Test sessions page"}); return
+                if self.path == "/tests/workload-preview":
+                    self.reply(200, service.preview_workload(packet)); return
                 if self.path == "/tests/choose-folder":
                     import subprocess
                     chosen = subprocess.run([sys.executable, str(Path(__file__).with_name("choose_test_folder.py"))], capture_output=True, text=True,
@@ -444,7 +514,25 @@ def make_handler(service):
                     if chosen.returncode: raise ValueError("Folder chooser unavailable; enter an absolute path")
                     self.reply(200, {"folder": chosen.stdout.strip()}); return
                 with service.lock:
-                    if self.path == "/tests/prepare": result = service.test_store.prepare(packet)
+                    if self.path == "/tests/neurometrics":
+                        if type(packet.get("enabled")) is not bool:
+                            raise ValueError("Specify whether to connect the Mindtooth stream")
+                        service.neurometrics.configure(packet["enabled"])
+                        result = service.neurometrics.snapshot()
+                    elif self.path == "/tests/prepare":
+                        if packet.get("sessionMode") == "vendor_workload":
+                            values = service.neurometrics.snapshot()["values"]
+                            if not values.get("session") or not values.get("participant") or not workload_ready(values):
+                                raise ValueError("Connect AI-Based Workload on the Physiology page. A fresh vendor score and threshold are required.")
+                            if packet.get("vendorIdentity") != {k: values[k] for k in ("participant", "session")}:
+                                raise ValueError("Vendor session changed. Check the participant and session before preparing again.")
+                            result = service.test_store.prepare(packet, vendor_identity=values)
+                        else:
+                            result = service.test_store.prepare(packet)
+                    elif self.path == "/tests/thresholds":
+                        current = service.sessions.get(packet["sessionId"], {}).get("packet", {})
+                        context = {k: current.get(k) for k in ("stage", "completedTrials", "now", "requestId")}
+                        result = service.test_store.update_thresholds(packet, context)
                     elif self.path == "/tests/claim": result = service.test_store.claim(packet)
                     elif self.path == "/tests/archive": result = service.test_store.archive(packet)
                     elif self.path == "/tests/open-folder":
@@ -474,7 +562,7 @@ def main():
     parser.add_argument("--lsl-config",type=Path);parser.add_argument("--policy",type=Path)
     parser.add_argument("--personalized-policy", type=Path, help="Personal policy; defaults to UserSettings/personalized-policy.json when present, otherwise built-in non-admitting policy")
     parser.add_argument("--evidence-guard-config", type=Path, help="Optional Stage 3 settings; mode is frozen in the Unity session config")
-    parser.add_argument("--test-state-dir", type=Path, help="Persistent test preferences/registry; default UserSettings/TestSessions/port-PORT")
+    parser.add_argument("--test-state-dir", type=Path, help="Persistent test preferences/registry; default UserSettings/TestSessions/mindtooth-eeg250-v1/port-PORT")
     parser.add_argument("--log-file",type=Path)
     args=parser.parse_args()
     args.personalized_policy = resolve_policy_path(args.personalized_policy)
@@ -484,7 +572,7 @@ def main():
     read=lambda p:json.loads(p.read_text(encoding="utf-8-sig")) if p else None
     # Reserve the port before touching persisted assignments. A rejected second listener must not revoke an active test.
     server=StudyHTTPServer((args.host,args.port),make_handler(None))
-    state_dir=args.test_state_dir or Path(__file__).resolve().parents[2] / "UserSettings" / "TestSessions" / ("port-" + str(args.port))
+    state_dir=args.test_state_dir or Path(__file__).resolve().parents[2] / "UserSettings" / "TestSessions" / "mindtooth-eeg250-v1" / ("port-" + str(args.port))
     service=StudyService(args.output,read(args.calibration),read(args.policy),read(args.personalized_policy),read(args.evidence_guard_config),state_dir,enable_lsl_markers=args.lsl_markers)
     selected=validate_config(read(args.lsl_config)) if args.lsl_config else None
     service.test_store.streams = selected["streams"] if selected else []

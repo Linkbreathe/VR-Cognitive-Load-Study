@@ -1,5 +1,178 @@
 # Current acceptance record
 
+## Decision flow wording
+
+2026-11-08, `console-decision-flow-wording-v1`: software-verified explicit proposal/review/final-command wording, retained state for HOLD, observation-only A review, and separate receipt/playback explanation. JavaScript syntax and existing display contracts passed. Served-browser inspection of archived A and B10 checkpoints confirmed the actual labels and recorded reason; no console errors were captured. No new session, acquisition or physical output was tested. Device acceptance is unchanged; narrow-screen layout was not separately exercised in this wording revision. [Review and screenshot](DecisionFlowWordingReview.md).
+
+## Editable live thresholds
+
+Production deployment is pending: automatic approval review rejected the idle bridge restart. Existing v1.19 cannot apply live edits; the new page shows that limitation and disables Apply until the service advertises support.
+
+2026-11-07, Console v1.20: software-verified threshold edits during active assignments, A/B new-decision use, old-request retention, validation/conflict handling, persisted history and report export. The isolated browser fixture applied 0.55/0.65 during a simulated running assignment and displayed revision 1. EEG/Unity acquisition was not part of the fixture; actual worn-device edits and physical video transitions remain pending. [Detailed review](LiveThresholdsReview.md).
+
+## Heidi media exclusion
+
+2026-11-07, `layer-ab-144-dialogue-v2-no-heidi`: software-verified removal of eight clip pairs from both PC banks and three original videos (35 files). All 92 retained comparison video/audio hashes match; catalogs agree across Resource/build/runtime. Both replacement continuous streams fully decode without errors, last 300 seconds and use 30 unique allowed sources; 27 of 30 source slots are unchanged. Unity compilation and current/legacy/missing-clip catalog checks are recorded in the [review](MediaExclusionReview.md). No new experiment, physical headset playback, loudness acceptance or Player deployment was performed.
+
+## Unity Editor menu
+
+2026-11-07, `editor-menu-v1`: Unity 6000.3.27f2 compilation passed with zero errors/warnings. The running Editor registered exactly nine Evidence VR commands under Open Web Console, Signal Sources and Advanced. The 22 previous menu paths are absent; all pre-existing Editor C# files match the backup after removing only their MenuItem attributes. Read-only checks verified the configured Console URL and debug checkmarks. Builds, debug state changes and physical device checks were not run. Existing experiment/device acceptance is unchanged. [Detailed review](EditorMenuReview.md).
+
+## Researcher Console workspace
+
+2026-11-07, `console-study-workspace-v1`: software-verified independent setup navigation, environment cards, model-selection inhibition, threshold window-count previews, rehearsal selection, history filtering, frozen assignment controls and release. The monitor truthfully showed missing EEG/Unity without a fabricated score or playback state. Archived B8/B16 decisions displayed model, behavior and eye criteria with separate Not evaluated and Not met statuses; replay provenance is explicit. Eighteen Console/probe Python tests and four JavaScript syntax checks passed. Wide report/locked-session and narrow setup layouts were inspected. A live numeric trend with worn equipment, actual Quest Pro/Mindtooth A/B and physical output remain pending. [Review and evidence](ConsoleWorkflowReview.md).
+
+## Comparison environments
+
+2026-11-07, Stage 2/3 `comparison-environments-v1`: implemented Desktop fixed gaze (0.75 coverage / 0.70 task share) and Quest Pro real tracking, frozen across A/B. Fifty-one targeted Python tests passed. Software checks cover source provenance, immutable assignments, gaze boundaries and retained model/behavior/playback requirements. Unity Editor isolated rehearsal passed no-headset preparation, keyboard C/A/B/Enter operation and camera/pose restoration; compilation reports zero current errors. These are engineering checks, not participant observations. Worn Quest Pro tracking, live Mindtooth A/B, physical output and rebuilt Player verification remain pending. [Detailed review and artifacts](ComparisonEnvironmentsReview.md).
+
+## Continuous 60-trial comparison
+
+2026-11-07. Software-verified `behavior5-continuous-stride2-v3` and `continuous-clips-resume-v1`. Fifty-five Python tests passed. Unity 6000.3.27f2 compiled without errors; both conditions completed the simulated 60-trial budget with 29 even response-close requests and 26 potential full behavior windows. ON/HOLD/OFF receipts were checked at trial boundaries. In Play Mode, HOLD at approximately source second 18 preserved audiovisual playback through a 20-second clip cut until the next simulated review at second 27; sampled hidden/audio-missing counts were zero. OFF retained the cursor, ON resumed, and session completion stopped playback. The browser displayed the new 60/2/5 and BA/eye rules on the served Console. The source bank is installed on this PC; no Quest build or physical continuity/eye/EEG acceptance was performed. [Detailed evidence and remaining checks](ContinuousComparisonReview.md#verification-and-limitations).
+
+## Eye-open CSV replay
+
+2026-11-07, `saved-model-csv-reuse-v1`. The supplied recording contained 275,904 finite eight-channel samples, 1,103.604 seconds, with increasing timestamps at 3-5 ms intervals. Both isolated arms completed 144 trials/28 checkpoints with no Guard exception. Assertions verified identical prior response fields except playback level, identical gaze targets/validity/timing, unchanged forest/reference hashes and cutoffs, no within-arm replay wrap, and simulated acknowledgement of all fourteen delivered changes. Browser displayed the new source, counts and decision evidence. A: five ON/five OFF, zero blocked, 280 seconds video; B: two ON/two OFF, eleven blocked, 190 seconds video. At B trial 50, RF 0.637941 exceeded OFF 0.57; BA 0.928571, zero omissions, 93.3% valid eye coverage and 85.7% task share in the reviewed 1.5-second interval supported HOLD. At trial 110, failed probe verification produced OFF from base HOLD (RF 0.518655 above the required stable 0.49). Six later ON proposals were blocked by the resulting phase lock. CSV units remain unverified; uV/scale 1 was assumed. This is a software replay of unrelated EEG with synthetic task/gaze and media, not participant or physical-device acceptance. [Report](../Evidence/Wei004EyeOpenReplay-20261107/report/index.html) and [assertions](../Evidence/Wei004EyeOpenReplay-20261107/verification.json).
+
+## Saved-model randomized comparison
+
+2026-11-07. The isolated engineering run produced 288 trial records and 56 decision checkpoints with the saved RF and fixed 0.49/0.57 thresholds. All delivered changes had simulated acknowledgements; no guard exception occurred. At B trial 45, the model proposed OFF at 0.584566; stable behavior and playback task gaze supported deferral. Original calibration EEG was replayed cyclically; response and gaze seeds differed between arms. The browser displayed the completed report. Worn Quest Pro, actual EEG during A/B, physical media delivery and participant effectiveness remain pending. [Report](../Evidence/Wei004ComparisonSimulation-20261107/report/index.html).
+
+## Editable workload-model thresholds
+
+2026-11-06. The load-reference, model-reuse, probe, Layer A/B and Console suites passed (49 tests). The updated end-to-end fixture verified per-class held-out counts, invalid cutoff rejection and the same edited inclusive OFF boundary in both arms. A browser verified the backfilled recommendation, changed OFF from 0.57 to 0.55, observed counts update from 1/18 forest and 3/18 arithmetic to 5/18 and 4/18, and checked the submitted values and Personal RF preview. Browser submission was intercepted; no participant session was started. Worn validation remains pending.
+
+## Unscreened engineering workload
+
+2026-11-06. An isolated fixture with a flat P3 channel rejected all ten epochs under the calibration rule and returned a numeric engineering preview. A and B each produced the same score and model threshold trigger from that window. The raw waveform fixture displayed eight channels without running a channel check. All 58 targeted tests passed. The deployed endpoint returned a live score of 0.515340 with artifactScreening=false; browser verification showed a numeric Personal RF node and eight unflagged raw plots. Worn A/B remains pending.
+
+## Decision graph score display
+
+2026-11-06. Browser checks on the served pages confirmed that the separate score panel is removed and Personal RF shows the receiver status for the existing prepared assignment. Isolated browser input verified three-decimal numeric output, matching node detail, and clearing the score on a rejected window. Worn A/B acceptance remains pending.
+
+## Waveform channel quality
+
+2026-11-06. The deployed Physiology page displayed per-channel counts from the live receiver. A controlled browser input verified a red P3 outline for two flagged seconds, normal styling after recovery, and removal on stale EEG in the single-channel view. The evidence-console and load-reference suites passed (16 tests). This is an operator display check.
+
+## Pre-Unity workload preview
+
+2026-11-06. Browser verification with the live receiver and an existing personal workload model reached the preview on model selection with no Unity session. The deployed preview returned both channel-specific rejections and a genuine arithmetic-class score of 0.573738 with five clean seconds out of ten, before Unity connected. A separate live diagnostic window identified four one-second P3 epochs with adjacent-sample excursions over the configured jump limit. Synthetic EEG produced a numeric preview equal to the base A and B decision scores for an identical window and model, triggering the model threshold in both arms. The load-reference, model-reuse and probe suites passed (29 tests). Real-device A/B decision and gaze acceptance remain pending.
+
+## Live model score display
+
+2026-11-06. A browser connected to a prepared assignment showed its saved model ID and the waiting-for-Unity state. Isolated browser fixtures exercised loaded/waiting, zero and nonzero scores, a rejected window, expiry, stage changes and stale telemetry. Worn-device scoring and the vendor stream still require physical verification.
+
+## Adaptive Comparison menu
+
+2026-11-06. Verified the two choices, saved-model default, visible model selector and availability of the existing personal RF through the running Console. All 19 model-reuse tests passed. Worn-device validation remains pending. [Operator workflow](ExperimentGuide.md#independent-study-stages).
+
+## Saved workload RF in engineering comparison
+
+2026-11-06. An isolated assignment loaded a copy of a saved personal forest/arithmetic RF under its original participant ID and signal mapping. With identical synthetic EEG, the A and B controllers each received the same arithmetic-class score (0.472055) with engineering eligibility. Qualified comparison rejected the same artifact. A worn Quest Pro and Mindtooth comparison remains pending. [Comparison operation](LayerABStudyGuide.md#independent-stage-operation).
+
+## Independent Console stages and playback gaze
+
+2026-11-06, Stage 2/3 milestones 1–4. The current source compiled in Unity 6000.3.27f2. The task engine completed both practice paths, observation calibration, its rehearsal, control calibration and both 144-trial comparison periods. The accelerated flow check supplied model completion messages. [Unity engine receipt](../Evidence/ConsoleStagesEngineering/unity-flows.json).
+
+A private, EEG-free service accepted real Unity Editor assignments and returned execution acknowledgements to the comparison report. A B-first rehearsal reached five checkpoints and was deliberately stopped after 26 recorded trials. The five core files archived with aborted status. A subsequent independent practice completed 14 trials and archived without session EEG. Navigation was driven by the engineering harness. [Runtime and archive evidence](../Evidence/ConsoleStagesEngineering/editor-http.json).
+
+In a separate synthetic paired-input check, changing pre-response eye data from sustained task viewing to missing tracking switched B's delivered action at trial 30 from HOLD to OFF. A delivered OFF in both cases. Pre-response movie looks and post-response movie looks were checked separately. Browser automation prepared all three stage entries, selected a recorded checkpoint and trial and reconciled the downloaded JSON summary. [Paired inputs and results](../Evidence/ConsoleStagesEngineering/paired-gaze.json) · [Browser result](../Evidence/ConsoleStagesEngineering/browser-check.json) · [Decision page](../Evidence/ConsoleStagesEngineering/comparison-checkpoint.png).
+
+Physical acceptance (milestone 5) remains open. No participant session, independent physiological validation, Quest Pro gaze accuracy or physical playback timing was established by these engineering runs.
+
+The AdaptiveTraining suite passed 184 tests and the EvidenceGuard suite passed 14. The configured local Console returned the new revision and HTTP 200 on the stage page after an idle restart with the previous LSL selection and policy hashes. [Verification summary](../Evidence/ConsoleStagesEngineering/verification.txt).
+
+## 2026-11-06 — Occasional same-digit arithmetic options
+
+Unity Editor 6000.3.27f2 compiled the updated protocol. The seeded task-engine and instruction-panel check passed for 360 prompts across 20 sessions, including exactly one same-digit wrong option per six questions, nine present answers per round, response scoring, timeouts and restart behavior. Worn usability and participant-rated difficulty remain pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Live EEG rate alerts
+
+Stage 2/3 operator display `console-live-eeg-rate-v1` passed an isolated LSL and browser exercise on both Test sessions and the Evidence Console. A nominal 250 Hz engineering stream delivered 250 Hz, 125 Hz, no samples and 250 Hz again. Both pages displayed the low-rate warning, the outage and recovery. The study receiver separately reported live Mindtooth throughput. A forced rate change on the physical amplifier and a worn-session rehearsal remain pending. [Monitor operation](EvidenceConsoleGuide.md#live-eeg-sampling-rate)
+
+## 2026-11-06 — Calculate timeout feedback
+
+Stage 2/3 Calculate revision `vermont-180s-math-timeout-v9` scores an unanswered ten-second prompt as incorrect and displays its expression in red for 1.5 seconds. The log retains response=omitted and an empty reaction time. Interruptions remain unscored. The Unity check passed across 360 prompts, including final-question timeouts. Quest Pro readability is pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Relax lighting at 40%
+
+Stage 2/3 calibration revision `vermont-180s-math-dim40-v8` sets direct and ambient lighting to 40% during the three-minute Relax stage at the operator’s request. Source inspection confirmed restoration of the saved settings on transition to Calculate, pause, session end, playback failure and teardown. Quest Pro brightness assessment remains pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Dimmer Relax lighting
+
+The v7 Relax multiplier is 0.70 for lights and gradient ambient colors. Source inspection verified the exit and pause paths restore saved settings. Quest Pro brightness and comfort still require a headset check. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Three-minute calibration (v6)
+
+Unity imported the 180-second Vermont excerpt with 4,320 frames and one audio track. The engine check verified 360 prompts, same-digit options, balanced membership and feedback. The Python calibration fixture included all eighteen windows per stage and verified save/reload. Physical video, sound and text verification and participant acceptance remain pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Rolling calibration quality
+
+Software checks cover shifted candidates, same-fold disjoint selection, low-quality and recovery states, attempt reset and fit/save/reload. A headless Edge check with simulated HTTP quality states verified warning and recovery banners on both the main console and Test sessions. A read-only analysis of archived TEST002 replay reproduced the earlier fixed counts and found eight rest and four arithmetic windows under rolling selection. This remains an engineering replay. Operator visibility during physical acquisition and EEG validity remain pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Calculate response feedback
+
+Revision `forest-av-math-membership-feedback-10s-v5` adds expression-only feedback. The 20-seed Unity engine check covers feedback state, next-question reset and recorded outcomes. Seated color readability on Quest Pro remains pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Forest walk and arithmetic responses
+
+The Unity Editor compiled the runtime and imported 2,880 frames and one audio track. An isolated TaskEngine check verified four distinct answers, answer arithmetic, six present slots per session, and correct, incorrect, omitted and duplicate responses across 20 seeds. Pause/restart and abort produced separate interrupted-attempt records. The final H.264 and AAC streams decoded end to end. Both bookcase meshes in the authored scene have clearance at the side panels. Quest Pro playback, sound level, seated cabinet inspection and participant workload remain pending. [Protocol and source](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Selected EEG input
+
+Selected EEG input revision. Engineering calibration accepts the selected eight-channel 250 Hz EEG montage with confirmed units, including CSV replay. The 18 source-selection and reference tests passed, including model training and reload using a CSV-replay-labelled fixture. Physical device and participant acceptance remain pending.
+
+## 2026-11-06 — Unity LSL selection
+
+The project scanner listed six LAN outlets. Unity compiled successfully and the open Editor picker displayed all six outlets. All 15 selector tests passed. Isolated bridge workers received nine-channel replay and eight-channel numeric samples by UID and connected to an idle marker outlet. This engineering check covers source discovery and transport. Participant calibration and Quest Pro acceptance remain pending. [Operation](ExperimentGuide.md#selecting-an-lsl-source-in-the-unity-editor).
+
+Verified the status-label fix against the running bridge. Its selected UID reported eight channel values while the old Editor label remained at Connecting. After compilation, the same window showed Receiving on the existing connection.
+
+## 2026-11-05 — Forest viewing and easier arithmetic
+
+Stage 2/3, `forest-rest-easy-math-10s-v3`. The Editor loaded the silent 120-second video at 24 fps. A simulated clock check verified twelve ten-second slots, repeatable prompts after an interruption and fresh two-minute stages after restart. Quest Pro video decoding, physical presentation and discrimination with worn EEG require verification with this revised pair of conditions. [Procedure](LoadReferenceCalibration.md).
+
+A real-time Unity Editor run with a private synthetic EEG source reached the final video frame (2879) and hid the screen for arithmetic. The twelve question onsets fell within 3 ms of their scheduled times. Both stages supplied twelve usable windows. The session archive completed and the saved 100-tree model reloaded and produced a score. Stage starts were advanced programmatically. [Run record](../Evidence/SyntheticForestCalibration/verification.json) · [Forest view](../Evidence/SyntheticForestCalibration/forest.png) · [Arithmetic view](../Evidence/SyntheticForestCalibration/math.png).
+
+## 2026-11-05 — Passive arithmetic calibration
+
+Stage 2/3, `trial-progress-v5-room-math`. Unity Editor completed preparation, eyes-open rest, silent arithmetic and model handoff using isolated synthetic EEG. Both timed stages lasted 120.001 seconds; six expressions appeared, no answers were recorded, and 12 ten-second windows per condition reached training. The saved 100-tree model reloaded and returned a score. Stage starts were driven programmatically. Physical controller operation, worn EEG and Quest Pro legibility remain unverified. [Run record](../Evidence/SyntheticRoomMathWalkthrough/verification.json) · [Rest](../Evidence/SyntheticRoomMathWalkthrough/rest.png) · [Arithmetic](../Evidence/SyntheticRoomMathWalkthrough/math.png).
+
+## 2026-11-05 — Eyes-open rest in the room
+
+Stage 2/3, `trial-progress-v4-room-rest`. The room-rest display is implemented. Headset readability and a worn run using this display still require verification. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Personal workload RF (rest-math-iaf-rf-v2)
+
+Software fixtures exercised calibration, rejection for inadequate peak or discrimination, persistence and task scoring on a fresh session. The arithmetic-class score is available for engineering observation. Worn EEG amplitude, cross-task discrimination and Quest Pro testing remain pending. [Method and operation](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Local workload reference calibration
+
+Local personal calibration now uses 120 seconds of eyes-open rest and 120 seconds of arithmetic. The engineering load score is observed independently of the RF control thresholds. Synthetic processing and Editor stage transitions were checked. Worn EEG, units, questionnaire applicability and Quest Pro remain pending. [Operation, scoring and verification](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Vendor workload engineering control
+
+Software checked for vendor identity binding, score and threshold decisions, stale values and Unity compilation. Production stream, participant qualification and headset execution remain pending. [Operation, decision rules and verification](MindtoothModelSources.md).
+
+## 2026-11-05 — Mindtooth EEG
+
+Stage 2/3 switched live acquisition, model features and the Evidence Console to eight-channel Mindtooth EEG. Gin/P007 inputs and prior model revisions are excluded. Off-head sample transport and browser display were verified. Worn contact, LSL amplitude scaling, personal calibration, the new recording and Quest Pro acceptance remain pending. [Mindtooth acquisition, verification and pending checks](MindtoothAcquisitionReview.md).
+
+## 2026-11-05 — Probe A/B software verification
+
+The new 144-trial allocation was exercised in Unity Editor. It produced 28 checkpoints, loaded the 100-clip training catalog and stopped a decoded movie on OFF. The shared-controller and Guard regression suite passed (177 tests). Headset gaze, volume, real personal model admission, live deadlines and participant effects await verification. [Evidence, exact thresholds and acceptance boundaries](ProbeStudyReview.md).
+
+## 2026-11-05 — Continuous sliding A/B decision candidate
+
+New allocations implement response-close requests, continuous mixed-level physiology with held-out/source-block safeguards, exact Guard support and a nonblocking next-onset deadline. Synthetic software evidence: 173 Python regressions passed, 518 Unity checks, 19/19 local HTTP deadlines met; 12 executed changes in observe for a fixed optimized sequence, four in one enforce replay. Includes trial 95. No human effect, live model admission or device acceptance. [Detailed evidence, Python tests and pending checks](SlidingControlReview.md).
+
+
+## 2026-11-05 — Behavioral transitions and switch-capacity verification
+
+Implemented `behavior20-stride5-include-transition-v1`: transition trials contribute to the latest-twenty behavioral window evaluated every five trials. Unscored/interrupted/aborted and answer-class gates remain. Physiological transition exclusion, model quality/admission, actual exposure, minimum dwell and media-safe execution remain unchanged. Revision is logged separately from the unchanged feature/label/model policy contract.
+
+Python: 166 regression tests passed. Unity: 432 synthetic checks passed, PASS log read back, zero console errors; Play Mode stopped. Synthetic capacity witnesses evaluated through Python and replayed in Unity preserve four-second visibility and 4.5-second onsets, achieving seven fallback and five physiology changes. These are favorable engineering upper-bound witnesses, not participant event rates. Existing asynchronous requests cannot execute before the immediately following trial starts; no wait or early unfinished-trial request was introduced. [Review and evidence](BehaviorWindowRevisionReview.md). Pending: actual network/sensor timing, Quest Pro, live-source rehearsal and participant effects. No APK or physical acceptance. Start a fresh session after restarting the updated Python service.
+
 ## 2026-11-05 — Seven-point Raw TLX adaptation (v4)
 
 User-approved revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Six TLX dropdowns were replaced in the existing Google Form with required horizontal 1-7 scales, retaining the questions and two-page flow. Five dimensions use Very low=1 / Very high=7; Performance uses Perfect=1 / Failure=7. The unweighted mean of all six complete ratings is reported on 1-7, higher meaning greater workload; no additional reversal is required for this Performance orientation. Missing ratings remain missing. UEQ+ and final preference remain unchanged. Button timing, RT, LSL and controller code are unchanged. Earlier validation entries describe earlier versions.
@@ -427,3 +600,24 @@ The official Unity OpenJDK 17.0.18+8 module was installed during initial deliver
 Do not label Stage 1 fully accepted or begin claiming physiological/adaptive validation until the required physical tests pass. The new room/panel change the visual environment; record the presentation revision and review comparability before combining versions.
 
 Dev8 final follow-up: preparation also shows eye status beside the mode/source badge; its rendered fit was checked. Unbound-engine cleanup after script reload was guarded and passed two focused lifecycle scenarios. Final current Editor console errors/warnings: zero. Editor left in Preparation with local engineering ray on; release template remains off. See the dev8 review for session and environment state.
+
+
+## Decision gaze evidence
+
+2026-11-08, Stage 2/3, Console v1.21 / `console-decision-gaze-v1`.
+
+Implemented and software-verified: compact shared decision card; time-weighted tracked-coordinate density; recorded interval and arrival-time alignment; separate follow-up; per-frame geometry; no coordinates synthesized from Desktop ratios. Thirty-one Python regressions and three JavaScript syntax checks passed. Browser fixtures at 320/390/1100 px showed no document horizontal overflow and verified period/criteria controls. Production health and the 57-checkpoint archived Wei_004 report returned the new revision; fixed simulated gaze correctly produced no spatial map.
+
+Not physically verified: Quest Pro eye calibration, accuracy, live reference-plane alignment, dropout behavior during a worn A/B run and cross-device timing. No Player build acceptance or scientific benefit is asserted. [Method and evidence](DecisionGazeEvidenceReview.md).
+
+
+## Decision clarity and operator wording
+
+2026-11-08 · `console-decision-clarity-v2` · display-only acceptance.
+
+Software verified: distinct base/current-condition fields and null values; decisive recorded reason; Desktop non-acquisition; compact grouped criteria; three-stage/environment instructions; draft-only recommendation copying; truthful configured/received eye labels. Node display contracts and four script syntax checks passed. Served production B16 and calibration/guide pages were checked; an isolated synthetic readiness/threshold fixture rejected all writes. Setup and expanded evidence had no document horizontal overflow at 390 px. Five core controller/session/report module hashes were unchanged. No rules, historical records, Unity assets or remote questionnaire were changed. Worn Quest Pro acceptance is still pending. [Detailed review](ConsoleClarityRevisionReview.md).
+
+
+## Checkpoint progress navigation
+
+2026-11-08 · `console-checkpoint-scrubber-v1` · presentation only. JavaScript syntax and the existing immutable-evidence clarity contracts passed. Browser checks on the archived Wei_004 report confirmed discrete keyboard/button selection, terminal button disabling, filtering to delivered changes, refresh selection persistence and B16 as checkpoint 8 of 29 in round B. At 390 px the document had no horizontal overflow; RF/BA/count/threshold numbers used weight 750. Controller behavior, backend data and device acceptance are unchanged.

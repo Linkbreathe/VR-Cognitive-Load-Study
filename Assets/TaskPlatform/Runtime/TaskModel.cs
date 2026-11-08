@@ -325,6 +325,12 @@ namespace EvidenceVR
         void FinishTrial() { if (CurrentResult == null) return; Results.Add(CurrentResult); OnTrial?.Invoke(CurrentResult); CurrentResult = null; }
         public bool Respond(bool match, double now, int frame)
         {
+            if(mathPending && Phase==TaskPhase.Rest && Adaptive?.Stage=="load_math")
+            {
+                if(now<=mathOnset || now>=ProtocolStageStarted+(mathSlot+1)*MathQuestionSeconds)return false;
+                FinishMath(match?"A":"B",now,frame);
+                return true;
+            }
             string rejection = Phase != TaskPhase.Running ? "not_running" : !Current.scored ? "warmup" : CurrentResult.responded ? "duplicate" : now - Planned >= config.responseSeconds || now < CurrentResult.actualOnset ? "outside_window" : "";
             Emit("button", now, frame, now, (match ? "match" : "nonmatch") + (rejection == "" ? ":accepted" : ":" + rejection));
             if (rejection != "") return false;
@@ -337,6 +343,7 @@ namespace EvidenceVR
         public void Pause(double now, int frame, string reason = "operator", double? freezeAt = null)
         {
             if (Phase != TaskPhase.Running && Phase != TaskPhase.Rest && Phase != TaskPhase.Instructions) return;
+            FinishMath("interrupted",now,frame);
             resumePhase = Phase; Phase = TaskPhase.Paused; pauseStart = freezeAt ?? now;
             if(Adaptive!=null)ResetRolling(now,frame,"pause");
             if (CurrentResult != null) CurrentResult.interrupted = true;
@@ -378,6 +385,7 @@ namespace EvidenceVR
         {
             if (Phase == TaskPhase.Complete || Phase == TaskPhase.Aborted) return;
             if (CurrentResult != null) { CurrentResult.aborted = true; CurrentResult.interrupted = true; FinishTrial(); }
+            FinishMath("interrupted",now,frame);
             StimulusVisible = false; Phase = TaskPhase.Aborted; Emit("session_aborted", now, frame, now, reason);
         }
     }

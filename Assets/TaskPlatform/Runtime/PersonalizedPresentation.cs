@@ -7,6 +7,25 @@ namespace EvidenceVR
     {
         RectTransform personalProgressCard;
         GameObject personalCountdownSign;
+        GameObject progressHeading;
+        TMP_Text arithmeticExpression;
+        TMP_Text mathTimeoutNotice;
+        string renderedMathPrompt;
+        bool? renderedMathCorrect;
+        void RenderMathPrompt()
+        {
+            var prompt=engine.MathPrompt;
+            var correct=engine.MathAnswerCorrect;
+            if(prompt==renderedMathPrompt && correct==renderedMathCorrect)return;
+            renderedMathPrompt=prompt;
+            renderedMathCorrect=correct;
+            if(!correct.HasValue){arithmeticExpression.text=prompt;return;}
+            int end=prompt.IndexOf('\n');
+            string color=correct.Value?"167343":"AD2933";
+            arithmeticExpression.text="<color=#"+color+">"+prompt.Substring(0,end)+"</color>"+prompt.Substring(end);
+        }
+        readonly System.Collections.Generic.List<GameObject> hiddenRestHud=new System.Collections.Generic.List<GameObject>();
+        bool roomRestVisible;
         Material deskSignMaterial;
         DeskTextStyle originalNumberStyle,originalCaptionStyle;
         sealed class DeskTextStyle
@@ -43,7 +62,21 @@ namespace EvidenceVR
             deskSignMaterial.SetFloat(ShaderUtilities.ID_OutlineWidth,0);
             deskSignMaterial.DisableKeyword("OUTLINE_ON");deskSignMaterial.DisableKeyword("UNDERLAY_ON");
             personalCountdownSign=DecorateDeskSign(countdown,owner.spatialView.timer,owner.spatialView.timerLabel,"TIME LEFT");
-            DecorateDeskSign(personalProgressCard,PersonalProgressValue,PersonalProgressLabel,"PROGRESS");
+            var progressFrame=DecorateDeskSign(personalProgressCard,PersonalProgressValue,PersonalProgressLabel,"PROGRESS");
+            progressHeading=progressFrame.transform.Find("Heading").gameObject;
+            arithmeticExpression=Instantiate(PersonalProgressValue,countdown.parent);
+            arithmeticExpression.name="CalibrationArithmetic";
+            arithmeticExpression.rectTransform.sizeDelta=new Vector2(950,152);
+            arithmeticExpression.alignment=TextAlignmentOptions.Center;
+            arithmeticExpression.enableAutoSizing=false;
+            arithmeticExpression.richText=true;
+            arithmeticExpression.fontSize=48;
+            arithmeticExpression.color=LabPalette.Hex("24332C");
+            arithmeticExpression.gameObject.SetActive(false);
+            mathTimeoutNotice=Instantiate(arithmeticExpression,countdown.parent);
+            mathTimeoutNotice.name="ArithmeticTimeout";
+            mathTimeoutNotice.color=LabPalette.Hex("AD2933");
+            mathTimeoutNotice.fontSize=34;
             PlacePersonalDeskSigns();
             personalProgressCard.gameObject.SetActive(false);
         }
@@ -94,7 +127,10 @@ namespace EvidenceVR
         void DisposePersonalProgress()
         {
             if(personalProgressCard==null)return;
+            SetRoomRestVisible(false);
             if(personalCountdownSign!=null){personalCountdownSign.SetActive(false);Destroy(personalCountdownSign);personalCountdownSign=null;}
+            Destroy(arithmeticExpression.gameObject);
+            Destroy(mathTimeoutNotice.gameObject);
             countdown.sizeDelta=countdownOriginalSize;
             owner.spatialView.timer.rectTransform.anchoredPosition=numberOriginalPosition;owner.spatialView.timer.rectTransform.sizeDelta=numberOriginalSize;
             owner.spatialView.timerLabel.rectTransform.anchoredPosition=captionOriginalPosition;owner.spatialView.timerLabel.rectTransform.sizeDelta=captionOriginalSize;
@@ -103,11 +139,72 @@ namespace EvidenceVR
             if(deskSignMaterial!=null){Destroy(deskSignMaterial);deskSignMaterial=null;}
             personalProgressCard=null;PersonalProgressValue=null;PersonalProgressLabel=null;
         }
+        void SetRoomRestVisible(bool visible)
+        {
+            if(roomRestVisible==visible)return;
+            roomRestVisible=visible;
+            progressHeading.SetActive(!visible);
+            if(visible)
+            {
+                foreach(Transform item in countdown.parent)
+                {
+                    if(item==countdown || item==personalProgressCard || !item.gameObject.activeSelf)continue;
+                    hiddenRestHud.Add(item.gameObject);
+                    item.gameObject.SetActive(false);
+                }
+            }
+            else
+            {
+                foreach(var item in hiddenRestHud)if(item!=null)item.SetActive(true);
+                hiddenRestHud.Clear();
+            }
+        }
         void RenderPersonal()
         {
-            RenderPersonalProgress();
             var view=owner.spatialView;
             string stage=engine.Adaptive.Stage;
+            bool calculating=stage=="load_math" && engine.Phase==TaskPhase.Rest;
+            double now=Time.realtimeSinceStartupAsDouble;
+            bool timeout=engine.Phase==TaskPhase.Rest && (calculating || stage=="model_wait") && now<engine.MathTimeoutUntil;
+            bool roomRest=(stage=="load_rest" || calculating || timeout) && engine.Phase==TaskPhase.Rest;
+            SetRoomRestVisible(roomRest);
+            arithmeticExpression.gameObject.SetActive(calculating);
+            mathTimeoutNotice.gameObject.SetActive(timeout);
+            PersonalProgressValue.enableAutoSizing=calculating;
+            if(roomRest)
+            {
+                PlacePersonalDeskSigns();
+                view.instructions.enabled=false;
+                view.taskCanvas.enabled=true;
+                personalProgressCard.gameObject.SetActive(true);
+                int seconds=Mathf.Clamp(Mathf.CeilToInt((float)(TaskEngine.CalibrationStageSeconds-(Time.realtimeSinceStartupAsDouble-engine.ProtocolStageStarted))),0,TaskEngine.CalibrationStageSeconds);
+                if(timeout)
+                {
+                    mathTimeoutNotice.rectTransform.anchoredPosition=new Vector2(0,countdown.anchoredPosition.y+(calculating?305:185));
+                    mathTimeoutNotice.text="No response: "+engine.TimedOutExpression;
+                    if(!calculating)seconds=0;
+                }
+                view.timer.text=$"{seconds/60}:{seconds%60:00}";
+                view.timer.color=LabPalette.Text;
+                view.timerLabel.text="";
+                if(calculating)
+                {
+                    arithmeticExpression.rectTransform.anchoredPosition=new Vector2(0,countdown.anchoredPosition.y+185);
+                    RenderMathPrompt();
+                    PersonalProgressValue.fontSizeMin=38;
+                    PersonalProgressValue.fontSizeMax=78;
+                }
+                PersonalProgressValue.text=calculating || timeout?"calculate":"relax";
+                PersonalProgressValue.color=SpatialTaskView.CorrectColor;
+                PersonalProgressLabel.text="";
+                return;
+            }
+            RenderPersonalProgress();
+            if(stage.StartsWith("load_") && (engine.Phase==TaskPhase.Rest || engine.Phase==TaskPhase.Instructions))
+            {
+                view.instructions.enabled=true;view.taskCanvas.enabled=false;
+                return;
+            }
             if(engine.Phase==TaskPhase.Running)
             {
                 view.stage.text=(engine.IsDirectBioadaptiveTest?(config.allowCandidateModel?"Bioadaptive test / candidate enabled":"Bioadaptive test"):engine.ProtocolStageLabel)+" | 2-back";
@@ -121,9 +218,12 @@ namespace EvidenceVR
                 owner.body.text=!CanStart?"Try the controls below while the experimenter\nchecks the media and live signal connection.":"Sit comfortably. Try each control once.\nThe experimenter will check the signals.";
                 if(engine.IsOperatorTest && !CanStart)
                     owner.body.text=!ServiceConnected || !TestAssignmentConfirmed?"Waiting for the study computer to confirm this test.":
-                        !TestSignalsReady?"Waiting for mapped EEG and ECG signals.\nCheck sources on the study computer.":
+                        !config.TaskOnly && !TestSignalsReady?"Waiting for eligible Mindtooth EEG.\nCheck sources on the study computer.":
+                        !ComparisonTrackingReady?"Wear Quest Pro and enable eye tracking.\nWaiting for a tracked headset and valid eyes.":
+                        config.IsLayerAB && !StudyClockReady?"Waiting for clock synchronization.":
                         Media==null || !Media.EngineeringReady?"Waiting for verified media files.\nCheck the installed media package.":"Waiting for the selected model to load.";
                 owner.presentation.actionHint.text=owner.Calibrated && owner.MatchChecked && owner.NonmatchChecked && CanStart?"X / ENTER  Continue":"Complete preparation checks";
+                if(config.DesktopComparison)owner.body.text+="\nDesktop mode: C to center; A / B to check controls.\nSimulated gaze: 75% valid / 70% task.";
                 return;
             }
             if(engine.Phase==TaskPhase.Paused)

@@ -7,7 +7,6 @@ namespace EvidenceVR.Editor
 {
     public static class LayerABSetup
     {
-        [MenuItem("Evidence VR/Layer A-B study/Load allocated configuration")]
         public static void Choose()
         {
             if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play Mode before loading a study allocation.");
@@ -18,7 +17,7 @@ namespace EvidenceVR.Editor
         {
             if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play Mode first.");
             string text=File.ReadAllText(source);var config=JsonUtility.FromJson<AdaptiveTrainingConfig>(text);config.Validate();
-            if(!config.IsLayerAB)throw new ArgumentException("Choose a layer-ab-v1 allocation.");
+            if(!config.IsLayerAB)throw new ArgumentException("Choose an allocated layer A/B configuration.");
             string path=Path.Combine(Application.persistentDataPath,"adaptive-training-config.json");
             string backup=path+".before-layer-ab-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
             if(File.Exists(path))File.Copy(path,backup);else File.WriteAllText(backup,"ABSENT");
@@ -27,7 +26,6 @@ namespace EvidenceVR.Editor
             Debug.Log("Layer A/B allocation loaded. Start the separate service, select EvidenceVR_TaskEvents in LabRecorder, then enter Play. No session was started. Backup: "+backup);
             return path;
         }
-        [MenuItem("Evidence VR/Layer A-B study/Restore previous configuration")]
         public static void Restore()
         {
             if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play Mode first.");

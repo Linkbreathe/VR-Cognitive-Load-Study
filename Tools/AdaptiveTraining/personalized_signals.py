@@ -3,10 +3,9 @@ from __future__ import annotations
 
 import numpy as np
 from scipy import signal
-from scipy.ndimage import uniform_filter1d
 
-REVISION = "trial-aligned-eeg-ecg-v3-filtered-quality"
-FEATURES = ["log_theta_relative", "log_alpha_relative", "mean_hr", "movie_fraction"]
+REVISION = "mindtooth-eeg250-8ch-v1"
+FEATURES = ["log_theta_relative", "log_alpha_relative", "movie_fraction"]
 
 
 def sampled_window(times, samples, start, end, rate):
@@ -27,7 +26,7 @@ def sampled_window(times, samples, start, end, rate):
     return np.stack([np.interp(grid, t, x[:, i]) for i in range(x.shape[1])], axis=1), "ok"
 
 
-def eeg_features(samples, rate, theta_channels, alpha_channels, amplitude_uv=100):
+def eeg_features(samples, rate, theta_channels, alpha_channels, amplitude_uv=100, *, screen_artifacts=True):
     x = np.asarray(samples, float)
     if x.ndim == 1:
         x = x[:, None]
@@ -45,6 +44,9 @@ def eeg_features(samples, rate, theta_channels, alpha_channels, amplitude_uv=100
     spectra, total = [], 0
     channel_peaks, channel_stds, raw_peaks, integrity_bad = [], [], [], []
     size, stride = round(2 * rate), round(rate)
+    if not screen_artifacts:
+        frequencies, psd = signal.welch(filtered, fs=rate, nperseg=size, noverlap=size-stride, axis=0)
+        return relative_powers(frequencies, psd, theta_channels, alpha_channels), {"valid": True, "artifactScreening": False}
     for left in range(0, len(x) - size + 1, stride):
         raw = x[left:left + size, indices]
         raw = raw - np.median(raw, axis=0)
@@ -88,7 +90,10 @@ def eeg_features(samples, rate, theta_channels, alpha_channels, amplitude_uv=100
                 "std_uv_median": float(np.median(stds[:, j]))})
     if not quality["valid"]:
         return {}, quality
-    psd = np.mean(spectra, axis=0)
+    return relative_powers(frequencies, np.mean(spectra, axis=0), theta_channels, alpha_channels), quality
+
+
+def relative_powers(frequencies, psd, theta_channels, alpha_channels):
     def power(lo, hi):
         mask = (frequencies >= lo) & (frequencies < hi)
         return np.sum(psd[mask], axis=0) * (frequencies[1] - frequencies[0])
@@ -96,7 +101,7 @@ def eeg_features(samples, rate, theta_channels, alpha_channels, amplitude_uv=100
     theta = np.mean(power(4, 8)[theta_channels] / np.maximum(denominator[theta_channels], 1e-12))
     alpha = np.mean(power(8, 13)[alpha_channels] / np.maximum(denominator[alpha_channels], 1e-12))
     return {"log_theta_relative": float(np.log(max(theta, 1e-12))),
-            "log_alpha_relative": float(np.log(max(alpha, 1e-12)))}, quality
+            "log_alpha_relative": float(np.log(max(alpha, 1e-12)))}
 
 
 def raw_integrity(x, rate):
@@ -112,54 +117,6 @@ def raw_integrity(x, rate):
                       for extreme in (column.min(), column.max()))
         bad.append(flat or plateau or np.any(np.abs(delta) > 1000))
     return np.asarray(bad, dtype=bool)
-
-
-def ecg_features(samples, rate):
-    x = np.asarray(samples, float).reshape(-1)
-    if rate < 100 or len(x) < round(2 * rate) or not np.isfinite(x).all() or np.std(x) < 1e-10:
-        return {}, {"valid": False, "reason": "ecg_rate_or_flatline"}
-    filtered = signal.sosfiltfilt(signal.butter(3, [5, 25], fs=rate, btype="bandpass", output="sos"), x)
-    # Integrate a QRS complex before peak detection, independent of electrode polarity.
-    # This pilot detector still requires comparison with annotated device recordings.
-    envelope = np.sqrt(np.maximum(uniform_filter1d(filtered ** 2, size=round(.1 * rate)), 0))
-    peaks, _ = signal.find_peaks(envelope, distance=round(.3 * rate),
-                                prominence=max(np.std(envelope) * 1.5, 1e-12))
-    rr = np.diff(peaks) / rate
-    if len(rr) < 8:
-        return {}, {"valid": False, "reason": "insufficient_rr", "rr_count": len(rr)}
-    # Local five-interval reference preserves gradual rate change without repairing outliers.
-    reference = np.asarray([np.median(rr[max(0, i - 2):i + 3]) for i in range(len(rr))])
-    valid = (rr >= .3) & (rr <= 2) & (np.abs(rr - reference) <= .2 * reference)
-    fraction = float(np.mean(valid))
-    covered = peaks[0] / rate <= 2 and (len(x) - peaks[-1]) / rate <= 2
-    quality = {"valid": bool(fraction >= .8 and covered), "valid_rr_fraction": fraction,
-               "rr_count": len(rr), "revision": REVISION, "detector": "rms100ms-prominence1.5std-refractory300ms",
-               "rr_reference": "local_median_five_intervals", "coverage_passed": bool(covered),
-               "peak_seconds": (peaks / rate).tolist(), "rr_seconds": rr.tolist(), "rr_valid": valid.tolist(),
-               "reason": "ok" if fraction >= .8 and covered else "ecg_rr_quality"}
-    if not quality["valid"]:
-        return {}, quality
-    # lnRMSSD is intentionally excluded until ultra-short-window reliability is established.
-    return {"mean_hr": float(60 / np.mean(rr[valid]))}, quality
-
-
-def resting_reference(eeg, ecg, rate_eeg, rate_ecg, policy):
-    """Inputs cover only closed-eye seconds 30-60, or open-eye seconds 60-120."""
-    result = {"iaf_hz": None, "iaf_available": False, "bands": {"theta": [4, 8], "alpha": [8, 13]},
-              "iaf_reason": "not_qualified_or_unavailable", "used_for_labels": False}
-    if eeg is not None:
-        features, quality = eeg_features(eeg, rate_eeg, policy["theta_channels"], policy["alpha_channels"])
-        result.update(eeg=features, eeg_quality=quality)
-        if policy.get("iaf_qualified") and quality["valid"] and quality["valid_fraction"] == 1 and len(eeg) / rate_eeg >= 29:
-            x = np.asarray(eeg)[:, policy["alpha_channels"]].mean(axis=1)
-            f, p = signal.welch(x, fs=rate_eeg, nperseg=round(4 * rate_eeg))
-            mask = (f >= 8) & (f <= 13)
-            band = p[mask]; peak = int(np.argmax(band))
-            if 0 < peak < len(band) - 1 and band[peak] >= 3 * np.median(band):
-                result.update(iaf_hz=float(f[mask][peak]), iaf_available=True, iaf_reason="candidate_peak_requires_review")
-    if ecg is not None:
-        result["ecg"], result["ecg_quality"] = ecg_features(ecg, rate_ecg)
-    return result
 
 
 def movie_fraction(start, end, intervals):

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.signal import butter, find_peaks, sosfiltfilt, welch
+from scipy.signal import welch
 
 
 def extract_features(kind, timestamps, samples, sample_rate, window_seconds, amplitude_limit):
@@ -37,22 +37,8 @@ def extract_features(kind, timestamps, samples, sample_rate, window_seconds, amp
                 continue
             for name, lo, hi in (("theta",4,8),("alpha",8,13),("beta",13,30)):
                 out.append({"name": f"eeg_ch{channel}_{name}_relative", "value": band(lo,hi)/total})
-    elif kind == "ECG":
-        if sample_rate < 100:
-            return [], {"quality": 0., "reason": "ecg_rate_below_100hz"}
-        x = values[:, 0]
-        filtered = sosfiltfilt(butter(3,[5, min(25, sample_rate*.4)],fs=sample_rate,btype="bandpass",output="sos"), x)
-        # Polarity-independent energy detector; device-specific R-peak validation is required.
-        peaks, _ = find_peaks(np.abs(filtered), distance=int(sample_rate*.3), prominence=max(np.std(filtered),1e-12))
-        rr = np.diff(times[peaks])
-        if len(rr) < 10 or np.any((rr < .3) | (rr > 2.0)):
-            return [], {"quality": 0., "reason": "unreliable_rr_detection"}
-        out.append({"name":"ecg_heart_rate", "value":float(60/np.median(rr))})
-        out.append({"name":"ecg_mean_ibi_ms", "value":float(np.mean(rr)*1000)})
-        if window_seconds >= 60:
-            out.append({"name":"ecg_rmssd_ms_exploratory", "value":float(np.sqrt(np.mean(np.diff(rr)**2))*1000)})
     else:
-        raise ValueError("Expected EEG or ECG")
+        raise ValueError("Expected EEG")
     return out, {"quality":quality, "reason":"engineering_quality_checks_passed"}
 
 

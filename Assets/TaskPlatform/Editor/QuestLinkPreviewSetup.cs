@@ -23,7 +23,6 @@ namespace EvidenceVR.Editor
             try {SelectOculus();}
             catch(Exception e){Debug.LogWarning("Quest Link preview selection failed: "+e.Message+" Select Oculus OpenXR in Project Settings > XR Plug-in Management > OpenXR > Play Mode OpenXR Runtime.");}
         }
-        [MenuItem("Evidence VR/Stage 2/Quest Link/Use Oculus for Editor Preview")]
         public static string Enable()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play Mode before selecting an OpenXR runtime.");
@@ -31,7 +30,6 @@ namespace EvidenceVR.Editor
             EditorUserSettings.SetConfigValue(Preference,"enabled");
             return "Oculus OpenXR selected for this project's Editor previews, including after restart: "+selected;
         }
-        [MenuItem("Evidence VR/Stage 2/Quest Link/Use System Default for Editor Preview")]
         public static string Disable()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play Mode before selecting an OpenXR runtime.");

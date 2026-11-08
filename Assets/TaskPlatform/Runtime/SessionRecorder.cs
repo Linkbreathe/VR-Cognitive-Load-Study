@@ -30,6 +30,8 @@ namespace EvidenceVR
             public string evidenceGuardMode="off",evidenceGuardRevision=EvidenceGuardContract.Revision;
             public string trialProgressRevision="not_used",personalCalibrationRevision="not_used";
             public string studyDesign="legacy",inputTimingRevision="legacy-frame-polled";
+            public string comparisonEnvironment="not_used",gazeInputSource="not_used",comparisonEnvironmentRevision="not_used";
+            public bool simulatedGaze;
             public TaskConfig config;
         }
         public string DirectoryPath { get; }
@@ -39,7 +41,7 @@ namespace EvidenceVR
         static string F(double n) => n.ToString("R", CultureInfo.InvariantCulture);
         static string B(bool b) => b ? "1" : "0";
         public SessionRecorder(string root, TaskConfig config, string participant = "anonymous", string kind = "participant", string presentationVersion = null,
-            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false,string evidenceGuardMode="off",string assignedSessionId=null,string studyDesign="legacy")
+            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false,string evidenceGuardMode="off",string assignedSessionId=null,string studyDesign="legacy",bool comparison=false,string comparisonEnvironment="quest_pro")
         {
             string id = assignedSessionId ?? DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
             if(!System.Text.RegularExpressions.Regex.IsMatch(id,"^[A-Za-z0-9_-]{1,100}$"))throw new ArgumentException("Invalid assigned session ID.");
@@ -49,13 +51,19 @@ namespace EvidenceVR
             metadata = new Metadata { sessionId = id, sessionType = kind, participantCode = participant, utcStarted = DateTime.UtcNow.ToString("O"), applicationVersion = Application.version, unityVersion = Application.unityVersion, device = SystemInfo.deviceModel, status = "in_progress", config = config,
                 timingNote = "Unity realtimeSinceStartupAsDouble in seconds; software events, not measured photon onset. RT from actual software onset includes pauses; interrupted trials are excluded from clean summaries. Warmups are unscored and do not require an answer. Frame gaps are diagnostic, not hardware dropped-frame counts." };
             if(presentationVersion!=null){metadata.presentationVersion=presentationVersion;metadata.experimentMode="AdaptiveDistractionTraining";}
-            if(presentationVersion!=null){metadata.gazeRoiRevision=GazeRegions.Revision;metadata.gazeDebugRevision=GazeDebugHighlighter.Revision;metadata.gazeOverviewRevision=GazeConsoleProjection.Revision;}
+            if(presentationVersion!=null){metadata.gazeRoiRevision=comparison?"sphere-bounds-v1":GazeRegions.Revision;metadata.gazeDebugRevision=GazeDebugHighlighter.Revision;metadata.gazeOverviewRevision=GazeConsoleProjection.Revision;}
             metadata.gazeDebugRequested=gazeDebugRequested;metadata.gazeDebugEnabled=gazeDebugEnabled;
             if(presentationVersion!=null)metadata.gazeRayRevision=EngineeringGazeRay.Revision;
             metadata.gazeRayRequested=gazeRayRequested;metadata.gazeRayInitiallyEnabled=gazeRayEnabled;
             metadata.evidenceGuardMode=evidenceGuardMode;
             metadata.studyDesign=studyDesign;
-            if(studyDesign==LayerABStudy.Revision)
+            if(comparison)
+            {
+                metadata.comparisonEnvironment=comparisonEnvironment;metadata.comparisonEnvironmentRevision="comparison-environments-v1";
+                metadata.simulatedGaze=comparisonEnvironment=="desktop_fixed_gaze";
+                metadata.gazeInputSource=metadata.simulatedGaze?"simulated_fixed_gaze":"quest_pro_tracked_eyes";
+            }
+            if(studyDesign==LayerABStudy.Revision || studyDesign=="layer-ab-probe-v2")
             {
                 metadata.inputTimingRevision=InputTimingAudit.Revision;metadata.evidenceGuardMode="per-condition:A=observe;B=enforce";
                 metadata.timingNote+=" Input-action timestamps are separately retained in Unity's realtime clock domain; callback latency and original scored RT remain distinct. See clock_sync_ab.jsonl for clock transfer. No physical switch or photon latency is measured.";

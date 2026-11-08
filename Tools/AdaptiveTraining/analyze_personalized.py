@@ -56,7 +56,7 @@ def summarize(folder):
         movie_rows = [r for r in rows if movie_fraction(float(r["planned_onset_s"]), float(r["planned_onset_s"]) + 4, intervals) > 0]
         switches = [e for e in events if e["type"] == "adaptive_level_changed" and "stage=" + stage in e["detail"]]
         segments = []
-        for i in range(4):
+        for i in range(config.get("trainingTrials",96)//24):
             selected = [r for r in rows if i * 24 <= int(r["phase_trial"]) < (i + 1) * 24]
             segments.append({"segment": i + 1, **performance(selected), "levels": sorted({int(r["level"]) for r in selected})})
         bounds = (min(float(r["planned_onset_s"]) for r in rows), max(float(r["trial_end_s"]) for r in rows)) if rows else (0, 0)
@@ -68,6 +68,23 @@ def summarize(folder):
             "switch_count": len(switches), "switches": switches,
             "label": "mount_interrupted_requires_restart" if mount_interruptions else
                 "behavioral_fallback_or_engineering" if stage in ("bioadaptive", *layer_ab.STAGES) and not model.get("admitted") else stage}
+        if config.get("studyDesign")==layer_ab.PROBE:
+            training=result["training"][stage]
+            training.pop("complete_96_stimuli")
+            training["complete_144_stimuli"]=len(rows)==144
+            cleaned=[r for r in rows if r["scored"]=="1" and r["aborted"]!="1" and r["interrupted"]!="1"]
+            training["accuracy"]=sum(r["correct"]=="1" for r in cleaned)/len(cleaned) if cleaned else None
+            upgrades=[]
+            for e in switches:
+                detail=dict(x.split("=",1) for x in e["detail"].split(";") if "=" in x)
+                if detail.get("level")!="1":
+                    continue
+                following=sorted((r for r in rows if float(r["actual_onset_s"])>=e["actual"]),
+                                 key=lambda r:int(r["phase_trial"]))[:10]
+                eligible=[r for r in following if r in cleaned]
+                upgrades.append(dict(executed=e["actual"],observed=len(eligible),complete=len(eligible)==10,
+                                     errors=sum(r["correct"]!="1" for r in eligible)))
+            training["post_upgrade_10"]=upgrades
     return result
 
 

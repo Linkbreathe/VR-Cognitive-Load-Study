@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEngine.Networking;
+using System.Net.Http;
 using Debug = UnityEngine.Debug;
 
 namespace EvidenceVR.Editor
@@ -17,11 +17,11 @@ namespace EvidenceVR.Editor
     [Serializable] public sealed class LslInputSelection
     {
         public string kind="EEG", name="", source_id="", uid="", stream_type="", data_origin="unknown";
-        public double sample_rate=250, scale_to_units=1, amplitude_limit=150, window_seconds=12, hrv_window_seconds=60;
+        public double sample_rate=250, scale_to_units=1, amplitude_limit=150, window_seconds=12;
         public int[] channels={0};
         public int channel_count, channel_format;
         public string[] channel_labels=Array.Empty<string>();
-        public string units="";
+        public string units="unconfirmed";
         public bool differential, synthetic;
     }
     [Serializable] public sealed class LslSelectionFile { public string revision="lsl-source-selector-v2"; public LslInputSelection[] streams, profiles; }
@@ -33,6 +33,8 @@ namespace EvidenceVR.Editor
         public double sample_rate;
         public int channel_count, channel_format;
         public bool recorded;
+        public string data_origin;
+        public string ReplayOrigin=>data_origin=="recorded_csv_replay"?data_origin:"recorded_xdf_replay";
         public string[] channel_labels;
     }
     [Serializable] public sealed class LslDiscovery { public LslDiscoveredStream[] streams; }
@@ -51,7 +53,10 @@ namespace EvidenceVR.Editor
         [SerializeField] string pythonPath;
         [SerializeField] int port=8765;
         LslDiscoveredStream[] discovered=Array.Empty<LslDiscoveredStream>();
-        bool busy,polling,externalBridge;
+        static readonly HttpClient bridgeClient=new HttpClient(new HttpClientHandler{UseProxy=false}){Timeout=TimeSpan.FromSeconds(2)};
+        Task pollTask;
+        [NonSerialized] bool busy;
+        bool externalBridge;
         int bridgeGeneration;
         double nextPoll;
         string connection="Disconnected";
@@ -59,7 +64,6 @@ namespace EvidenceVR.Editor
         VisualElement configuration;
         Button scan,start,stop;
 
-        [MenuItem("Evidence VR/Stage 2/LSL Signal Sources")]
         public static void Open()=>GetWindow<LslSourceWindow>("LSL Signal Sources");
 
         void OnEnable()
@@ -72,7 +76,7 @@ namespace EvidenceVR.Editor
             }
             EditorApplication.update+=RefreshState;
         }
-        void OnDisable(){EditorApplication.update-=RefreshState;}
+        void OnDisable(){bridgeGeneration++;EditorApplication.update-=RefreshState;}
 
         public void CreateGUI()
         {
@@ -93,7 +97,7 @@ namespace EvidenceVR.Editor
         {
             configuration.Clear();
             var options=new List<string>{"Select a signal source..."};
-            options.AddRange(discovered.Select(s=>$"{s.name} | {s.stream_type} | {s.channel_count} ch | {(s.sample_rate==0?"events":s.sample_rate.ToString("g",CultureInfo.InvariantCulture)+" Hz")} | {ShortUid(s.uid)}"));
+            options.AddRange(discovered.Select(s=>$"{s.name} | {s.stream_type} | {s.channel_count} ch | {(s.sample_rate==0?"events":s.sample_rate.ToString("g",CultureInfo.InvariantCulture)+" Hz")} | {s.uid}"));
             int current=selected==null?0:Array.FindIndex(discovered,s=>s.uid==selected.uid)+1;
             if(selected!=null && current==0){options.Add(selected.name+" (saved; scan to refresh)");current=options.Count-1;}
             var popup=new PopupField<string>("Signal source",options,current){name="sourcePicker"};configuration.Add(popup);
@@ -101,24 +105,23 @@ namespace EvidenceVR.Editor
             var summary=new Label(selected==null?"No source selected.":selected.name+" — "+(mappings.Count==0?"Receive only":string.Join(" + ",mappings.Select(m=>m.kind))+" mapping")){name="sourceSummary",enableRichText=false};summary.AddToClassList("lsl-note");configuration.Add(summary);
             var advanced=new Foldout{text="Advanced settings",name="advancedSettings",value=false};configuration.Add(advanced);
             var detail=new Label(selected==null?"Select a source to inspect its identity.":"Source ID: "+selected.source_id+"\nOutlet UID: "+selected.uid+"\nChannels: "+string.Join(", ",selected.channel_labels??Array.Empty<string>())){enableRichText=false};detail.AddToClassList("lsl-note");advanced.Add(detail);
-            var modes=new List<string>{"Receive only","EEG mapping","ECG mapping","EEG + ECG mapping"};
-            string mode=mappings.Any(m=>m.kind=="EEG")?(mappings.Any(m=>m.kind=="ECG")?modes[3]:modes[1]):mappings.Any(m=>m.kind=="ECG")?modes[2]:modes[0];
+            var modes=new List<string>{"Receive only","EEG mapping"};
+            string mode=mappings.Any(m=>m.kind=="EEG")?modes[1]:modes[0];
             var processing=new PopupField<string>("Processing",modes,modes.IndexOf(mode));advanced.Add(processing);
             processing.RegisterValueChangedCallback(e=>TryAction(()=>
             {
                 if(selected==null)throw new InvalidOperationException("Select a signal source first.");
-                if(e.newValue!=modes[0] && (selected.sample_rate<100 || selected.channel_format==3)){processing.SetValueWithoutNotify(mode);throw new InvalidOperationException("Raw EEG/ECG processing requires numeric samples at 100 Hz or above.");}
+                if(e.newValue!=modes[0] && (selected.sample_rate<100 || selected.channel_format==3)){processing.SetValueWithoutNotify(mode);throw new InvalidOperationException("Mindtooth EEG processing requires numeric samples at 100 Hz or above.");}
                 RememberMappings();mappings.Clear();
-                if(e.newValue==modes[1] || e.newValue==modes[3])mappings.Add(NewMapping("EEG"));
-                if(e.newValue==modes[2] || e.newValue==modes[3])mappings.Add(NewMapping("ECG"));
+                if(e.newValue==modes[1])mappings.Add(NewMapping("EEG"));
                 BuildFields();rootVisualElement.Q<Foldout>("advancedSettings").value=true;
             }));
             foreach(var mapping in mappings)AddMapping(advanced,mapping);
-            var origins=new List<string>{"Unknown / unreviewed","Live device (unvalidated)","Recorded replay","Synthetic signal"};
-            var codes=new[]{"unknown","live_sensor","recorded_xdf_replay","synthetic"};
-            var origin=new PopupField<string>("Source provenance",origins,Math.Max(0,Array.IndexOf(codes,provenance)));advanced.Add(origin);
-            origin.SetEnabled(selected?.recorded!=true);
-            origin.RegisterValueChangedCallback(e=>provenance=codes[origins.IndexOf(e.newValue)]);
+            var origins=new List<string>{"unknown","live_sensor","synthetic","recorded_xdf_replay","recorded_csv_replay"};
+            var origin=new PopupField<string>("Source provenance",origins,Math.Max(0,origins.IndexOf(provenance)));
+            origin.RegisterValueChangedCallback(e=>provenance=e.newValue);
+            origin.SetEnabled(selected!=null && !selected.recorded);
+            var originRow=new VisualElement();originRow.Add(origin);advanced.Add(originRow);
             var python=new TextField("Python executable"){value=pythonPath,tooltip="Python environment used to start the receiving service. Normally keep the project default."};python.RegisterValueChangedCallback(e=>pythonPath=e.newValue);advanced.Add(python);
             var p=new IntegerField("Bridge port"){value=port,tooltip="HTTP port between Unity and the Python service. This is not the LSL publisher port."};p.RegisterValueChangedCallback(e=>port=e.newValue);advanced.Add(p);
             var buttons=new VisualElement();buttons.AddToClassList("lsl-actions");advanced.Add(buttons);
@@ -128,9 +131,8 @@ namespace EvidenceVR.Editor
             diagnostics.Add(new Button(()=>Application.OpenURL("http://127.0.0.1:"+port+"/")){text="Open monitor"});
             diagnostics.Add(new Button(()=>{var path=SessionState.GetString(LogKey,"");if(File.Exists(path))EditorUtility.RevealInFinder(path);}){text="Show log"});
             diagnostics.name="diagnostics";
-            var note=new Label("Receive only preserves numeric or text samples without inferring physiology. Raw EEG/ECG mappings require explicit channel/units configuration. Replay provenance stays in logs. A restarted publisher has a new outlet UID: scan and select it again.");note.AddToClassList("lsl-note");advanced.Add(note);
+            var note=new Label("Receive only preserves numeric or text samples without inferring physiology. Mindtooth EEG mappings require explicit channel/units configuration. Replay provenance stays in logs. A restarted publisher has a new outlet UID: scan and select it again.");note.AddToClassList("lsl-note");advanced.Add(note);
         }
-        static string ShortUid(string uid)=>string.IsNullOrEmpty(uid)?"no UID":uid.Substring(0,Math.Min(8,uid.Length));
         static LslInputSelection Clone(LslInputSelection input)=>JsonUtility.FromJson<LslInputSelection>(JsonUtility.ToJson(input));
         public static bool ProfileMatches(LslInputSelection input,LslDiscoveredStream source)
         {
@@ -140,13 +142,14 @@ namespace EvidenceVR.Editor
                 input.channel_format==source.channel_format && Math.Abs(input.sample_rate-source.sample_rate)<.01 &&
                 (input.channel_labels==null || input.channel_labels.Length==0 || input.channel_labels.SequenceEqual(source.channel_labels??Array.Empty<string>()));
         }
+        static bool IsReplay(string origin)=>origin=="recorded_xdf_replay" || origin=="recorded_csv_replay";
         void StampIdentity(LslInputSelection input)
         {
             input.name=selected.name;input.source_id=selected.source_id??"";input.uid=selected.uid;input.stream_type=selected.stream_type;
             input.sample_rate=selected.sample_rate;input.channel_count=selected.channel_count;input.channel_format=selected.channel_format;
             input.channel_labels=(selected.channel_labels??Array.Empty<string>()).ToArray();
-            input.data_origin=selected.recorded?"recorded_xdf_replay":provenance;
-            input.synthetic=input.data_origin=="recorded_xdf_replay" || input.data_origin=="synthetic";
+            input.data_origin=selected.recorded?selected.ReplayOrigin:provenance;
+            input.synthetic=IsReplay(input.data_origin) || input.data_origin=="synthetic";
         }
         void RememberMappings()
         {
@@ -164,15 +167,15 @@ namespace EvidenceVR.Editor
             if(!string.IsNullOrEmpty(source.discovery_error))throw new InvalidOperationException(source.discovery_error);
             RememberMappings();selected=source;
             var remembered=profiles.Where(m=>ReusableProfile(m,source,discovered)).ToList();
-            mappings=remembered.Where(m=>m.kind=="EEG" || m.kind=="ECG").Select(Clone).ToList();
-            provenance=source.recorded?"recorded_xdf_replay":remembered.FirstOrDefault()?.data_origin??"unknown";
+            mappings=remembered.Where(m=>m.kind=="EEG").Select(Clone).ToList();
+            provenance=source.recorded?source.ReplayOrigin:remembered.FirstOrDefault()?.data_origin??"unknown";
             BuildFields();SetStatus("Selected "+source.name+". "+(mappings.Count==0?"Ready to receive without a channel mapping.":"Saved channel mapping applied."));
         }
         LslInputSelection NewMapping(string kind)
         {
             var prior=profiles.FirstOrDefault(m=>m.kind==kind && ReusableProfile(m,selected,discovered));
             if(prior!=null)return Clone(prior);
-            var input=new LslInputSelection{kind=kind,window_seconds=kind=="ECG"?30:12,amplitude_limit=kind=="ECG"?5:150,channels=Array.Empty<int>()};StampIdentity(input);return input;
+            var input=new LslInputSelection{kind=kind,window_seconds=12,amplitude_limit=150,channels=Enumerable.Range(0,8).ToArray()};StampIdentity(input);return input;
         }
         void AddMapping(VisualElement parent,LslInputSelection input)
         {
@@ -182,10 +185,7 @@ namespace EvidenceVR.Editor
             Number(box,"Scale to analysis units",input.scale_to_units,v=>input.scale_to_units=v);
             Text(box,"Analysis units (after scaling)",input.units,v=>input.units=v.Trim());
             if(input.kind!="FEATURES")Number(box,"Amplitude limit",input.amplitude_limit,v=>input.amplitude_limit=v);
-            if(input.kind=="ECG")
-            {
-                var diff=new Toggle("Differential (first minus second)"){value=input.differential};diff.RegisterValueChangedCallback(e=>input.differential=e.newValue);box.Add(diff);
-            }
+
         }
         static void Text(VisualElement parent,string title,string value,Action<string> changed)
         {var field=new TextField(title){value=value};field.RegisterValueChangedCallback(e=>changed(e.newValue));parent.Add(field);}
@@ -196,19 +196,19 @@ namespace EvidenceVR.Editor
             var file=JsonUtility.FromJson<LslSelectionFile>(File.ReadAllText(path));
             if(file?.streams==null || file.streams.Length==0)throw new InvalidOperationException("No saved stream selection.");
             profiles=(file.profiles??file.streams).Select(Clone).ToList();
-            foreach(var profile in profiles)if(profile.synthetic && profile.data_origin!="recorded_xdf_replay")profile.data_origin="synthetic";
+            foreach(var profile in profiles)if(profile.synthetic && !IsReplay(profile.data_origin))profile.data_origin="synthetic";
             var first=file.streams[0];
-            selected=new LslDiscoveredStream{name=first.name,source_id=first.source_id,uid=first.uid,stream_type=first.stream_type,sample_rate=first.sample_rate,channel_count=first.channel_count,channel_format=first.channel_format,channel_labels=first.channel_labels,recorded=first.data_origin=="recorded_xdf_replay"};
-            mappings=file.streams.Where(m=>(m.kind=="EEG" || m.kind=="ECG") && ProfileMatches(m,selected) && m.uid==selected.uid).Select(Clone).ToList();provenance=first.synthetic && first.data_origin!="recorded_xdf_replay"?"synthetic":first.data_origin;
+            selected=new LslDiscoveredStream{name=first.name,source_id=first.source_id,uid=first.uid,stream_type=first.stream_type,sample_rate=first.sample_rate,channel_count=first.channel_count,channel_format=first.channel_format,channel_labels=first.channel_labels,data_origin=first.data_origin,recorded=IsReplay(first.data_origin)};
+            mappings=file.streams.Where(m=>(m.kind=="EEG") && ProfileMatches(m,selected) && m.uid==selected.uid).Select(Clone).ToList();provenance=first.synthetic && !IsReplay(first.data_origin)?"synthetic":first.data_origin;
         }
         void ImportMappings(string path)
         {
             RequireEditable();if(selected==null)throw new InvalidOperationException("Select the target signal source first.");
             var file=JsonUtility.FromJson<LslSelectionFile>(File.ReadAllText(path));
-            var imported=(file?.streams??Array.Empty<LslInputSelection>()).Where(m=>m.kind=="EEG" || m.kind=="ECG").ToList();
-            if(imported.Count==0 || imported.GroupBy(m=>m.kind).Any(g=>g.Count()>1))throw new InvalidOperationException("Import one EEG and/or ECG mapping.");
+            var imported=(file?.streams??Array.Empty<LslInputSelection>()).Where(m=>m.kind=="EEG").ToList();
+            if(imported.Count==0 || imported.GroupBy(m=>m.kind).Any(g=>g.Count()>1))throw new InvalidOperationException("Import one Mindtooth EEG mapping.");
             if(imported.Any(m=>m.source_id!=selected.source_id || Math.Abs(m.sample_rate-selected.sample_rate)>.01 || (!string.IsNullOrEmpty(m.name) && m.name!=selected.name) || (!string.IsNullOrEmpty(m.stream_type) && m.stream_type!=selected.stream_type)))throw new InvalidOperationException("The mapping does not identify this source. Review the source/channel configuration before importing.");
-            provenance=selected.recorded?"recorded_xdf_replay":imported[0].data_origin;
+            provenance=selected.recorded?selected.ReplayOrigin:imported[0].data_origin;
             foreach(var m in imported)StampIdentity(m);
             ValidateSelection(new LslSelectionFile{streams=imported.ToArray()});mappings=imported;RememberMappings();BuildFields();
             SetStatus("Imported channel mapping for "+selected.name+". Review it in Advanced settings.");
@@ -216,14 +216,20 @@ namespace EvidenceVR.Editor
         public static void ValidateSelection(LslSelectionFile file)
         {
             if(file?.streams==null || file.streams.Length==0)throw new InvalidOperationException("Select a signal source.");
+            if(file.streams.Length!=1)throw new InvalidOperationException("Select one LSL source.");
             foreach(var s in file.streams)
             {
+                if(s.kind!="OBSERVE" && s.kind!="EEG")throw new InvalidOperationException("Select Receive only or EEG mapping.");
+                if(s.kind=="EEG" && (s.sample_rate!=250 || s.channel_count!=8 || !string.Equals(s.stream_type,"EEG",StringComparison.OrdinalIgnoreCase) ||
+                    !(s.channel_labels??Array.Empty<string>()).SequenceEqual(new[]{"AFz","AF3","AF4","AF7","AF8","Pz","P3","P4"}) ||
+                    !(s.channels??Array.Empty<int>()).SequenceEqual(Enumerable.Range(0,8))))
+                    throw new InvalidOperationException("Select the eight-channel Mindtooth profile at 250 Hz.");
                 if(string.IsNullOrWhiteSpace(s.uid) && string.IsNullOrWhiteSpace(s.source_id))throw new InvalidOperationException("Select a valid outlet identity.");
                 if(double.IsNaN(s.sample_rate)||double.IsInfinity(s.sample_rate)||s.sample_rate<0 || new[]{s.scale_to_units,s.amplitude_limit}.Any(x=>double.IsNaN(x)||double.IsInfinity(x)||x<=0))throw new InvalidOperationException("Invalid stream rate, scale or amplitude limit.");
-                if((s.kind=="EEG" || s.kind=="ECG") && (s.sample_rate<100 || s.channel_format==3))throw new InvalidOperationException("Raw EEG/ECG processing requires numeric samples at 100 Hz or above.");
+                if((s.kind=="EEG") && (s.sample_rate<100 || s.channel_format==3))throw new InvalidOperationException("Mindtooth EEG processing requires numeric samples at 100 Hz or above.");
                 if(s.channels==null || s.channels.Length==0 || s.channels.Any(c=>c<0 || (s.channel_count>0 && c>=s.channel_count)) || s.channels.Distinct().Count()!=s.channels.Length)throw new InvalidOperationException(s.kind+": invalid or duplicate channel indices.");
-                if((s.differential && (s.kind!="ECG" || s.channels.Length!=2)) || (s.kind=="ECG" && !s.differential && s.channels.Length!=1))throw new InvalidOperationException("Use one ECG channel or exactly two differential channels.");
-                if(s.data_origin=="recorded_xdf_replay" || s.data_origin=="synthetic")s.synthetic=true;
+                if(s.differential)throw new InvalidOperationException("Use the eight individual Mindtooth electrodes.");
+                if(IsReplay(s.data_origin) || s.data_origin=="synthetic")s.synthetic=true;
                 if(s.kind=="OBSERVE" && (s.scale_to_units!=1 || s.differential))throw new InvalidOperationException("Receive only preserves original sample values.");
             }
         }
@@ -244,8 +250,13 @@ namespace EvidenceVR.Editor
         {
             RequireEditable();string output=Path.Combine(ProjectRoot,"Temp/lsl-discovery-"+Guid.NewGuid().ToString("N")+".json");
             await RunPython("lsl_sources.py","--discover","--output",output);
-            discovered=JsonUtility.FromJson<LslDiscovery>(File.ReadAllText(output)).streams??Array.Empty<LslDiscoveredStream>();
-            BuildFields();SetStatus(discovered.Length+" signal source(s) found. Choose one from the list.");
+            var inventory=JsonUtility.FromJson<LslDiscovery>(File.ReadAllText(output)).streams??Array.Empty<LslDiscoveredStream>();
+            RememberMappings();
+            discovered=inventory;
+            selected=discovered.FirstOrDefault(s=>s.uid==selected?.uid);
+            if(selected==null)mappings.Clear();
+            else if(selected.recorded)provenance=selected.ReplayOrigin;
+            BuildFields();SetStatus(discovered.Length==0?"No LSL outlets found. Check your publisher and scan again.":discovered.Length+" signal source(s) found. Choose one from the list.");
         }
         async Task StartBridgeAsync()
         {
@@ -351,41 +362,41 @@ namespace EvidenceVR.Editor
             configuration.Q<PopupField<string>>("sourcePicker")?.SetEnabled(editable);
             var advanced=configuration.Q<Foldout>("advancedSettings");
             if(advanced!=null)foreach(var element in advanced.contentContainer.Children())element.SetEnabled(element.name=="diagnostics" || editable);
-            scan.SetEnabled(editable);start.SetEnabled(editable && selected!=null && !string.IsNullOrEmpty(selected.uid));stop.SetEnabled(running&&!playing&&!busy);
+            scan.SetEnabled(editable);start.SetEnabled(editable && selected!=null && discovered.Any(s=>s.uid==selected.uid));stop.SetEnabled(running&&!playing&&!busy);
             serviceStatus.text="Status: "+(running?connection:"Disconnected")+(playing?" — stop Play Mode to change sources.":"");
-            if(!busy && !polling && EditorApplication.timeSinceStartup>=nextPoll)PollBridge();
+            if(!busy && (pollTask==null || pollTask.IsCompleted) && EditorApplication.timeSinceStartup>=nextPoll)pollTask=PollBridge();
         }
-        async void PollBridge()
+        async Task PollBridge()
         {
-            polling=true;nextPoll=EditorApplication.timeSinceStartup+1;int generation=bridgeGeneration;
+            nextPoll=EditorApplication.timeSinceStartup+1;
+            int generation=bridgeGeneration;
+            string url="http://127.0.0.1:"+port;
+            bool found=false;
             try
             {
-                using(var healthRequest=UnityWebRequest.Get("http://127.0.0.1:"+port+"/console/health"))
-                {
-                    healthRequest.timeout=2;var healthOperation=healthRequest.SendWebRequest();while(!healthOperation.isDone)await Task.Yield();
-                    if(generation!=bridgeGeneration)return;
-                    bool found=healthRequest.result==UnityWebRequest.Result.Success && IsProjectBridge(JsonUtility.FromJson<LslBridgeHealth>(healthRequest.downloadHandler.text));
-                    bool wasExternal=externalBridge;externalBridge=found && OwnedBridge()==null;
-                    if(externalBridge && !wasExternal)SetStatus("Receiving service detected for this project. Disconnect before changing sources.");
-                    if(!found)
-                    {
-                        connection=OwnedBridge()!=null?"Service unavailable":"Disconnected";
-                        if(wasExternal)SetStatus("Disconnected. You can scan or choose another source.");
-                        return;
-                    }
-                }
-                using(var request=UnityWebRequest.Get("http://127.0.0.1:"+port+"/status"))
-                {
-                    request.timeout=2;var operation=request.SendWebRequest();while(!operation.isDone)await Task.Yield();
-                    if(generation!=bridgeGeneration)return;
-                    if(request.result!=UnityWebRequest.Result.Success){connection="Service unavailable";return;}
-                    var reply=JsonUtility.FromJson<LslBridgeStatus>(request.downloadHandler.text)?.physiologyStatus;
-                    connection=reply==null?"Source status unavailable":(reply.sourceName??selected?.name??"")+" — "+
-                        (reply.connection=="receiving"?"Receiving":reply.connection=="idle"?"Connected, waiting for events":reply.connection=="partial"?"Partial reception":reply.connection=="disconnected"?"Signal lost":"Waiting for selected outlet");
-                }
+                string health=await bridgeClient.GetStringAsync(url+"/console/health");
+                if(generation!=bridgeGeneration)return;
+                found=IsProjectBridge(JsonUtility.FromJson<LslBridgeHealth>(health));
+                if(!found)throw new InvalidDataException("Unexpected bridge identity.");
+                bool wasExternal=externalBridge;
+                externalBridge=OwnedBridge()==null;
+                if(externalBridge && !wasExternal)SetStatus("Receiving service detected for this project. Disconnect before changing sources.");
+                string payload=await bridgeClient.GetStringAsync(url+"/status");
+                if(generation!=bridgeGeneration)return;
+                var reply=JsonUtility.FromJson<LslBridgeStatus>(payload)?.physiologyStatus;
+                connection=reply==null?"Source status unavailable":(reply.sourceName??selected?.name??"")+" — "+
+                    (reply.connection=="receiving"?"Receiving":reply.connection=="idle"?"Connected, waiting for events":reply.connection=="partial"?"Partial reception":reply.connection=="disconnected"?"Signal lost":"Waiting for selected outlet");
             }
-            catch{connection="Service unavailable";}
-            finally{polling=false;}
+            catch
+            {
+                if(generation!=bridgeGeneration)return;
+                if(!found)
+                {
+                    if(externalBridge)SetStatus("Disconnected. You can scan or choose another source.");
+                    externalBridge=false;
+                }
+                connection=found || OwnedBridge()!=null?"Service unavailable":"Disconnected";
+            }
         }
     }
 }

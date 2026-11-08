@@ -7,7 +7,6 @@ namespace EvidenceVR.Editor
 {
     public static class OperatorTestSetup
     {
-        [MenuItem("Evidence VR/Test sessions/Enable operator-managed engineering tests")]
         public static string Enable()
         {
             if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play Mode before changing startup mode.");

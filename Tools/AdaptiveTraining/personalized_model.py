@@ -20,11 +20,13 @@ from personalized_validation import block_validation, circular_permutation_test
 
 VERSION = "2.0.0-stage2-dev11"
 PROTOCOL = "personalized-rf-v2"
+BEHAVIOR_REVISION = "behavior20-stride5-include-transition-v1"
 DEFAULT_POLICY = {
-    "revision": "personalized-rf-pilot-v3-control70-40", "frozen": False, "device_qualified": False,
+    "revision": "mindtooth-eeg250-pilot-v1", "frozen": False, "device_qualified": False,
     "auc_minimum": None, "minimum_auc_gain": 0.0, "min_class_windows": 10,
     "min_class_blocks": 2, "n_estimators": 300, "max_depth": 3, "min_samples_leaf": 5,
-    "theta_channels": [0], "alpha_channels": [0], "electrode_description": "unconfirmed",
+    "theta_channels": [0, 1, 2, 3, 4], "alpha_channels": [5, 6, 7],
+    "electrode_description": "Mindtooth AFz AF3 AF4 AF7 AF8 frontal theta; Pz P3 P4 parietal alpha",
     "eeg_units_confirmed": False, "iaf_qualified": False, "label_trials": 5,
     "label_alignment": "within_window5", "label_rt_weight": .1,
     "label_stable_min": .8, "label_struggling_max": .4,
@@ -91,8 +93,10 @@ def behavioral_summary(trials, count=20):
     if len(trials) < count:
         return {"valid": False, "reason": "insufficient_behavior_trials"}
     rows = trials[-count:]
-    if any(not t["scored"] or t["interrupted"] or t["aborted"] or t["transition"] for t in rows):
-        return {"valid": False, "reason": "behavior_transition_or_interruption"}
+    # Level transitions remain observable behavior. Physiological windows and
+    # calibration labels independently retain their transition exclusions.
+    if any(not t["scored"] or t["interrupted"] or t["aborted"] for t in rows):
+        return {"valid": False, "reason": "behavior_unscored_or_interrupted"}
     if len({t["trainingStage"] for t in rows}) != 1:
         return {"valid": False, "reason": "behavior_crosses_stage"}
     m = [t for t in rows if t["expectedMatch"]]
@@ -104,15 +108,17 @@ def behavioral_summary(trials, count=20):
             "rt": float(np.median(rts)) if rts else None,
             "omissions": sum(not t["responded"] for t in rows),
             "count": count, "levels": sorted({t["level"] for t in rows}),
+            "behaviorRevision": BEHAVIOR_REVISION,
+            "transition_trials": sum(bool(t["transition"]) for t in rows),
             "start": rows[0]["plannedOnset"], "end": rows[-1]["trialEnd"]}
 
 
-def window_behavior(trials, p):
+def window_behavior(trials, p, sliding=False):
     """Exactly the feature window's five trials; no class-coverage or later-behavior requirement."""
     rows = sorted(trials, key=lambda t: t["phaseTrial"])
-    if len(rows) != 5 or any(not t["scored"] or t["transition"] or t["interrupted"] or t["aborted"] for t in rows):
+    if len(rows) != 5 or any(not t["scored"] or (not sliding and t["transition"]) or t["interrupted"] or t["aborted"] for t in rows):
         return {"valid": False, "reason": "five_clean_scored_trials_required"}
-    if (len({(t["trainingStage"], t["block"], t["level"]) for t in rows}) != 1 or
+    if (len({t["trainingStage"] for t in rows}) != 1 or (not sliding and len({(t["block"], t["level"]) for t in rows}) != 1) or
             [t["phaseTrial"] for t in rows] != list(range(rows[0]["phaseTrial"], rows[0]["phaseTrial"] + 5)) or
             abs(rows[-1]["trialEnd"] - rows[0]["plannedOnset"] - 22.5) > .1):
         return {"valid": False, "reason": "label_window_crosses_boundary_or_gap"}
@@ -173,12 +179,18 @@ def train_personal(rows, participant, session, kind, seed, policy, folder):
               "validation": "leave_one_block_out; fixed five-trial score labels; within-block circular null",
               "score_semantics": "uncalibrated classifier score, not a state probability",
               "overlap": .8, "independent_sample_claim": False, "threshold_tuning": False}
+    from layer_ab import SLIDING
+    sliding = bool(rows) and all(r.get("windowRevision") == SLIDING for r in rows)
+    if sliding:
+        report["windowRevision"] = SLIDING
     behavior_rows = [r for r in rows if r.get("behavior", {}).get("valid")]
     definition = label_fit(behavior_rows, p)
     labeled = [dict(r, label=int(label)) for r, label in zip(behavior_rows, label_rows(behavior_rows, definition, p))]
     valid = [r for r in labeled if r["valid"]]
     report["eligible_windows"] = len(valid)
     model = None
+    if any(len(row.get("features", [])) != len(FEATURES) for row in valid):
+        raise ValueError("Incompatible feature vector for Mindtooth calibration")
     if valid:
         y = np.array([r["label"] for r in valid])
         report["label_definition"] = definition
@@ -194,6 +206,13 @@ def train_personal(rows, participant, session, kind, seed, policy, folder):
                 report["reasons"].append("insufficient_within_block_label_variation")
             validation = block_validation(labeled, p, seed, forest, metrics)
             report.update(validation)
+            if sliding:
+                mixed = [o for o in validation["oof_predictions"] if o.get("mixed")]
+                support = metrics([o["label"] for o in mixed], [o["combined"] for o in mixed])
+                report["mixed_held_out"] = support
+                report["supported_level_patterns"] = sorted({",".join(map(str,r["levels"])) for r in valid if r["label"]>=0})
+                if support["roc_auc"] is None or p["auc_minimum"] is None or support["roc_auc"] < p["auc_minimum"]:
+                    report["reasons"].append("mixed_window_held_out_auc_unqualified")
             if not validation["complete"]:
                 report["reasons"].append("incomplete_held_out_block_coverage")
             auc = report["metrics"]["combined"]["roc_auc"]
@@ -237,14 +256,15 @@ def train_personal(rows, participant, session, kind, seed, policy, folder):
     return model, report
 
 
-def load_personal(path, participant, session, sha256):
+def load_personal(path, participant, session, sha256, window_revision=None):
     """Load only trusted, locally produced artifacts; never deserialize network-supplied joblib files."""
     path = Path(path)
     if hashlib.sha256(path.read_bytes()).hexdigest() != sha256:
         raise ValueError("Model hash mismatch")
     saved = joblib.load(path)
     if (saved["participant"] != participant or saved["session"] != session or not saved["report"]["admitted"] or
-            saved["report"].get("featureRevision") != FEATURE_REVISION or
+            saved.get("features") != FEATURES or saved["report"].get("featureRevision") != FEATURE_REVISION or
+            (window_revision is not None and saved["report"].get("windowRevision") != window_revision) or
             saved["report"]["version"] != VERSION or saved["report"]["policy"]["revision"] != DEFAULT_POLICY["revision"]):
         raise ValueError("Model identity or admission mismatch")
     return saved

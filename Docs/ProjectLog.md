@@ -1,5 +1,238 @@
 # Project status and update log
 
+## Source publication checkpoint
+
+Stage 2/3, 2026-11-08, `source-checkpoint-20261108`, branch `codex/layer-ab-timing-study`. The researcher requested publication of the accumulated project code and documentation, including the current Unity integration, Mindtooth EEG acquisition/calibration, A/B evidence controls and Web Console. The source checkpoint includes reviewed engineering preview assets and validation scripts. Local recordings, temporary physiological analyses, ignored runtime evidence/builds and the 199,485,578-byte calibration forest video remain outside Git. Added explicit ignore entries and documented the required local calibration video path/hash; local files remain intact. Normalized whitespace reported by the staged diff check.
+
+Validation: all 206 AdaptiveTraining Python tests passed in 78.436 s; all 14 EvidenceGuard tests passed in 0.433 s; every Console JavaScript file passed syntax checking; existing decision clarity contracts passed; 17 staged JSON files parsed; staged whitespace checks passed. No fresh Unity compile/build, headset run, live EEG qualification or participant validation was performed for publication. Existing physical acceptance remains pending. See the detailed [decision wording](DecisionFlowWordingReview.md), [Console workflow](ConsoleWorkflowReview.md), [Mindtooth acquisition](MindtoothAcquisitionReview.md), [calibration and local video prerequisite](LoadReferenceCalibration.md), [probe study](ProbeStudyReview.md) and [acceptance record](AcceptanceRecord.md).
+
+## Explicit decision flow wording
+
+Stage 2/3, 2026-11-08, display `console-decision-flow-wording-v1`. Replaced the ambiguous Base / Patent review / Delivered badges with three numbered cards: Base controller proposal, Patent evidence review and Final command to Unity. Each action spells out turning video ON/OFF or keeping its recorded state for HOLD. A's review is explicitly observation only; HOLD explains that the task continues, and Unity receipt is separate from playback evidence. Existing checkpoint navigation remains intact. Validation: JavaScript syntax and existing decision clarity contracts passed; the served archived A checkpoint and B10 ON-to-HOLD checkpoint showed the revised wording, with no browser console errors. No service restart, experimental control change, new session or physical-device check was performed. New session metadata reads the display revision through the existing mechanism; historical metadata is retained. Physical acceptance remains unchanged. [Review](DecisionFlowWordingReview.md), [operation](ExperimentGuide.md#decision-flow-wording), [acceptance](AcceptanceRecord.md#decision-flow-wording).
+
+## Temporary offline Wei_004 physiological comparison
+
+Stage 2/3 exploratory analysis, 2026-11-08, `temporary-wei004-physiology-ab-v1`. At the researcher's request, created an explicitly temporary independent scaffold under `Temporary/Wei004PhysiologyAB-20261108` for archived session `20261107T203024_5e0116214361`. It reads recorded live-source EEG, saved RF, clocks, trials and actual software playback; it does not alter acquisition, controller rules, source data, models, participant operation or acceptance status. The report compares disjoint EEG windows, artifact-policy sensitivity, RF scores, exposure and behavior. Online RF means were nearly identical; offline RF differences changed sign with screening and their descriptive intervals crossed zero. Primary canonical screening retained 0/26 A and 18/26 B windows; the 100-unit sensitivity retained 17/26 and 21/26, with a contrast direction different from the unscreened analysis. B received 54.00 seconds of video versus A's 89.97 seconds. No physiological superiority is established; fixed A-then-B order, unequal exposure, simulated eyes and signal qualification limit inference. Validation: all 106 non-null logged RF scores were reproduced exactly using the recorded extraction-time clock; analytical-signal, missing-data and exposure checks passed; all input hashes and archived core-file hashes matched. PNG figures were visually reviewed. Pending: independent units/contact confirmation, genuine Quest Pro eye tracking, counterbalanced repeated comparisons and a prespecified benefit criterion. Production and device acceptance remain unchanged. [Temporary scaffold and method](../Temporary/Wei004PhysiologyAB-20261108/README.md), [report](../Temporary/Wei004PhysiologyAB-20261108/outputs/report.html), [verification](../Temporary/Wei004PhysiologyAB-20261108/outputs/provenance.json).
+
+## Checkpoint progress navigation
+
+Stage 2/3, 2026-11-08, display `console-checkpoint-scrubber-v1`. Replaced the report checkpoint dropdown with a discrete range scrubber, previous/next buttons, current/total position and arm/trial/action caption. Round and action filters retain their existing meaning; refresh preserves the selected request when available. Emphasized RF, BA, eligible counts, thresholds and criteria values with bold numeric typography. Display only: no experimental controls, rules or records changed. JavaScript syntax and existing clarity contracts passed. Served-browser checks verified keyboard stepping, previous/next boundaries, filtering and refresh persistence; the 390 px viewport had no document overflow and key values rendered at font weight 750. No device test was needed or performed. [Operation](ExperimentGuide.md#checkpoint-progress-navigation), [acceptance](AcceptanceRecord.md#checkpoint-progress-navigation).
+
+
+## Decision clarity and operator wording
+
+Stage 2/3, 2026-11-08, display `console-decision-clarity-v2` on the unchanged v1.21 backend. Addressed the clarity audit: separated base/review windows and null values, surfaced the recorded decisive reason, replaced Desktop failure charts with non-acquisition notices, and clarified command receipts. Unified the three-stage/environment guide, calibration/model-source names, observed versus configured readiness and threshold draft/applied wording. Existing rules and recordings were retained. JavaScript display contracts, syntax checks, production B16 browser review, isolated draft/readiness fixtures and 390 px overflow checks passed; hashes of five core rule/session/report modules were unchanged. No backend restart or physical-device acceptance was performed. [Review](ConsoleClarityRevisionReview.md), [audit](ConsoleClarityAudit.md), [operation](ExperimentGuide.md#decision-clarity-and-operator-wording), [acceptance](AcceptanceRecord.md#decision-clarity-and-operator-wording).
+
+
+## Compact decision evidence with recorded gaze
+
+Stage 2/3, 2026-11-08, Console v1.21, `console-decision-gaze-v1`. Integrated the approved compact layout into the monitor and session report: decision outcome and gaze density first, responsive region distribution, separate decision-time/follow-up periods, and collapsed timeline/criteria/source details. Added time-weighted spatial evidence from deduplicated tracked-eye telemetry, preserving recorded review intervals, arrival-time cutoffs and projection-frame separation. Desktop/simulator ratios never create positions. Controller/model/task rules are unchanged. Thirty-one Python regressions, JavaScript syntax checks, isolated browser fixtures at 320/390/1100 pixels and the production archived-report endpoint passed. The prior service was not running; v1.21 was started on port 8765. Worn Quest Pro projection accuracy and live acquisition acceptance remain pending. [Review](DecisionGazeEvidenceReview.md), [operation](ExperimentGuide.md#decision-gaze-evidence), [acceptance](AcceptanceRecord.md#decision-gaze-evidence).
+
+
+## Thresholds editable during comparison
+
+Deployment status updated 2026-11-08: the earlier stop/restart was blocked by automatic approval review. On this visit the old service was no longer running; v1.21 started successfully and includes the live-threshold backend. The earlier block was not retried. See the review for operator steps.
+
+Stage 2/3, 2026-11-07, Console v1.20, `console-editable-live-thresholds-v1`. At researcher request, superseded the earlier fixed-pair requirement: workload ON/OFF values can be edited during preparation or either A/B round and explicitly applied to subsequent new decisions. Each decision retains its threshold revision; cached requests and earlier results remain unchanged. Added persistent initial/current values and timestamped edit history, revision conflict detection, history export and running-session UI controls. Synthetic controller/HTTP/persistence regressions, existing relevant regressions and isolated browser application were checked. Worn-device validation remains pending. [Review](LiveThresholdsReview.md), [operation](ExperimentGuide.md#independent-study-stages), [acceptance](AcceptanceRecord.md#editable-live-thresholds).
+
+## Heidi media excluded
+
+Stage 2/3, 2026-11-07, `layer-ab-144-dialogue-v2-no-heidi`. Removed eight low-quality Heidi clips and their audio copies plus three original source videos, leaving 92 comparison clips. Rebuilt/deployed the two 300-second continuous streams, replacing only three excluded slots and preserving the other 27. Added explicit catalog clip counts with legacy compatibility so intentional exclusions do not block readiness. Retained files, deployed hashes, complete audiovisual decoding and Unity catalog compatibility were checked; task/model/threshold rules and historical sessions are unchanged. Physical playback/loudness and rebuilt Player acceptance remain pending. [Review and evidence](MediaExclusionReview.md), [operation](ExperimentGuide.md#current-media-bank), [acceptance](AcceptanceRecord.md#heidi-media-exclusion).
+
+## Simplified Evidence VR Editor menu
+
+Stage 2/3 operation, 2026-11-07, `editor-menu-v1`. Replaced 22 mixed legacy/development menu commands with Open Web Console, Signal Sources and an Advanced submenu containing seven commands. Eye debug pairs are checkmarked toggles. All original Editor tool methods remain unchanged; only their old menu attributes were removed. The new facade delegates to those methods. Unity compilation passed with zero errors/warnings; the live Editor registry and source-preservation checks passed. No experiment settings, runtime rules, scene, build or device acceptance changed. [Review and evidence](EditorMenuReview.md), [operation](ExperimentGuide.md#unity-editor-menu), [acceptance](AcceptanceRecord.md#unity-editor-menu).
+
+## Researcher Console workspace
+
+Stage 2/3, 2026-11-07, `console-study-workspace-v1`, Console v1.19. Reorganized the website into independent stage setup, run monitoring and decision evidence. Added environment cards, ordered model/threshold preparation, explicit readiness, a trend within Personal RF, readable per-check evidence, filtered recent sessions and A/B report summaries. Read-only projections expose playback and replay provenance; controller/model/task rules are unchanged. Eighteen Python tests, JavaScript syntax checks and served-browser checks passed, including an isolated frozen/released rehearsal assignment and the archived B8/B16 evidence. Actual headset/EEG A/B and participant validity remain pending. [Detailed review](ConsoleWorkflowReview.md), [operation](ExperimentGuide.md#researcher-workspace), [acceptance](AcceptanceRecord.md#researcher-console-workspace).
+
+## Desktop and Quest Pro comparison environments
+
+Stage 2/3, 2026-11-07, `comparison-environments-v1`, Console v1.18. Added a frozen per-session environment choice for both A/B rounds. Desktop uses a fixed monocular view and explicitly simulated 75% valid-eye coverage / 70% task share; Quest Pro requires a tracked headset and eyes, without substitution on tracking loss. EEG/model, task timing, RF cutoffs and patent rules remain unchanged. Session metadata, decision graph and exported reviews identify the source. Fifty-one targeted Python tests and an isolated Unity Editor rehearsal verified no-headset preparation, C/A/B/Enter operation and XR view restoration. Worn devices, live EEG A/B and Player acceptance remain pending. [Review and evidence](ComparisonEnvironmentsReview.md), [operation](ExperimentGuide.md#comparison-environments), [acceptance](AcceptanceRecord.md#comparison-environments).
+
+## Continuous 60-trial comparison with five-trial behavior
+
+Stage 2/3, 2026-11-07. New Console comparisons use `behavior5-continuous-stride2-v3`: 60 stimuli, stride two, five eligible responses, BA 0.80/0.60 and two-omission OFF, with BA class counts recorded. B's model-only OFF deferral now requires BA >= 0.80 plus the existing eye/time checks. Ten-trial post-ON verification uses the OFF score boundary for maintaining exposure. Both arms continuously play prejoined source clips, preserve the cursor across OFF/ON, and acknowledge HOLD without waiting for media completion. Fixed RF cutoffs and old allocation versions remain intact. Console v1.17 and `continuous-clips-resume-v1` identify the revision. Fifty-five Python tests and Unity Editor timing/playback checks passed; actual hardware and participant validity remain pending. [Rules, delivery and evidence](ContinuousComparisonReview.md), [operation](ExperimentGuide.md#continuous-60-trial-ab), [acceptance](AcceptanceRecord.md#continuous-60-trial-comparison).
+
+## Eye-open CSV replay with fixed simulated inputs
+
+Stage 2/3 engineering verification, 2026-11-07, `saved-model-csv-reuse-v1`. Replaced the archived calibration EEG with the supplied 18-minute eye-open CSV while retaining all 288 prior response records and all gaze targets, validity and timing. Added strict CSV montage/rate/timestamp validation and optional exact input reuse to the isolated simulator. Playback visibility is recomputed. A executed five ON/five OFF changes with 280 seconds of video; B executed two ON/two OFF changes with 190 seconds and eleven blocked proposals. B trial 50 exercised gaze-supported OFF deferral; trial 110 exercised failed-probe closure despite a base HOLD. Model hashes and 0.49/0.57 cutoffs matched the prior run, all 56 checkpoints completed, and all changes had simulated receipts. Browser displayed the report. The CSV lacks units: uV/scale 1 remains an explicit assumption. Each arm starts near the same recording segment and does not wrap; EEG was not acquired during the simulated task. Worn-device verification and causal effectiveness remain pending. [Report](../Evidence/Wei004EyeOpenReplay-20261107/report/index.html), [provenance](../Evidence/Wei004EyeOpenReplay-20261107/provenance.json), [checks](../Evidence/Wei004EyeOpenReplay-20261107/verification.json), [operation](ExperimentGuide.md#isolated-recorded-eeg-comparison).
+
+## Saved-model randomized A/B simulation
+
+Stage 2/3 engineering verification, 2026-11-07. Ran the saved personal RF on archived calibration EEG through the production service, base controller and Guard using two independent seeded answer/gaze sequences. Each arm completed 144 trials and 28 checkpoints. A executed five ON and five OFF changes; B executed two of each and deferred twelve proposals. The report includes score plots, counts, decision details and simulated receipts. Behavior, gaze, media and execution are synthetic. Different inputs preclude a causal effectiveness claim. [Results](../Evidence/Wei004ComparisonSimulation-20261107/report/index.html) and [provenance](../Evidence/Wei004ComparisonSimulation-20261107/provenance.json).
+
+## Model-specific editable video thresholds
+
+Stage 2/3, 2026-11-06. Console evidence-console-v1.16-session-thresholds adds held-out, per-model recommendations, interactive window counts, and immutable researcher-selected session cutoffs for both A/B arms and their reviews. Decisions and Personal RF show the applicable cutoffs. An existing workload model was backfilled from its original recording after reproducing all original held-out fold results. Browser and service verification passed. Worn study acceptance remains pending. [Operator guide](ExperimentGuide.md#independent-study-stages) and [recommendation method](LoadReferenceCalibration.md#video-threshold-recommendations).
+
+## Unscreened engineering workload scores
+
+Stage 2/3, 2026-11-06. Console evidence-console-v1.15-unscreened-workload and display console-unscreened-workload-v1 disable artifact screening in the rolling RF preview and both engineering comparison periods at operator request. The waveform display omits channel checks. Predictions and base decisions record artifactScreening=false. The saved calibration RF, montage, clock checks and response policy retain their existing definitions. The unclaimed assignment was reissued on deployment with the same model and order. [Operation](ExperimentGuide.md#independent-study-stages) and [validation](AcceptanceRecord.md#unscreened-engineering-workload).
+
+## Personal RF score in the decision graph
+
+Stage 2/3, 2026-11-06. Display console-decision-graph-score-v1 moves the model readout from Study stages to the Personal RF graph node. Model selection, quality checks and control logic are preserved. The inspector identifies the source model; explicit decision requests show recorded values. [Workflow](ExperimentGuide.md#independent-study-stages) and [verification](AcceptanceRecord.md#decision-graph-score-display).
+
+## Waveform channel quality indicators
+
+Stage 2/3, 2026-11-06. Console evidence-console-v1.14-waveform-quality marks individual raw Mindtooth EEG charts using the same rolling ten-second check as the workload preview, independently of Unity or model selection. Verified on the live Console and with controlled clean, rejected and stale inputs. Worn A/B acceptance remains pending. [Operation](ExperimentGuide.md#independent-study-stages) and [acceptance](AcceptanceRecord.md#waveform-channel-quality).
+
+## Pre-Unity rolling workload preview
+
+Stage 2/3, 2026-11-06. Console evidence-console-v1.13-workload-preview now scores the selected personal workload forest from the live receiver before Unity starts. Receiver buffering is bounded; preview creates no task trials, recordings or decisions. In A/B the runtime scores task-aligned windows with the same artifact and feature pipeline. The prepared assignment was reissued with the same model and order during deployment. [Operation](ExperimentGuide.md#independent-study-stages) and [validation](AcceptanceRecord.md#pre-unity-workload-preview).
+
+## 2026-11-06 - Live model score on the operator Console
+
+Stage 2/3 display revision console-live-model-score-v1. Operators can distinguish a selected model, a loaded model and a current numeric result. The read-only display uses the assigned session and stage, the existing prediction window, or the matched Mindtooth session for the vendor test. Expired or invalid results show a reason. Browser fixture checks passed; live hardware checks remain pending. [Operator steps](ExperimentGuide.md#independent-study-stages) and [acceptance](AcceptanceRecord.md#live-model-score-display).
+
+## 2026-11-06 - Simplified Adaptive Comparison setup
+
+Stage 2/3 Console display revision console-workload-comparison-v2. Removed the separate qualified-model menu entry at operator request. A/B with a saved model is the default and the EEG-free rehearsal remains selectable. Verified both choices on the served script and the saved-model listing. See [operator workflow](ExperimentGuide.md#independent-study-stages) and [acceptance](AcceptanceRecord.md#adaptive-comparison-menu).
+
+## 2026-11-06 - Saved workload RF in engineering A/B
+
+Stage 2/3 Console revision `evidence-console-v1.12-workload-comparison`. The setup now identifies the forest/arithmetic RF and names the engineering run option that uses it in both periods. An isolated replay with a copy of a saved RF confirmed that both base decisions received its score. Worn-device comparison remains pending. [Operator steps](ExperimentGuide.md#independent-study-stages).
+
+## 2026-11-06 — Independent stages and playback gaze implemented
+
+Stage 2/3 Console `evidence-console-v1.11-study-stages`, display `console-study-stages-gaze-v1` and engineering review `pre-response-movie-gaze-v1`. Implemented milestones 1–4 to run sessions independently and explain how gaze affects A/B actions. Operator assignments now support standalone practice, observation or control calibration, counterbalanced comparison, and explicitly labeled rehearsals. Comparison records link decoded playback, pre-response gaze, behavior, EEG, review, delivery, Unity receipt and follow-up. The report is available live and from saved sessions.
+
+Software checks include browser stage preparation and report export, an Editor task-engine run through two 144-trial periods, and a private Play Mode connection that archived a completed 14-trial practice and an intentionally stopped comparison rehearsal. Paired synthetic inputs exercised gaze-supported OFF deferral and delivery on tracking loss. Worn Quest Pro gaze, Mindtooth scaling/contact, cross-device timing, control-model qualification and participant outcomes remain pending. [Operation and rules](LayerABStudyGuide.md#independent-stage-operation) · [Acceptance and evidence](AcceptanceRecord.md#independent-console-stages-and-playback-gaze).
+
+## 2026-11-06 — Five implementation milestones for the A/B Console
+
+Stage 2/3 planning revision. The [implementation milestones](LayerABStudyGuide.md#implementation-milestones) separate independent session entry, synchronized playback and gaze evidence, A/B decision rules, operator audit, and worn-device acceptance. Each specifies its expected result, deliverables and completion check. The operator playback indicator has two states, while permission to play and follow-up decisions remain separately traceable. The plan was checked against the existing probe rules and calibration score boundary. Implementation, paired acceptance runs, playback gaze threshold qualification and worn-device verification remain pending.
+
+## 2026-11-06 — Independent Console stages and gaze review plan
+
+Stage 2/3 design revision. To make the role of eye tracking visible in the A/B comparison, the plan separates Practice, Calibration and Adaptive Comparison and retains the shared behavioral-or-physiological controller. It specifies pre-response gaze and actual playback evidence for B's proposed OFF review, distinct tracking-loss reasons, and request-to-execution records for both arms. The current probe decision rules and duration-weighted gaze denominators were checked against the source. This is a planning update. Playback gaze criteria, implementation, paired engineering checks and worn Quest Pro/Mindtooth verification remain pending. [Updated plan](LayerABStudyGuide.md#planned-console-stages-and-gaze-review).
+
+## 2026-11-06 — Occasional same-digit arithmetic options
+
+Stage 2/3 calibration revision `vermont-180s-math-occasional-decoy-v10` reduces Calculate difficulty. Each group of six prompts has one seeded same-digit decoy, with one such wrong option in that prompt. The entry example uses ordinary options and question events record the decoy flag. Unity verified 360 prompts across 20 seeds, including A/B balance, feedback, timeouts and restarts. Participant difficulty and Quest Pro readability remain pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Actual EEG rate in the operator console
+
+Stage 2/3 service `evidence-console-v1.10-live-eeg-rate` and display `console-live-eeg-rate-v1` measure EEG sampling from raw timestamps and monitor receiver throughput before and during sessions. A prior 250 Hz outlet delivered 125 samples per second. The operator now sees actual and nominal Hz, a low-rate alert and a separate no-samples alert. Session metadata records the new console revisions. The console, LSL selection and session-store test modules passed (26 tests). An isolated browser exercise on both pages showed the 250-to-125 warning after 0.82 s and the outage after 1.84 s in that run. Live reception was observed separately; a physical rate-change rehearsal remains pending. [Operation](EvidenceConsoleGuide.md#live-eeg-sampling-rate) · [Acceptance](AcceptanceRecord.md)
+
+## 2026-11-06 — Calculate timeout feedback
+
+Stage 2/3 Calculate revision `vermont-180s-math-timeout-v9` scores an unanswered ten-second prompt as incorrect and displays its expression in red for 1.5 seconds. The log retains response=omitted and an empty reaction time. Interruptions remain unscored. The Unity check passed across 360 prompts, including final-question timeouts. Quest Pro readability is pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Relax lighting at 40%
+
+Stage 2/3 calibration revision `vermont-180s-math-dim40-v8` sets direct and ambient lighting to 40% during the three-minute Relax stage at the operator’s request. Source inspection confirmed restoration of the saved settings on transition to Calculate, pause, session end, playback failure and teardown. Quest Pro brightness assessment remains pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Dimmer Relax lighting
+
+Stage 2/3 calibration revision `vermont-180s-math-dim70-v7` lowers the Relax light multiplier from 0.78 to 0.70 at operator request. Light intensities and gradient ambient colors use the same multiplier. The session metadata identifies the revision and the forest onset event records the multiplier. Headset brightness assessment remains pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Three-minute calibration (v6)
+
+Stage 2/3 calibration v6 extends Relax and Calculate to three minutes each and uses the requested Vermont forest walk. Each arithmetic distractor shares the units digit of the answer. The Calculate entry replaces the 2-back example and legends with a worked problem and response instructions. The service now scans 171 windows and uses three sixty-second folds. Unity checked 360 prompts and the video import. Python verified calibration, save and reload. Quest Pro checks remain pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Rolling calibration quality
+
+Stage 2/3 local EEG calibration now checks ten seconds of samples at one-second steps to alert the operator and recover clean intervals between fixed boundaries. Available windows are selected without overlap inside each 40-second validation fold. The session policy is `rolling10-stride1-disjoint-fold40-v1`. The local TEST002 archived replay yielded 82 passing rest candidates and 27 arithmetic candidates, supporting eight and four disjoint intervals respectively. Live headset workflow and worn EEG acceptance remain pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Calculate response feedback
+
+Stage 2/3 calibration now colors the arithmetic expression after the first accepted A/B response, as requested. The session records calibration revision `forest-av-math-membership-feedback-10s-v5`. The Unity engine check covers correct and incorrect responses and neutral resets over 240 prompts. Quest Pro color and contrast inspection remains pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Forest walk and arithmetic responses
+
+Stage 2/3 now uses a continuous redwood trail with natural sound and dimmer room lighting, followed by twelve multi-step arithmetic membership judgments. Responses, omissions and interruptions are collected separately from 2-back scoring. Bookcase board clearance addresses flicker. Unity imported the 120-second clip with sound and verified 240 generated prompts and outcomes. Headset lighting, sound level, legibility and cabinet appearance remain open. [Protocol and source](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Selected EEG input
+
+Stage 2 selected EEG input revision. Operator-selected compatible EEG outlets now feed engineering calibration regardless of provenance. CSV replay metadata travels with the samples. See [operation](ExperimentGuide.md) and [validation](AcceptanceRecord.md).
+
+## 2026-11-06 — Stage 2/3 Unity LSL source selector
+
+Operators can now inspect and connect to any discovered outlet by UID. The previous discovery filter hid streams with other names or source IDs. New selections default to receive-only, marked replays retain their origin, and EEG processing retains the study profile checks. A project-environment scan found six outlets. Unity compiled successfully and the open Editor picker displayed all six outlets. All 15 selector tests passed. Isolated bridge workers received two numeric streams and connected to an idle marker outlet. Participant and physical-device checks remain pending. [Verification](AcceptanceRecord.md#2026-11-06--unity-lsl-selection) · [Operator steps](ExperimentGuide.md#selecting-an-lsl-source-in-the-unity-editor).
+
+A follow-up fixed the Editor status poll getting stuck at Connecting. The window now tracks the outstanding HTTP task and polls the loopback service with a timeout. Unity recompiled, and the open window displayed Receiving for the existing eight-channel outlet without reconnecting.
+
+## 2026-11-05 — Forest viewing and ten-second arithmetic
+
+Stage 2/3 local calibration uses `forest-rest-easy-math-10s-v3` and `trial-progress-v6-forest-math`. Participants watch a silent forest on the front wall for the two-minute relax stage, then solve twelve single-step additions and subtractions silently. This revision reduces arithmetic difficulty and gives each prompt ten seconds. The session records the presentation revision, video start and stop, and each scheduled and actual prompt onset. A real-time Editor run reached the last forest frame, presented all twelve questions and saved and reloaded the trained model using synthetic EEG. A separate check verified interrupted-stage restart. [Run record](../Evidence/SyntheticForestCalibration/verification.json). Worn EEG and Quest Pro presentation remain pending. [Procedure and media source](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Silent arithmetic in the room
+
+
+Stage 2/3 local calibration, `trial-progress-v5-room-math` / `rest-math-120s-passive-questions-v2`. To keep participants in the room without asking for a controller response, arithmetic now shows the whole-second timer on the left, a seeded expression in the center and a green calculate cue on the right. Six expressions advance automatically at 20-second intervals. An isolated Unity Editor walkthrough ran both 120-second stages in real time, archived the session and reloaded the trained model using synthetic EEG. Worn signal acquisition and Quest Pro readability are pending. [Procedure](LoadReferenceCalibration.md) · [Walkthrough results](../Evidence/SyntheticRoomMathWalkthrough/verification.json).
+
+## 2026-11-05 — Eyes-open rest in the room
+
+Stage 2/3, `trial-progress-v4-room-rest`. The timed rest phase uses the formal desk signs to keep the room visible. Its left sign shows remaining minutes and whole seconds and its right sign shows a green relax cue. The rest instruction and console guide now match this presentation. The current Unity runtime assembly compiled and the console script passed its syntax check. Headset readability is pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Personal workload RF (rest-math-iaf-rf-v2)
+
+Stage 2/3 now trains the personal rest/arithmetic workload RF with individual frequency bands, eight electrode powers and temporal validation. Engineering fixtures exercised four-minute training, rejection, registry reuse and task scoring. Worn acquisition and transfer to the target task are pending. [Method and operation](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Local workload reference calibration
+
+Local personal calibration now uses 120 seconds of eyes-open rest and 120 seconds of arithmetic. The engineering load score is observed independently of the RF control thresholds. Synthetic processing and Editor stage transitions were checked. Worn EEG, units, questionnaire applicability and Quest Pro remain pending. [Operation, scoring and verification](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Physiological source selection
+
+Stage 2/3, `workload-threshold-engineering-v1`. Added the vendor Workload engineering mode alongside saved personal models. The console connects to the licensed WebSocket, pins vendor identity and audits threshold and behavioral agreement. Local WebSocket and decision fixtures passed and Unity compiled. Live authentication and Quest Pro execution are pending. [Operation, decision rules and verification](MindtoothModelSources.md).
+
+## 2026-11-05 — Mindtooth amplitude labels
+
+Stage 2/3, `console-mindtooth-eeg-v2-unit-labels`. The operator confirmed µV and a selected ±400 µV range on the acquisition screen. Physiology and Test sessions now distinguish the app display unit from the pending LSL scale verification. [Evidence and calibration procedure](MindtoothAcquisitionReview.md).
+
+## 2026-11-05 — Mindtooth EEG acquisition and console
+
+Stage 2/3 switched live acquisition, model features and the Evidence Console to eight-channel Mindtooth EEG. Gin/P007 inputs and prior model revisions are excluded. Off-head sample transport and browser display were verified. Worn contact, LSL amplitude scaling, personal calibration, the new recording and Quest Pro acceptance remain pending. [Mindtooth acquisition, verification and pending checks](MindtoothAcquisitionReview.md).
+
+## 2026-11-05 — 144-trial A/B study with verified upgrades
+
+Stage 2/3, `layer-ab-probe-v2`. Separate the ordinary OR controller from condition-specific evidence review. Added immediate media stop, audited upgrade verification, the dialogue bank, paired allocation and post-upgrade outcome export. The 177-test Python run and an Editor exercise through trial 144 passed. Quest Pro, manual listening, personal model admission and the six-person comparison remain open. [Current rules, deployment and verification](ProbeStudyReview.md).
+
+## 2026-11-05 — OFF annotation and later ON authorization plan
+
+Stage 2/3 A/B design decision. Both arms allow OFF. Each OFF will receive a bidirectional temporal evidence annotation for use in later ON review. Following difficulty concentrated during playback, L0 recovery alone cannot authorize B to reopen. The recovery wait moves to a separate training-strategy study. Documentation update only. The current adapter and core were inspected; per-OFF provenance linkage, operational thresholds and paired validation remain pending. [Approved plan](LayerABStudyGuide.md#approved-plan-for-off-annotation-and-subsequent-on-review).
+
+## 2026-11-05 — Next scheduled clip after the recovery mock
+
+Stage 2/3 engineering playback check. The paired mock was extended through trial 53. Three L0 outcomes yielded silent slots in Unity Play Mode. In the during-playback recovery case B retained L1 and the front-wall player decoded all 300 frames of the ten-second training clip. [Protocol, playback receipts and captured frame](GinGuardReplayReview.md#next-clip-after-recovery).
+
+## 2026-11-05 — Recovery after a deferred automatic OFF
+
+Stage 2/3 offline mock. Keeping the first 45 trials identical and making the next five answers correct produced one A change and zero B changes through trial 50. The persistent-difficulty mock had one change in each condition. Formal rules remain in force. [Recovery decisions and scope](GinGuardReplayReview.md#recovery-after-the-five-trial-wait).
+
+## 2026-11-05 — Paired automatic OFF timing mock
+
+Stage 2/3 offline evaluation. With identical answers and RF scores, moving two AV clips changed the proposed B review from immediate OFF at trial 45 to deferred OFF at 50. A executed at 45 in both cases. The deployed rule continues to allow OFF directly. Participant evaluation remains pending. [Mock design, verification and results](GinGuardReplayReview.md#paired-off-timing-mock-2026-11-05).
+
+## 2026-11-05 — Gin A/B replay and Guard decision audit
+
+Stage 2/3 offline evaluation of `sliding-five-close-v1`. Paired replays examined how model eligibility, gaze availability and actual simulated clip timing affect Guard decisions. With gaze from trial 1, both conditions switched ON at trial 30. Each recorded forward checks for 13 clips, six reverse checks and zero OFF proposals. The earlier delayed-gaze mock switched at trials 30 (A) and 65 (B). [Replay inputs, decision counts, audit evidence and pending questions](GinGuardReplayReview.md).
+
+## 2026-11-05 — Continuous five-trial physiology and response-close decisions
+
+- **Stage/reason:** Stage 2/3 A/B engineering; preserve a continuous physiological history while adjudicating each five-trial checkpoint before the next onset where possible.
+- **Revision:** `sliding-five-close-v1` in new allocations/examples, fresh calibration with mixed windows, source-block purging and model applicability checks; Guard references the selected evidence. Response-close snapshots remain separate from completed trials. No blocking wait or change to task cadence.
+- **Verification:** 173 Python regressions passed, production Python/Guard replay, optimized fixed sequence (12 observe switches; four in one enforce replay), 518 Unity Play Mode checks, 19/19 local HTTP requests under 500 ms. Earlier 7/5 capacity results remain historical for non-sliding allocations. [Detailed review and reproducible evidence](SlidingControlReview.md).
+- **Pending:** new device build, real sensor/model qualification and yield, intended-network and Quest Pro acceptance. No deployment restart or remote push. Updated experiment, A/B and acceptance guides.
+
+
+## 2026-11-05 — Isolated Guard latency measurement
+
+- **Stage/reason:** Stage 3 engineering measurement requested before sliding-window redesign. Added a reproducible benchmark only; no production logic, experiment operation or device-acceptance changes.
+- **Method/results:** 2,560 measured synthetic calls, unique request IDs, observe/enforce, ON/missing-eye/OFF and 95-trial history; expected actions/verdicts checked. Real local audit writes included. Enforce ON core median about 8.3 ms, P95 about 9.9 ms; adapter median about 11.1 ms. With longer history, adapter median 15.7 ms. Worst warm core/adapter across cases: 188.1/211.8 ms. First bulk ingestion reached 2058.4 ms. No hard deadline guarantee.
+- **Evidence/limits:** [Latency review](GuardLatencyReview.md), `Evidence/GuardLatency-20261105/summary.json` and `samples.csv`. Excludes acquisition waits, real RF/diagnostic inference, HTTP, Unity and physical device timing. No live service or participant session started, no APK or push. Existing physical acceptance boundaries remain unchanged.
+
+## 2026-11-05 — Behavioral window includes transition trials
+
+- **Stage/reason:** Stage 2/3 engineering candidate; user requested five-trial decisions over the latest twenty behavioral trials without whole-window transition rejection, while retaining physiological and actual-exposure safeguards.
+- **Revision/changes:** `behavior20-stride5-include-transition-v1`; transition responses remain in behavioral accuracy/omissions/RT, with transition count and mixed-level audit. All decisions and Python session metadata record the new behavioral revision. Physiological extraction, calibration labeling, model compatibility/admission, thresholds, minimum dwell, exposure and Guard rules remain unchanged. Source update requires a restarted Python service and a fresh session.
+- **Validation:** 166 Python tests and 432 synthetic Unity checks passed; final PASS log read back, zero console errors, Play stopped. Optimized synthetic response sequences were evaluated through the real Python controller and replayed in Unity with unchanged 4.5-second onsets. Achievable favorable upper bounds: seven fallback and five physiology level changes per 96-trial phase. Trial-95 replies cannot execute before phase completion. Existing request timing cannot deliver a reply before the immediately following trial begins; no blocking wait or speculative early request was added. Detailed Unity results and scope: [review](BehaviorWindowRevisionReview.md), `Evidence/BehaviorWindowRevision/`.
+- **Pending/delivery:** no actual-device/network timing, real participant/model acceptance, APK or push. Existing service was not forcibly restarted. Local restore branch: `codex/pre-behavior-transition-20261105` at `79e10d5`. Updated acceptance and experiment guide; retained historical entries.
+
 ## 2026-11-05 — Seven-point Raw TLX adaptation (v4)
 
 User-approved revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Six TLX dropdowns were replaced in the existing Google Form with required horizontal 1-7 scales, retaining the questions and two-page flow. Five dimensions use Very low=1 / Very high=7; Performance uses Perfect=1 / Failure=7. The unweighted mean of all six complete ratings is reported on 1-7, higher meaning greater workload; no additional reversal is required for this Performance orientation. Missing ratings remain missing. UEQ+ and final preference remain unchanged. Button timing, RT, LSL and controller code are unchanged. Earlier validation entries describe earlier versions.
@@ -9,7 +242,19 @@ Literature and implementation rationale: [Seven-point TLX review](SevenPointTLXR
 
 ## Current status
 
-- **Layer A/B study candidate (2026-11-05):** `codex/layer-ab-timing-study`, opt-in `layer-ab-v1`, same scene/controller with A=observe and B=enforce. Two-page Raw TLX (six items) and UEQ+ Attractiveness (four items) after each 96-trial condition; final preference once; external Google Forms with operator acknowledgement and 180-second inter-condition rest. Input-action press/release timestamps and original frame RT are retained separately, with dedicated four-stamp clock transfer, optional LSL event markers and aligned exports. Original A/B validation: 165 Python tests and 3,906 synthetic Unity checks; actual Unity HTTP handshake and local LSL loopback verified. The historical v2 Google Forms revision removed the local questionnaire UI/API (165 Python tests and 3,934 synthetic Unity checks passed). Current v4 uses seven-point Raw TLX and the separate UEQ+ page; eight targeted A/B Python tests and Unity compilation passed. See SevenPointTLXReview.md for current validation. [Current evidence](LayerABGoogleForms.md). Original startup override restored, Play stopped; no APK, participant efficacy or Quest Pro physical timing acceptance. [Operation, evidence and limits](LayerABStudyGuide.md).
+- Calculate uses three same-digit decoy prompts per eighteen-question calibration. [Protocol](LoadReferenceCalibration.md).
+
+- Test sessions and all Evidence Console pages show live EEG throughput and flag low or missing samples independently of Unity. [Operator guide](EvidenceConsoleGuide.md#live-eeg-sampling-rate)
+
+- New local calibrations use the two-condition workload reference. Existing RF and vendor modes retain separate score semantics. [Review](LoadReferenceCalibration.md).
+
+- Engineering operators can select the personal RF or Mindtooth Workload with vendor threshold. Licensed live-stream and headset verification remain pending. [Operation, decision rules and verification](MindtoothModelSources.md).
+
+- Stage 2/3 switched live acquisition, model features and the Evidence Console to eight-channel Mindtooth EEG. Gin/P007 inputs and prior model revisions are excluded. Off-head sample transport and browser display were verified. Worn contact, LSL amplitude scaling, personal calibration, the new recording and Quest Pro acceptance remain pending. [Mindtooth acquisition, verification and pending checks](MindtoothAcquisitionReview.md).
+
+- New A/B allocations use the 144-trial shared OR controller and B upgrade verification. The 96-trial sliding controller and recovery mocks below apply to earlier revisions. [Current study](ProbeStudyReview.md).
+
+- **Historical 96-trial A/B study candidate (2026-11-05):** `codex/layer-ab-timing-study`, opt-in `layer-ab-v1`, same scene/controller with A=observe and B=enforce. Two-page Raw TLX (six items) and UEQ+ Attractiveness (four items) after each 96-trial condition; final preference once; external Google Forms with operator acknowledgement and 180-second inter-condition rest. Input-action press/release timestamps and original frame RT are retained separately, with dedicated four-stamp clock transfer, optional LSL event markers and aligned exports. Original A/B validation: 165 Python tests and 3,906 synthetic Unity checks; actual Unity HTTP handshake and local LSL loopback verified. The historical v2 Google Forms revision removed the local questionnaire UI/API (165 Python tests and 3,934 synthetic Unity checks passed). Current v4 uses seven-point Raw TLX and the separate UEQ+ page; eight targeted A/B Python tests and Unity compilation passed. See SevenPointTLXReview.md for current validation. [Current evidence](LayerABGoogleForms.md). Original startup override restored, Play stopped; no APK, participant efficacy or Quest Pro physical timing acceptance. [Operation, evidence and limits](LayerABStudyGuide.md).
 
 - `model-config-persistence-v1` (2026-11-04): Unity Connect and the console launcher now share saved-policy resolution; Unity retains channel labels/analysis units and reports field-specific model incompatibilities. The idle bridge was refreshed on 8765; the existing Gin V3 candidate loads with its original hash using the running configuration, and both replay roles are receiving. All 157 Python regressions, Unity compilation and metadata/actual-Connect checks passed. No new assignment, APK or device/scientific admission. [Review and evidence](ModelCompatibilityReview.md).
 

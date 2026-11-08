@@ -10,7 +10,7 @@ import unittest
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from evidence_console import snapshot, record_wave, waves, config_fingerprint
+from evidence_console import EegRateMonitor, snapshot, record_wave, waves, config_fingerprint
 from service import StudyService, StudyHTTPServer, make_handler
 from test_personalized_control import control_packet, control_rows
 from test_evidence_guard import gaze
@@ -31,6 +31,38 @@ def fixture(folder, mode="enforce", eyes=False):
 
 
 class ConsoleTests(unittest.TestCase):
+    def test_delivered_eeg_rate_and_outage(self):
+        meter = EegRateMonitor()
+        self.assertEqual(meter.status(0)["state"], "unconfigured")
+        config = {"source_id": "engineering-eeg", "sample_rate": 250}
+        meter.select(config)
+        self.assertEqual(meter.status(0)["state"], "no_samples")
+        # Model 250 Hz and then 125 Hz, with an identical advertised rate.
+        for tick in range(16):
+            meter.received(tick / 5, [tick / 5 + (i - 49) / 250 for i in range(50)])
+        self.assertEqual(meter.status(3)["actualHz"], 250)
+        for tick in range(16, 26):
+            meter.received(tick / 5, [tick / 5 + (i - 24) / 125 for i in range(25)])
+        self.assertEqual(meter.status(5)["actualHz"], 125)
+        self.assertEqual(meter.status(5)["state"], "low")
+        self.assertEqual(meter.status(6)["actualHz"], 0)
+        self.assertEqual(meter.status(6)["state"], "no_samples")
+        meter.received(7, [7 + (i - 49) / 250 for i in range(50)])
+        self.assertEqual(meter.status(7)["state"], "measuring")
+        for tick in range(36, 46):
+            meter.received(tick / 5, [tick / 5 + (i - 49) / 250 for i in range(50)])
+        self.assertEqual(meter.status(9)["state"], "receiving")
+        self.assertEqual(meter.status(9)["actualHz"], 250)
+        meter.select(dict(config, source_id="replacement"))
+        self.assertEqual(meter.status(9)["state"], "no_samples")
+        # A misleading 250 Hz timestamp clock must not mask 125 Hz delivery.
+        for tick in range(11):
+            meter.received(tick / 5, [(tick * 25 + i) / 250 for i in range(25)])
+        result = meter.status(2)
+        self.assertEqual((result["actualHz"], result["deliveryHz"], result["state"]), (250, 125, "low"))
+        meter.received(2.2, [0.1, 0.1])
+        self.assertEqual(meter.status(2.2)["state"], "timestamps")
+
     def test_observation_waveforms_without_unity_or_units(self):
         with tempfile.TemporaryDirectory() as folder:
             service = StudyService(folder)
@@ -53,6 +85,18 @@ class ConsoleTests(unittest.TestCase):
             # A new outlet cannot inherit the previous source's display trace.
             service.record_signal(dict(config, uid="outlet-b"), [now+1], [now+1], [[3, 12, "x"]], 0, "source-a")
             self.assertEqual(snapshot(service)["observedSignals"][0]["channels"][1], [[now+1, 12]])
+
+    def test_raw_eeg_waveforms_display_without_artifact_screening(self):
+        import workload_rf
+        with tempfile.TemporaryDirectory() as folder:
+            service = StudyService(folder, personalized_policy={"eeg_units_confirmed": True})
+            config = dict(kind="EEG", channels=list(range(8)), channel_labels=workload_rf.LABELS,
+                          sample_rate=250, units="uV", data_origin="live_sensor")
+            now = time.perf_counter()
+            service.record_signal(config, [now], [now], [[0.] * 8], 0, "fixture")
+            stream = snapshot(service)["observedSignals"][0]
+            self.assertEqual(len(stream["channels"]), 8)
+            self.assertNotIn("channelCheck", stream)
 
     def test_observation_preview_does_not_change_session_or_model(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -187,13 +231,12 @@ class ConsoleTests(unittest.TestCase):
             self.assertFalse(compatible(dict(info, featureRevision=None)))
             self.assertFalse(compatible(info, Path(folder) / "new-selection.json"))
             selection = Path(folder) / "selection.json"
-            content = {"streams": [{"kind": "EEG", "source_id": "test-only", "sample_rate": 250,
-                                    "channels": [0], "scale_to_units": 1, "amplitude_limit": 100, "window_seconds": 12}]}
+            content = json.loads(Path(__file__).with_name("lsl-config.example.json").read_text())
             selection.write_text(json.dumps(content))
             info.update(lslSelection="different-equivalent-snapshot.json", lslHash=config_fingerprint(selection, lsl=True), host="127.0.0.1")
             self.assertTrue(compatible(info, selection, host="127.0.0.1"))
             self.assertFalse(compatible(info, selection, host="0.0.0.0"))
-            content["streams"][0]["channels"] = [1]
+            content["streams"][0]["window_seconds"] = 11
             selection.write_text(json.dumps(content))
             self.assertFalse(compatible(info, selection))
 

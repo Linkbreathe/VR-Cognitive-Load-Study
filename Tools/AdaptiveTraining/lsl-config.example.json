@@ -2,25 +2,38 @@
   "streams": [
     {
       "kind": "EEG",
-      "source_id": "REPLACE_WITH_REAL_EEG_SOURCE_ID",
+      "name": "104209-1083_eeg",
+      "source_id": "mindtooth_eeg",
+      "stream_type": "EEG",
       "sample_rate": 250,
+      "channel_count": 8,
+      "channel_format": 1,
+      "channel_labels": [
+        "AFz",
+        "AF3",
+        "AF4",
+        "AF7",
+        "AF8",
+        "Pz",
+        "P3",
+        "P4"
+      ],
       "channels": [
-        0
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
       ],
       "scale_to_units": 1,
+      "units": "unconfirmed",
       "amplitude_limit": 150,
-      "window_seconds": 12
-    },
-    {
-      "kind": "ECG",
-      "source_id": "REPLACE_WITH_REAL_ECG_SOURCE_ID",
-      "sample_rate": 250,
-      "channels": [
-        0
-      ],
-      "scale_to_units": 1,
-      "amplitude_limit": 5,
-      "window_seconds": 30
+      "window_seconds": 12,
+      "data_origin": "live_sensor",
+      "synthetic": false
     }
   ]
 }

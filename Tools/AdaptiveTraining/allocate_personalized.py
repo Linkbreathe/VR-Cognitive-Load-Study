@@ -37,13 +37,16 @@ def main():
     config.update(enabled=True, mode="ACTIVE", sessionType="engineering" if args.engineering else "participant",
                   controllerUrl=args.controller_url, calibrationBlocks=args.calibration_blocks)
     if args.layer_ab:
-        from layer_ab import REVISION, QUESTIONNAIRE, condition
+        from layer_ab import PROBE, SLIDING, condition, configure_probe
+        # Balance every adjacent enrollment pair while retaining calibration counterbalance.
+        order = (args.index % 2) ^ random.Random(args.allocation_seed + args.index//2).randrange(2)
+        group = 2*order + allocation["counterbalanceGroup"]%2
+        allocation["counterbalanceGroup"] = group
         links = json.loads((root / "Tools/LayerAB/questionnaire-links.json").read_text(encoding="utf-8"))
-        config.update(studyDesign=REVISION, questionnaireRevision=QUESTIONNAIRE, evidenceGuardMode="observe",
-                      abInterConditionRestSeconds=180, operatorManaged=False, allowCandidateModel=False, testSessionMode="full",
-                      testSessionId="", testModelId="", testModelHash="", calibrationFormUrl="", trainingFormUrl=links["training"]["responder"],
-                      preferenceFormUrl=links["preference"]["responder"])
-        allocation.update(studyDesign=REVISION, order=[condition(config,1),condition(config,2)])
+        configure_probe(config, group, links)
+        config.update(operatorManaged=False, allowCandidateModel=False, testSessionMode="full",
+                      testSessionId="", testModelId="", testModelHash="")
+        allocation.update(studyDesign=PROBE, slidingRevision=SLIDING, order=[condition(config,1),condition(config,2)])
     args.output.mkdir(parents=True, exist_ok=True)
     # Exclusive creation avoids silently overwriting an assigned participant's configuration.
     path = args.output / f"{args.participant}-adaptive-training-config.json"

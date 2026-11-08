@@ -145,21 +145,24 @@ class ControlRulesTests(unittest.TestCase):
             self.assertEqual(s.decide(p)["action"], "HOLD")
 
     def test_retained_behavior_validity_gates(self):
-        for field in ("transition", "interrupted", "aborted"):
+        for field in ("interrupted", "aborted"):
             rows = control_rows(); rows[-1][field] = True
             self.assertEqual(self.decide(rows)["action"], "HOLD")
+        rows = control_rows(); rows[-1]["transition"] = True
+        self.assertEqual(self.decide(rows)["action"], "ON")
         self.assertFalse(behavioral_summary(control_rows()[:19])["valid"])
         rows = control_rows()
         for row in rows[-20:]: row["expectedMatch"] = False
         self.assertFalse(behavioral_summary(rows)["valid"])
 
     def test_both_policy_files_and_revision_match_defaults(self):
-        for name in ("personalized-policy.json", "p007-personalized-replay-policy.json"):
-            saved = policy_config(json.loads(Path(__file__).with_name(name).read_text(encoding="utf-8")))
-            for key in ("revision", "stable_ba", "stable_omissions_below", "struggling_ba", "struggling_omissions_above", "thresholds"):
-                self.assertEqual(saved[key], DEFAULT_POLICY[key])
-            self.assertFalse(saved["frozen"])
-            self.assertFalse(saved["device_qualified"])
+        saved = policy_config(json.loads(Path(__file__).with_name("personalized-policy.json").read_text(encoding="utf-8")))
+        for key in ("revision", "stable_ba", "stable_omissions_below", "struggling_ba", "struggling_omissions_above", "thresholds"):
+            self.assertEqual(saved[key], DEFAULT_POLICY[key])
+        self.assertFalse(saved["frozen"])
+        self.assertFalse(saved["device_qualified"])
+        with self.assertRaises(ValueError):
+            policy_config({"revision":"personalized-rf-pilot-v3-control70-40"})
         self.assertEqual(self.decide()["policyRevision"], DEFAULT_POLICY["revision"])
 
     def test_old_policy_and_invalid_omission_thresholds_rejected(self):

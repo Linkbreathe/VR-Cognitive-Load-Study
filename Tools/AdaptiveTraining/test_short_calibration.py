@@ -12,17 +12,16 @@ from test_personalized import packet, training_rows
 
 
 class ShortCalibrationTests(unittest.TestCase):
-    def test_four_six_eight_block_contract_and_metadata(self):
+    def test_legacy_block_configs_use_current_timed_calibration(self):
         with tempfile.TemporaryDirectory() as directory:
             for blocks in (4, 6, 8):
                 p = packet(); p["config"]["calibrationBlocks"] = blocks
                 folder = Path(directory) / str(blocks)
                 s = PersonalSession(p, folder, None)
                 metadata = json.loads((folder / "personal_protocol.json").read_text())
-                self.assertEqual(metadata["initial_calibration_trials"], blocks * 12)
-                self.assertEqual(metadata["initial_calibration_seconds"], blocks * 54)
-                self.assertEqual(metadata["supplemental_seconds"], 108)
-                self.assertEqual(metadata["resting_baseline_seconds"], 0)
+                self.assertEqual(metadata["rest_seconds"], 180)
+                self.assertEqual(metadata["arithmetic_seconds"], 180)
+                self.assertEqual(metadata["calibration_revision"], "rest-math-iaf-rf-v2")
                 self.assertEqual(s.policy, DEFAULT_POLICY)
             for blocks in (2, 3, 5, 10):
                 p = packet(); p["config"]["calibrationBlocks"] = blocks

@@ -10,7 +10,6 @@ namespace EvidenceVR.Editor
 {
     public static class AdaptiveTrainingSetup
     {
-        [MenuItem("Evidence VR/Stage 2/Enable dev11 Personalized Engineering Protocol")]
         public static string EnablePersonalized()
         {
             if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play Mode before changing the protocol.");
@@ -34,7 +33,6 @@ namespace EvidenceVR.Editor
             c.Validate();File.WriteAllText(path,JsonUtility.ToJson(c,true));
             return "Dev11 engineering protocol enabled. Personal model admission remains gated by the Python policy. "+path;
         }
-        [MenuItem("Evidence VR/Stage 2/Create Editor Engineering Configuration")]
         public static string EnableEditor()
         {
             string path=Path.Combine(Application.persistentDataPath,"adaptive-training-config.json");
@@ -42,16 +40,13 @@ namespace EvidenceVR.Editor
             var c=new AdaptiveTrainingConfig{enabled=true,sessionType="engineering",participantCode="engineering"};
             File.WriteAllText(path,JsonUtility.ToJson(c,true));Debug.Log("Stage 2 engineering override: "+path);return path;
         }
-        [MenuItem("Evidence VR/Stage 2/Disable Editor Adaptive Mode")]
         public static string DisableEditor()
         {
             string path=Path.Combine(Application.persistentDataPath,"adaptive-training-config.json");
             if(File.Exists(path))File.Move(path,path+".disabled-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"));
             return "Stage 1 will run on the next Play session.";
         }
-        [MenuItem("Evidence VR/Stage 2/Engineering Gaze Highlight/Enable")]
         public static string EnableGazeHighlight()=>SetGazeHighlight(true);
-        [MenuItem("Evidence VR/Stage 2/Engineering Gaze Highlight/Disable")]
         public static string DisableGazeHighlight()=>SetGazeHighlight(false);
         static string SetGazeHighlight(bool enabled)
         {
@@ -63,9 +58,7 @@ namespace EvidenceVR.Editor
             c.engineeringGazeHighlight=enabled;c.Validate();File.WriteAllText(path,JsonUtility.ToJson(c,true));
             return "Engineering gaze highlight "+(enabled?"enabled":"disabled")+" for the next Play session. Valid tracked eyes are required.";
         }
-        [MenuItem("Evidence VR/Stage 2/Engineering Eye Ray/Enable")]
         public static string EnableEyeRay()=>SetEyeRay(true);
-        [MenuItem("Evidence VR/Stage 2/Engineering Eye Ray/Disable")]
         public static string DisableEyeRay()=>SetEyeRay(false);
         static string SetEyeRay(bool enabled)
         {
@@ -83,7 +76,6 @@ namespace EvidenceVR.Editor
             c.engineeringGazeRay=enabled;c.Validate();File.WriteAllText(path,JsonUtility.ToJson(c,true));
             return "Engineering eye ray "+(enabled?"enabled":"disabled")+" for the next session.";
         }
-        [MenuItem("Evidence VR/Stage 2/Configure Build Support")]
         public static string Configure()
         {
             PlayerSettings.bundleVersion="2.0.0-stage2-dev12";
@@ -99,7 +91,6 @@ namespace EvidenceVR.Editor
             AssetDatabase.SaveAssets();
             return "Stage 2 dev build version, local HTTP bridge and optional OpenXR eye-gaze profile configured. Hardware capability is not implied.";
         }
-        [MenuItem("Evidence VR/Stage 2/Build Quest Development Candidate")]
         public static string Build()
         {
             Configure();Directory.CreateDirectory("Builds/Quest");Directory.CreateDirectory("Evidence/Stage2");

@@ -11,7 +11,7 @@ import numpy as np
 from allocate_personalized import assignment
 from personalized_model import VERSION, PROTOCOL, DEFAULT_POLICY, policy_config, behavioral_summary, label_fit, label_rows, train_personal, load_personal, forest
 from personalized_runtime import PersonalSession, random_schedule
-from personalized_signals import sampled_window, eeg_features, ecg_features, movie_fraction, resting_reference
+from personalized_signals import sampled_window, eeg_features, movie_fraction
 from service import StudyService
 
 
@@ -44,7 +44,7 @@ def training_rows():
         for i, struggling in enumerate(states):
             result.append({"block": block, "trial": block * 12 + i + 6, "level": block % 2,
                 "valid": True, "origin": "live_sensor", "features": [struggling * 4 + rng.normal(0, .1),
-                struggling * -4 + rng.normal(0, .1), 65 + struggling * 30 + rng.normal(), (block % 2) * .4],
+                struggling * -4 + rng.normal(0, .1), (block % 2) * .4],
                 "behavior": {"valid": True, "score": .2 if struggling else 1.0}})
     return result
 
@@ -67,22 +67,8 @@ class SignalsTests(unittest.TestCase):
         t[200:400] += .3
         self.assertIsNone(sampled_window(t, x, 0, 22.5, 250)[0])
 
-    def test_ecg_mean_hr_and_flatline(self):
-        rate = 250; t = np.arange(0, 22.5, 1 / rate)
-        x = sum(np.exp(-((t - peak) / .012) ** 2) for peak in np.arange(.5, 22.5, 1))
-        features, quality = ecg_features(x, rate)
-        self.assertTrue(quality["valid"], quality); self.assertAlmostEqual(features["mean_hr"], 60, delta=2)
-        self.assertNotIn("lnrmssd", features)
-        self.assertFalse(ecg_features(np.zeros_like(t), rate)[1]["valid"])
-
     def test_exposure_union_uses_actual_intervals(self):
         self.assertAlmostEqual(movie_fraction(0, 20, [(2, 7), (5, 10), (15, 30)]), .65)
-
-    def test_no_forced_iaf(self):
-        p = policy_config()
-        result = resting_reference(None, None, 0, 0, p)
-        self.assertIsNone(result["iaf_hz"]); self.assertFalse(result["used_for_labels"])
-
 
 class ModelTests(unittest.TestCase):
     def test_no_manufactured_struggling_class(self):
@@ -131,10 +117,9 @@ class ProtocolTests(unittest.TestCase):
             for i, trial in enumerate(rows):
                 t = np.arange(i * 4.5, (i + 1) * 4.5, 1 / rate)
                 eeg = (20 * np.sin(2 * np.pi * 6 * t) + 10 * np.sin(2 * np.pi * 10 * t))[:, None]
-                ecg = np.exp(-(((t + .5) % 1 - .5) / .012) ** 2)[:, None]
-                for kind, samples in (("EEG", eeg), ("ECG", ecg)):
-                    cfg = {"kind": kind, "sample_rate": rate, "data_origin": "synthetic", "synthetic": True}
-                    service.record_signal(cfg, t.tolist(), t.tolist(), samples.tolist(), 0, kind)
+                eeg = np.repeat(eeg, 8, axis=1)
+                cfg = {"kind": "EEG", "sample_rate": rate, "data_origin": "synthetic", "synthetic": True, "units": "uV"}
+                service.record_signal(cfg, t.tolist(), t.tolist(), eeg.tolist(), 0, "EEG")
                 p.update(now=trial["trialEnd"] + 1, trials=rows[:i+1])
                 service.receive(p)
             personal = service.sessions[p["sessionId"]]["personal"]
@@ -174,11 +159,31 @@ class ProtocolTests(unittest.TestCase):
                     self.assertEqual(row["behavior"]["end"], row["end"])
             self.assertTrue(all(r["stage"] == "calibration" for r in labeled))
 
-    def test_strict_behavior_exclusion(self):
+    def test_behavior_includes_transitions_but_rejects_invalid_trials(self):
         rows = trials(24, "random")
         self.assertTrue(behavioral_summary(rows)["valid"])
         rows[-1]["transition"] = True
+        self.assertTrue(behavioral_summary(rows)["valid"])
+        self.assertEqual(behavioral_summary(rows)["transition_trials"], 1)
+        rows[-1].update(correct=False, responded=False, level=1)
+        summary = behavioral_summary(rows)
+        self.assertEqual(summary["omissions"], 1)
+        self.assertLess(summary["ba"], 1)
+        self.assertEqual(summary["levels"], [0, 1])
+        for flag in ("interrupted", "aborted"):
+            invalid = copy.deepcopy(rows); invalid[-1][flag] = True
+            self.assertFalse(behavioral_summary(invalid)["valid"])
+        rows[-1]["scored"] = False
         self.assertFalse(behavioral_summary(rows)["valid"])
+
+    def test_transition_still_rejects_physiology_and_calibration_labels(self):
+        from personalized_model import window_behavior
+        rows = trials(25, "bioadaptive")[-5:]
+        rows[-1]["transition"] = True
+        self.assertFalse(window_behavior(rows, packet())["valid"])
+        with tempfile.TemporaryDirectory() as folder:
+            s = PersonalSession(packet(), folder, None)
+            self.assertEqual(s.extract(rows, packet())["reason"], "incomplete_or_mixed_window")
 
     def test_random_plan_independent_of_signals(self):
         with tempfile.TemporaryDirectory() as folder:

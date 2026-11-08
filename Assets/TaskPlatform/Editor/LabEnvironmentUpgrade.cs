@@ -14,7 +14,6 @@ namespace EvidenceVR.Editor
         const string Root="Assets/TaskPlatform/Environment/";
         static Mesh bevel;
         static Material white,metal,dark,soft,wall,floor,light,trim,wood,linen,leaf;
-        [MenuItem("Evidence VR/Apply Warm Study Environment")]
         public static string Apply()
         {
             if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play Mode before changing the laboratory.");
@@ -189,14 +188,14 @@ namespace EvidenceVR.Editor
         static void Bookcase(Transform p,string name,Vector3 position,float yaw,float width,float height)
         {
             var shelf=Group(p,name,position,yaw);
-            Box(shelf,"Back",new Vector3(0,height*.5f,.18f),new Vector3(width,height,.035f),white);
+            Box(shelf,"Back",new Vector3(0,height*.5f,.18f),new Vector3(width-.092f,height,.035f),white);
             foreach(int side in new[]{-1,1})Box(shelf,"Side"+side,new Vector3(side*(width*.5f-.022f),height*.5f,0),new Vector3(.044f,height,.40f),wood);
             var colors=new[]{"858D79","B1A084","B5A49B","756F66","CEC5B1"};
             var covers=colors.Select((c,i)=>Mat("BookCover"+i,LabPalette.Hex(c),.05f)).ToArray();
             for(int row=0;row<=5;row++)
             {
                 float y=.09f+row*(height-.13f)/5f;
-                Box(shelf,"Shelf"+row,new Vector3(0,y,0),new Vector3(width,.035f,.42f),wood);
+                Box(shelf,"Shelf"+row,new Vector3(0,y,-.021f),new Vector3(width-.092f,.035f,.36f),wood);
                 if(row==5)continue;
                 for(int i=0;i<5;i++)
                 {

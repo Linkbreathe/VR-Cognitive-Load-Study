@@ -7,8 +7,8 @@ import math
 import numpy as np
 
 
-COLUMNS = {"combined": [0, 1, 2, 3], "physiology_only": [0, 1, 2],
-           "exposure_only": [3], "condition_only": [4], "time_only": [5, 6]}
+COLUMNS = {"combined": [0, 1, 2], "physiology_only": [0, 1],
+           "exposure_only": [2], "condition_only": [3], "time_only": [4, 5]}
 
 
 def block_validation(rows, p, seed, forest, metrics, comparators=True):
@@ -18,7 +18,9 @@ def block_validation(rows, p, seed, forest, metrics, comparators=True):
     for block in groups:
         train = [r for r in rows if r["block"] != block and r["valid"] and r["label"] >= 0]
         test = [r for r in rows if r["block"] == block and r["valid"] and r["label"] >= 0]
-        fold = {"block": block, "train_blocks": [g for g in groups if g != block],
+        held = {b for r in rows if r["block"] == block for b in r.get("source_blocks", [block])}
+        train = [r for r in train if held.isdisjoint(r.get("source_blocks",[r["block"]])) and held.isdisjoint(r.get("permuted_label_blocks", []))]
+        fold = {"block": block, "held_source_blocks": sorted(held), "train_blocks": sorted({r["block"] for r in train}),
                 "train_n": len(train), "test_n": len(test), "status": "unusable"}
         folds.append(fold)
         if len({r["label"] for r in train}) != 2 or not test:
@@ -33,7 +35,7 @@ def block_validation(rows, p, seed, forest, metrics, comparators=True):
             predictions[name] = estimator.predict_proba(xv[:, cols])[:, 1].tolist()
         fold["status"] = "evaluated"
         for i, row in enumerate(test):
-            oof.append({"block": block, "trial": row["trial"], "level": row["level"], "label": row["label"],
+            oof.append({"block": block, "trial": row["trial"], "level": row["level"], "label": row["label"], "mixed": len(set(row.get("levels", [row["level"]])))>1,
                         **{name: values[i] for name, values in predictions.items()}})
     within = {str(level): metrics([r["label"] for r in oof if r["level"] == level],
         [r["combined"] for r in oof if r["level"] == level]) for level in (0, 1)}
@@ -87,7 +89,8 @@ def circular_permutation_test(rows, observed, p, seed, forest, metrics):
         permuted = []
         for block_rows, shift in zip(groups.values(), shifts):
             labels = np.roll([r["label"] for r in block_rows], shift)
-            permuted.extend(dict(r, label=int(label)) for r, label in zip(block_rows, labels))
+            permuted.extend(dict(r, label=int(label), permuted_label_blocks=block_rows[(i-shift)%len(block_rows)].get("source_blocks",[r["block"]]))
+                            for i,(r,label) in enumerate(zip(block_rows, labels)))
         validation = block_validation(permuted, p, seed, forest, metrics, comparators=False)
         score = validation["permutation_statistic"]
         if score is None:

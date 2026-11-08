@@ -12,9 +12,22 @@ namespace EvidenceVR
         public int rollingWindowTrials=10, rollingStrideTrials=2;
         public string mode = "OFF";
         public string evidenceGuardMode = "off";
+        public string slidingRevision="";
+        public bool Sliding=>IsLayerAB && slidingRevision==LayerABStudy.SlidingRevision;
         public string studyDesign="legacy", questionnaireRevision="legacy";
         public float abInterConditionRestSeconds=180;
-        public bool IsLayerAB=>studyDesign==LayerABStudy.Revision;
+        public bool Probe=>studyDesign=="layer-ab-probe-v2";
+        public bool CompactComparison=>Probe && evaluationPolicy=="behavior5-continuous-stride2-v3";
+        public int DecisionStride=>CompactComparison?2:5;
+        public bool UsesComparisonModel => testSessionMode=="comparison" || testSessionMode=="comparison_candidate";
+        public bool Comparison => operatorManaged && (UsesComparisonModel || testSessionMode=="comparison_rehearsal");
+        public string comparisonEnvironment="quest_pro";
+        public bool DesktopComparison=>Comparison && comparisonEnvironment=="desktop_fixed_gaze";
+        public bool ComparisonTrackingReady(bool headsetTracked,bool eyesTracked)=>!Comparison || DesktopComparison || (headsetTracked && eyesTracked);
+        public bool TaskOnly => operatorManaged && (testSessionMode=="practice" || testSessionMode=="calibration_rehearsal" || testSessionMode=="comparison_rehearsal");
+        public bool PracticeOnly => operatorManaged && (testSessionMode=="practice" || testSessionMode=="practice_eeg");
+        public bool CalibrationOnly => operatorManaged && (testSessionMode=="calibration" || testSessionMode=="calibration_rehearsal" || testSessionMode=="control_calibration");
+        public bool IsLayerAB=>Probe || studyDesign==LayerABStudy.Revision;
         public string protocol = "training";
         public string controllerUrl = "http://127.0.0.1:8765";
         public string participantCode = "engineering";
@@ -54,17 +67,22 @@ namespace EvidenceVR
         }
         public void Validate()
         {
+            if(comparisonEnvironment!="quest_pro" && comparisonEnvironment!="desktop_fixed_gaze")throw new ArgumentException("Unknown comparison environment.");
+            if(comparisonEnvironment=="desktop_fixed_gaze" && (!Comparison || sessionType!="engineering"))throw new ArgumentException("Fixed gaze requires an operator-managed engineering comparison.");
+            if(!string.IsNullOrEmpty(slidingRevision) && !Sliding)throw new ArgumentException("Unknown sliding control revision.");
             if(studyDesign!="legacy" && !IsLayerAB)throw new ArgumentException("Unknown study design.");
-            if(IsLayerAB && (!IsPersonalized || operatorManaged || mode!="ACTIVE" || evidenceGuardMode!="observe" ||
+            if(Probe && (!Sliding || mediaManifest!="layer-ab-144-media.json" || onsetJitterSeconds!=0))throw new ArgumentException("Invalid probe allocation.");
+            if(CompactComparison && (rollingWindowTrials!=5 || rollingStrideTrials!=2))throw new ArgumentException("Compact comparison requires window 5 and stride 2.");
+            if(IsLayerAB && (!IsPersonalized || (operatorManaged && !(Probe && (Comparison || testSessionMode=="control_calibration"))) || mode!="ACTIVE" || evidenceGuardMode!="observe" ||
                 questionnaireRevision!=LayerABStudy.QuestionnaireRevision || abInterConditionRestSeconds!=180))
                 throw new ArgumentException("A/B study requires the frozen full-session protocol, observe/enforce assignment and short questionnaires.");
             if(operatorManaged && (!IsPersonalized || sessionType!="engineering" ||
-                !new[]{"full","calibration","bioadaptive"}.Contains(testSessionMode) || testRevision!="engineering-model-reuse-v1" ||
+                !new[]{"full","calibration","bioadaptive","vendor_workload","practice","practice_eeg","calibration_rehearsal","comparison","comparison_candidate","comparison_rehearsal","control_calibration"}.Contains(testSessionMode) || testRevision!="engineering-model-reuse-v1" ||
                 !System.Text.RegularExpressions.Regex.IsMatch(participantCode??"", "^[A-Za-z0-9_-]{1,80}$")))
                 throw new ArgumentException("Operator test sessions require a valid engineering identity and test mode.");
             if(!operatorManaged && (testSessionMode!="full" || allowCandidateModel || !string.IsNullOrEmpty(testModelId)))
                 throw new ArgumentException("Model reuse requires the operator-managed engineering test mode.");
-            if(operatorManaged && !string.IsNullOrEmpty(testSessionId) && testSessionMode=="bioadaptive" &&
+            if(operatorManaged && !string.IsNullOrEmpty(testSessionId) && (testSessionMode=="bioadaptive" || UsesComparisonModel) &&
                 (string.IsNullOrEmpty(testModelId) || testModelHash.Length!=64))
                 throw new ArgumentException("Bioadaptive reuse requires a selected model and hash.");
             if(!new[]{"off","observe","enforce"}.Contains(evidenceGuardMode) || (!IsPersonalized && evidenceGuardMode!="off"))
@@ -73,9 +91,9 @@ namespace EvidenceVR
             {
                 if(!new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) || !new[]{"engineering","participant"}.Contains(sessionType) ||
                     questionnaireAdministration!=TaskEngine.PersonalQuestionnaireAdministration ||
-                    string.IsNullOrWhiteSpace(participantCode) || (calibrationBlocks!=4 && calibrationBlocks!=6 && calibrationBlocks!=8) || trainingTrials!=96 ||
-                    counterbalanceGroup<0 || counterbalanceGroup>3 || evaluationPolicy!="physio5-behavior20-stride5-v2" ||
-                    videoWidth!=3.2f || videoHeight!=1.8f || videoPlacement!="front_wall_center" ||
+                    string.IsNullOrWhiteSpace(participantCode) || (calibrationBlocks!=4 && calibrationBlocks!=6 && calibrationBlocks!=8) || trainingTrials!=(CompactComparison?60:Probe?144:96) ||
+                    counterbalanceGroup<0 || counterbalanceGroup>3 || evaluationPolicy!=(CompactComparison?"behavior5-continuous-stride2-v3":Probe?"behavior10-or-probe-v2":"physio5-behavior20-stride5-v2") ||
+                    videoWidth!=(Probe?3.84f:3.2f) || videoHeight!=(Probe?2.16f:1.8f) || videoPlacement!="front_wall_center" ||
                     !(mediaVolume>=0 && mediaVolume<=1) || !(onsetJitterSeconds>=0 && onsetJitterSeconds<=1) ||
                     !Uri.TryCreate(controllerUrl,UriKind.Absolute,out var endpoint) || endpoint.Scheme!="http" ||
                     (sessionType=="participant" && (string.IsNullOrWhiteSpace(assignmentId) || assignmentId=="engineering-unallocated" || mode!="ACTIVE")))
@@ -129,7 +147,7 @@ namespace EvidenceVR
     [Serializable]
     public sealed class AdaptiveDecision
     {
-        public string sessionId, requestId, action, reason, basis, configVersion;
+        public string sessionId, requestId, action, reason, basis, configVersion, slidingRevision;
         public string guardMode,guardRevision,guardVerdict,guardRequestId,guardReason;
         public int block, level;
         public int evaluationId, epoch, lastTrial;

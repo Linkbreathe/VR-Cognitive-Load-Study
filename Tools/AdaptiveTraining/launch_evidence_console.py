@@ -76,13 +76,11 @@ def main():
     saved = ROOT / "UserSettings/lsl-source-selection.json"
     if selection is None and saved.exists():
         selection = saved
+    if selection is None:
+        selection = HERE / "lsl-config.example.json"
     if selection:
         from lsl_sources import validate_config
-        validated = validate_config(json.loads(selection.read_text(encoding="utf-8-sig")))
-        if any(s.get("synthetic") or s.get("data_origin") in ("synthetic", "recorded_xdf_replay") for s in validated["streams"]):
-            if args.page != "tests":
-                raise ValueError("The saved LSL selection contains replay/synthetic inputs. Select real outlets for this launcher; use the explicit engineering Test sessions entry for simulations.")
-            print("Engineering Test sessions: the saved source is replay/synthetic. Its provenance and quality gates remain unchanged; this is not live physiology.")
+        validate_config(json.loads(selection.read_text(encoding="utf-8-sig")))
     if args.personalized_policy:
         from personalized_model import policy_config
         policy_config(json.loads(args.personalized_policy.read_text(encoding="utf-8-sig")))

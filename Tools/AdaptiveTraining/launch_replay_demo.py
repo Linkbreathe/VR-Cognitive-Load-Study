@@ -2,6 +2,10 @@
 
 No headset or live physiological validation is implied. Ctrl+C restores the prior Editor configuration.
 """
+
+if __name__ == "__main__":
+    raise SystemExit("Retired P007/Gin workflow. Use StartEvidenceConsole.cmd with the Mindtooth device.")
+
 import argparse
 from datetime import datetime, timezone
 import json

@@ -13,7 +13,7 @@ class GuardConfig:
     min_gaze_valid: float = .70
     min_task_gaze: float = .60
     # Broad engineering association ranges, not validated physiological latencies.
-    response_delays: dict = field(default_factory=lambda: {"rf": [0., 10.], "eeg": [0., 5.], "ecg": [0., 15.], "behavior": [0., 4.5]})
+    response_delays: dict = field(default_factory=lambda: {"rf": [0., 10.], "eeg": [0., 5.], "behavior": [0., 4.5]})
     max_sample_seconds: float = .10
     max_evidence_age: float = 30.
     movie_reference: float = 0.
@@ -25,7 +25,7 @@ class GuardConfig:
                 raise ValueError(name)
         if not finite(self.max_sample_seconds) or self.max_sample_seconds <= 0 or not finite(self.max_evidence_age) or self.max_evidence_age <= 0:
             raise ValueError("Invalid duration")
-        for key in ("rf", "eeg", "ecg", "behavior"):
+        for key in ("rf", "eeg", "behavior"):
             pair = self.response_delays[key]
             if len(pair) != 2 or not all(finite(x) for x in pair) or not 0 <= pair[0] <= pair[1]:
                 raise ValueError("Invalid response delay")

@@ -17,7 +17,7 @@ The control RT ceiling is removed. Correct-response median RT remains descriptiv
 
 ## Retained behavior and evidence boundaries
 
-Requests still occur every five completed trials. The latest twenty-trial behavior window must satisfy the existing scored/transition/interruption/stage and answer-class coverage gates; invalid trials are not filtered out and stitched together. At least three valid recent current-condition predictions, minimum dwell, fresh evidence and ten seconds of actual L1 exposure remain required for model-based control.
+Requests still occur every five completed trials. As of 2026-11-05, `behavior20-stride5-include-transition-v1` includes transition trials in the latest twenty-trial behavior window. Scored/interruption/stage and answer-class coverage gates remain; invalid trials are not filtered out and stitched together. Physiological and calibration-label windows still exclude transitions. At least three valid recent current-condition predictions, minimum dwell, fresh evidence and ten seconds of actual L1 exposure remain required for model-based control. [Revision, timing and capacity tests](BehaviorWindowRevisionReview.md).
 
 With an admitted model, L0 -> L1 requires both behavior and model to support Stable; L1 -> L0 requires both to support Struggling. Disagreement, buffer values or insufficient evidence give HOLD. Unity executes at safe trial boundaries after active media ends. After two failed model attempts, enabled behavioral fallback uses the same revised behavior rules and stays explicitly marked as fallback. Mount invalidation and disabled fallback remain effective. Random retains its seeded schedule.
 

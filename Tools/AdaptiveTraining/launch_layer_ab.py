@@ -20,14 +20,17 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port',type=int,default=8766);p.add_argument('--host',default='127.0.0.1')
     p.add_argument('--output',type=Path,default=Path('D:/ExperimentData/LayerAB'))
-    p.add_argument('--lsl-config',type=Path,default=root/'UserSettings/lsl-source-selection.json')
+    p.add_argument('--lsl-config',type=Path,default=None)
     p.add_argument('--personalized-policy',type=Path);p.add_argument('--engineering',action='store_true')
     links=json.loads((root/'Tools/LayerAB/questionnaire-links.json').read_text(encoding='utf-8'))
     a=p.parse_args();policy=resolve_policy_path(a.personalized_policy,root)
+    if a.lsl_config is None:
+        saved = root / "UserSettings/lsl-source-selection.json"
+        a.lsl_config = saved if saved.is_file() else Path(__file__).with_name("lsl-config.example.json")
     selected=validate_config(json.loads(a.lsl_config.read_text(encoding='utf-8-sig')))
-    if not {s['kind'] for s in selected['streams']} >= {'EEG','ECG'}:
-        raise ValueError('Select mapped EEG and ECG sources before starting the study service')
-    if not a.engineering and any(s.get('synthetic') or s.get('data_origin')!='live_sensor' for s in selected['streams'] if s['kind'] in ('EEG','ECG')):
+    if not {s['kind'] for s in selected['streams']} >= {'EEG'}:
+        raise ValueError('Select the Mindtooth EEG source before starting the study service')
+    if not a.engineering and any(s.get('synthetic') or s.get('data_origin')!='live_sensor' for s in selected['streams'] if s['kind'] in ('EEG',)):
         raise ValueError('Live study requires live sources. Use --engineering for a separately labeled rehearsal.')
     if not 1024<=a.port<=65535:raise ValueError('Invalid port')
     with socket.socket() as check:

@@ -11,7 +11,6 @@ namespace EvidenceVR.Editor
     public static class LabVisualUpgrade
     {
         const string MaterialRoot="Assets/TaskPlatform/Materials/";
-        [MenuItem("Evidence VR/Apply Quiet Lab Presentation")]
         public static void Apply()
         {
             if(EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play mode before applying presentation.");

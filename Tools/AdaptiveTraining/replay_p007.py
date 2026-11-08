@@ -3,6 +3,10 @@
 All outlets and downstream records are explicitly recorded-data simulation.
 The original P007 project and XDF files are read-only inputs.
 """
+
+if __name__ == "__main__":
+    raise SystemExit("Retired P007/Gin workflow. Use StartEvidenceConsole.cmd with the Mindtooth device.")
+
 import argparse
 import hashlib
 import json

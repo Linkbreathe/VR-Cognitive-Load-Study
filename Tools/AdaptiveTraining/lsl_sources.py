@@ -11,9 +11,12 @@ import xml.etree.ElementTree as ET
 def stream_identity(info):
     xml = ET.fromstring(info.as_xml())
     recorded = xml.findtext("./desc/xdf_replay/recorded_data", "false").lower() == "true"
-    return dict(name=info.name(), source_id=info.source_id(), uid=info.uid(),
+    origin = xml.findtext("./desc/data_origin", "unknown")
+    if recorded:
+        origin = "recorded_xdf_replay"
+    return dict(data_origin=origin, name=info.name(), source_id=info.source_id(), uid=info.uid(),
                 stream_type=info.type(), sample_rate=info.nominal_srate(),
-                channel_count=info.channel_count(), channel_format=info.channel_format(), recorded=recorded,
+                channel_count=info.channel_count(), channel_format=info.channel_format(), recorded=origin in ("recorded_csv_replay", "recorded_xdf_replay"),
                 channel_labels=[c.findtext("label", "") for c in xml.findall("./desc/channels/channel")])
 
 
@@ -55,13 +58,13 @@ def observation_values(config, samples):
 
 def validate_config(config):
     streams = config.get("streams")
-    if not isinstance(streams, list) or not streams:
-        raise ValueError("Select at least one LSL source")
+    if not isinstance(streams, list) or len(streams) != 1:
+        raise ValueError("Select one LSL source")
     kinds = set()
     for stream in streams:
         stream.setdefault("source_id", "")
         kind = stream.get("kind")
-        if kind not in ("EEG", "ECG", "FEATURES", "OBSERVE") or kind in kinds:
+        if kind not in ("EEG", "OBSERVE") or kind in kinds:
             raise ValueError("Configure at most one input for each processing role")
         kinds.add(kind)
         if not stream.get("uid") and (not isinstance(stream.get("source_id"), str) or not stream["source_id"].strip()):
@@ -77,23 +80,20 @@ def validate_config(config):
         count = stream.get("channel_count", 0)
         if count and max(channels) >= count:
             raise ValueError(f"{kind}: selected channel exceeds the discovered channel count")
-        if stream.get("differential") and (kind != "ECG" or len(channels) != 2):
-            raise ValueError("Differential ECG requires exactly two channels (first minus second)")
-        if kind == "ECG" and not stream.get("differential") and len(channels) != 1:
-            raise ValueError("ECG requires one channel, or two channels with differential enabled")
-        if (kind == "EEG" and not 10 <= stream["window_seconds"] <= 15) or (kind == "ECG" and stream["window_seconds"] != 30):
-            raise ValueError("Keep EEG windows at 10-15 seconds and ECG at 30 seconds")
-        if kind in ("EEG", "ECG") and stream["sample_rate"] < 100:
-            raise ValueError("Raw EEG/ECG feature extraction requires at least 100 Hz; use FEATURES for precomputed streams")
+        if stream.get("data_origin", "unknown") not in ("unknown", "live_sensor", "synthetic", "recorded_csv_replay", "recorded_xdf_replay"):
+            raise ValueError("Unsupported source provenance")
+        expected_labels = ["AFz", "AF3", "AF4", "AF7", "AF8", "Pz", "P3", "P4"]
+        if kind == "EEG" and (stream.get("stream_type", "").upper() != "EEG"
+                or stream["sample_rate"] != 250 or count != 8
+                or stream.get("channel_labels") != expected_labels or channels != list(range(8))
+                or stream.get("differential")):
+            raise ValueError("Select the 250 Hz eight-channel Mindtooth EEG profile")
+        if kind == "EEG" and not 10 <= stream["window_seconds"] <= 15:
+            raise ValueError("Keep EEG windows at 10-15 seconds")
         if kind != "OBSERVE" and stream.get("channel_format") == 3:
             raise ValueError("String streams support receive-only mode")
         if kind == "OBSERVE" and (stream["scale_to_units"] != 1 or stream.get("differential")):
             raise ValueError("Receive-only mode preserves values without scaling or derivation")
-        origin = stream.get("data_origin", "unknown")
-        if origin not in ("unknown", "live_sensor", "recorded_xdf_replay", "synthetic"):
-            raise ValueError("Unsupported source provenance")
-        if origin in ("recorded_xdf_replay", "synthetic"):
-            stream["synthetic"] = True
     return config
 
 

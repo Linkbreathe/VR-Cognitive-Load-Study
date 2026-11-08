@@ -1,7 +1,7 @@
 """Independent synthetic signal fixtures for the pilot preprocessing revision."""
 import unittest
 import numpy as np
-from personalized_signals import eeg_features, ecg_features, sampled_window
+from personalized_signals import eeg_features, sampled_window
 
 
 class FilteredQualityTests(unittest.TestCase):
@@ -45,34 +45,6 @@ class FilteredQualityTests(unittest.TestCase):
             self.assertFalse(self.eeg(x)[1]['valid'])
         times = self.t.copy(); times[500:] += .05
         self.assertIsNone(sampled_window(times, self.clean, 0, 22.5, self.rate)[0])
-
-    def ecg_signal(self, beats):
-        x = np.zeros_like(self.t)
-        for beat in beats:
-            x += 400 * np.exp(-((self.t - beat) / .015) ** 2)
-            x -= 250 * np.exp(-((self.t - beat - .03) / .018) ** 2)
-            x += 45 * np.exp(-((self.t - beat - .28) / .055) ** 2)
-        return x + 10 * np.sin(2 * np.pi * .2 * self.t)
-
-    def test_gradual_rate_change_polarity_and_count_against_known_beats(self):
-        beats = [.7]
-        while beats[-1] < 21.2:
-            beats.append(beats[-1] + .72 + .45 * (1 + np.sin(beats[-1] * .25)) / 2)
-        x = self.ecg_signal(beats)
-        features, quality = ecg_features(x, self.rate)
-        inverted, other = ecg_features(-x, self.rate)
-        self.assertTrue(quality['valid']); self.assertTrue(other['valid'])
-        self.assertEqual(quality['rr_count'], len(beats) - 1)
-        self.assertAlmostEqual(features['mean_hr'], 60 / np.mean(np.diff(beats)), delta=.5)
-        self.assertAlmostEqual(features['mean_hr'], inverted['mean_hr'], places=8)
-
-    def test_isolated_missing_beat_is_flagged_and_poor_coverage_fails(self):
-        beats = np.arange(.7, 22, .8)
-        _, q = ecg_features(self.ecg_signal(np.delete(beats, 12)), self.rate)
-        self.assertIn(False, q['rr_valid'])
-        _, q = ecg_features(self.ecg_signal(beats[(beats > 4) & (beats < 18)]), self.rate)
-        self.assertFalse(q['valid']); self.assertFalse(q['coverage_passed'])
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -27,6 +27,8 @@ namespace EvidenceVR
             public TaskEvent[] events;
             public TrialResult[] trials;
             public int completedTrials;
+            public TrialResult closedBehavior;
+            public double decisionDeadline;
             public double stageStarted;
             public bool supplementUsed;
             public GuardGazeSample[] guardGaze;
@@ -60,8 +62,18 @@ namespace EvidenceVR
         Bounds lastFocusBounds;
         bool focusBoundsRecorded;
         double nextGazeStatusLog;
-        public bool CanStart=>(!config.IsLayerAB || StudyClockReady) && (config.operatorManaged ? ServiceConnected && TestAssignmentConfirmed && TestSignalsReady && Media!=null && Media.EngineeringReady &&
-            (!engine.IsDirectBioadaptiveTest || engine.PersonalModelTestUsable) :
+        public bool ComparisonTrackingReady=>config.ComparisonTrackingReady(HeadsetTracked,GazeTrackingStatus=="TRACKED EYES");
+        public bool HeadsetTracked
+        {
+            get
+            {
+                var device=UnityEngine.XR.InputDevices.GetDeviceAtXRNode(UnityEngine.XR.XRNode.Head);
+                return device.isValid && device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.isTracked,out bool tracked) && tracked &&
+                    (!device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.userPresence,out bool present) || present);
+            }
+        }
+        public bool CanStart=>(!config.IsLayerAB || StudyClockReady) && ComparisonTrackingReady && (config.operatorManaged ? ServiceConnected && TestAssignmentConfirmed && (config.TaskOnly || TestSignalsReady) && Media!=null && Media.EngineeringReady &&
+            (!(engine.IsDirectBioadaptiveTest || config.UsesComparisonModel) || engine.PersonalModelTestUsable) :
             config.sessionType!="participant" || (Media!=null && Media.Ready &&
             (!config.IsPersonalized || (ServiceConnected && PhysiologyStatus?.source=="live" && PhysiologyStatus?.connection=="receiving"))));
         public bool TestAssignmentConfirmed {get;private set;}
@@ -115,15 +127,16 @@ namespace EvidenceVR
             engine.CanApplyAdaptiveChange=()=>!Media.IsPlaying;
             engine.OnEvent+=OnEvent;engine.OnTrial+=OnTrial;engine.OnTrainingBlock+=OnBlock;
             engine.Note("protocol_configuration",config.protocol+";version="+config.version,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            if(config.Comparison)engine.Note("comparison_environment","comparison-environments-v1;environment="+config.comparisonEnvironment+
+                (config.DesktopComparison?";gaze_source=simulated_fixed_gaze;valid_ratio=0.75;task_share_valid=0.70":";gaze_source=quest_pro_tracked_eyes;fixed_fallback=false"),Time.realtimeSinceStartupAsDouble,Time.frameCount);
             if(config.IsPersonalized)
             {
                 engine.Note("evidence_guard_configuration",EvidenceGuardContract.Revision+";mode="+config.evidenceGuardMode,Time.realtimeSinceStartupAsDouble,Time.frameCount);
                 engine.Note("personal_presentation_policy","feedback=practice_only;questionnaires="+TaskEngine.PersonalQuestionnaireAdministration+";mount_movement=restart_required",Time.realtimeSinceStartupAsDouble,Time.frameCount);
                 engine.Note("personal_flow_policy",TaskEngine.PersonalFlowRevision+";resting_baseline_seconds=0;preparation_checks=required",Time.realtimeSinceStartupAsDouble,Time.frameCount);
-                engine.Note("personal_calibration_budget",TaskEngine.PersonalCalibrationRevision+";initial_blocks="+config.calibrationBlocks+";initial_trials="+(config.calibrationBlocks*12)+";supplement_trials=24",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                engine.Note("personal_calibration_budget",(engine.IsDirectBioadaptiveTest || config.Comparison || config.PracticeOnly)?"no_calibration_in_this_session":
+                    config.testSessionMode=="control_calibration"?"response_close_control_blocks="+config.calibrationBlocks:TaskEngine.PersonalCalibrationRevision+$";rest_seconds={TaskEngine.CalibrationStageSeconds};math_seconds={TaskEngine.CalibrationStageSeconds}",Time.realtimeSinceStartupAsDouble,Time.frameCount);
                 engine.Note("personal_progress_display",TaskEngine.PersonalProgressRevision+";left=countdown;right=completed_trial_slots;calibration=block;practice_and_training=phase;placement=desk_signs;centers_m=+-0.40;center_height_m=0.86",Time.realtimeSinceStartupAsDouble,Time.frameCount);
-                Debug.Log("Personalized progress: "+TaskEngine.PersonalProgressRevision+"; calibration="+(config.calibrationBlocks*54)+" seconds plus optional 108-second supplement.");
-                Debug.Log("Personalized flow: preparation and signal checks -> practice -> calibration; no resting baseline. Revision: "+TaskEngine.PersonalFlowRevision);
             }
             engine.Note("gaze_debug_configuration",GazeDebugHighlighter.Revision+";requested="+config.engineeringGazeHighlight+";effective="+GazeDebug.Allowed+";roi="+GazeRegions.Revision+";source=tracked_eyes_only",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             InitializeGazePermission();
@@ -131,6 +144,7 @@ namespace EvidenceVR
         }
         void InitializeGazePermission()
         {
+            if(config.DesktopComparison){GazePermissionStatus="not_required_desktop_fixed_gaze";return;}
 #if UNITY_ANDROID && !UNITY_EDITOR
             if(UnityEngine.Android.Permission.HasUserAuthorizedPermission(QuestEyePermission)){RecordGazePermission("granted");return;}
             gazePermissionCallbacks=new UnityEngine.Android.PermissionCallbacks();
@@ -161,7 +175,7 @@ namespace EvidenceVR
         void Json(string file,object value){if(!disposed)writers[file].WriteLine(JsonUtility.ToJson(value));}
         void RecordMedia(AdaptiveExposure e,string status,double now,string detail)
         {
-            if(config.evidenceGuardMode!="off")detail+=";audio_playing="+(Media.IsAudioPlaying?"true":"false")+";scene=warm-study-v1";
+            if(config.evidenceGuardMode!="off")detail+=";audio_playing="+(Media.IsAudioPlaying?"true":"false")+";scene="+LabEnvironmentIdentity.CurrentRevision;
             var pos=Media.Screen.position;
             Row("media_events.csv",sessionId,config.version,e.block,e.stage,e.level,e.mediaId,e.modality,status,Media.PlannedOnset(e),now,e.duration,e.previousExposures,pos.x,pos.y,pos.z,detail);
             engine.Note("adaptive_media_"+status,JsonUtility.ToJson(e)+";"+detail,now,Time.frameCount);
@@ -212,6 +226,12 @@ namespace EvidenceVR
                 packet.stage=engine.Adaptive.Stage;packet.level=engine.Practice?1:engine.Adaptive.Level;
                 packet.evaluationId=engine.PersonalDecisionId;packet.lastTrial=engine.ProtocolCompletedTrials;
                 packet.requestId=sessionId+":"+packet.stage+":"+packet.evaluationId;
+                if(decision && config.Sliding)
+                {
+                    packet.closedBehavior=engine.CurrentResult;
+                    packet.completedTrials=packet.lastTrial=packet.closedBehavior.phaseTrial+1;
+                    packet.decisionDeadline=packet.closedBehavior.plannedOnset+4.5;
+                }
                 if(config.evidenceGuardMode!="off"){packet.guardGaze=guardGaze.ToArray();packet.environmentRevision=LabEnvironmentIdentity.CurrentRevision;}
             }
             packet.gazeOverview=ConsoleGazeSnapshot(packet.now);
@@ -267,18 +287,23 @@ namespace EvidenceVR
                             (config.controlBasis!="physiological"||d.action!="UP"||d.physiologicalEligible);
                         if(config.IsPersonalized)
                             accept=engine.Phase==TaskPhase.Running && LayerABStudy.IsTraining(engine.Adaptive.Stage) &&
-                                engine.Adaptive.Stage==packet.stage && received-packet.now<4.5 && !Media.BlockFailed &&
+                                engine.Adaptive.Stage==packet.stage && received-packet.now<4.5 &&
+                                (!config.Sliding || (LayerABStudy.FreshSlidingReply(d.slidingRevision,received,packet.decisionDeadline,engine.CurrentResult?.phaseTrial??-1,packet.lastTrial))) && (!Media.BlockFailed || (config.Probe && d.action=="OFF")) &&
                                 d.evaluationId==engine.PersonalDecisionId && d.epoch==engine.RollingEpoch && d.lastTrial==packet.lastTrial &&
                                 d.sessionId==sessionId && d.requestId==packet.requestId && d.configVersion==config.version && d.level==engine.Adaptive.Level &&
                                 new[]{"ON","OFF","HOLD","REST"}.Contains(d.action) &&
                                 (engine.Adaptive.Stage=="random" || d.action=="HOLD" || d.action=="REST" ||
+                                 (config.Probe && d.basis=="probe_or_controller") ||
                                  (d.physiologicalEligible && engine.PersonalModelAdmitted) ||
+                                 (engine.IsDirectBioadaptiveTest && config.testSessionMode=="vendor_workload" && engine.PersonalModelTestUsable &&
+                                  d.engineeringModelEligible && d.basis=="mindtooth_vendor_workload") ||
                                  (engine.IsDirectBioadaptiveTest && config.allowCandidateModel && engine.PersonalModelTestUsable &&
                                   d.engineeringModelEligible && d.basis=="engineering_candidate_rf") ||
-                                 (d.basis=="behavioral_fallback" && engine.SupplementUsed && !engine.PersonalModelAdmitted));
+                                 (d.basis=="behavioral_fallback" && (engine.SupplementUsed || engine.PersonalModelStatus=="load_reference_ready" || engine.PersonalModelStatus=="load_reference_failed") && !engine.PersonalModelAdmitted));
                         if(accept && !EvidenceGuardContract.Allows(config,d,engine.Adaptive.Stage))
                         {accept=false;engine.Note("evidence_guard_rejected","missing_or_invalid_upgrade_authorization;request="+d.requestId,received,Time.frameCount);}
                         if(accept && config.mode=="ACTIVE")engine.Adaptive.Pending=d;
+                        if(config.Sliding)engine.Note("sliding_reply_timing","request="+packet.requestId+";within_deadline="+(received<packet.decisionDeadline)+";roundtrip_ms="+((received-packet.now)*1000).ToString("R",CultureInfo.InvariantCulture)+";accepted="+accept,received,Time.frameCount);
                         engine.Note("controller_reply",accept?(config.mode=="SHADOW"?"shadow_not_executed":"accepted_for_boundary"):"rejected_stale_or_invalid",received,Time.frameCount);
                     }
                 }
@@ -324,6 +349,12 @@ namespace EvidenceVR
         string lastGazeCompatibilityState;
         void SampleGaze(double now)
         {
+            if(config.DesktopComparison)
+            {
+                GazeTrackingStatus="SIMULATED GAZE 75% / 70%";
+                previousGuardGaze=null;GazeDebug?.Clear();
+                return;
+            }
             if(Application.isEditor && lastGazeCompatibilityState!=QuestLinkEyeSpaceFeature.LastResult)
             {
                 lastGazeCompatibilityState=QuestLinkEyeSpaceFeature.LastResult;
@@ -347,10 +378,11 @@ namespace EvidenceVR
             bool taskVisible=engine.Phase==TaskPhase.Running && (sphereVisible || trayVisible),videoVisible=Media.IsVideoVisible;
             var sphereBounds=owner.stimulus.bounds;
             var taskBounds=GazeRegions.TaskBounds(sphereBounds,trayVisible?focusTray.bounds:sphereBounds);
+            if(config.Comparison){taskBounds=sphereBounds;taskVisible=sphereVisible;}
             if(!focusBoundsRecorded || lastFocusBounds!=taskBounds)
             {
                 focusBoundsRecorded=true;lastFocusBounds=taskBounds;
-                string detail=GazeRegions.Revision+";padding_m="+GazeRegions.TaskPaddingMeters.ToString(CultureInfo.InvariantCulture)+";tray_available="+trayVisible+";world_center_m="+taskBounds.center.ToString("F6",CultureInfo.InvariantCulture)+";world_size_m="+taskBounds.size.ToString("F6",CultureInfo.InvariantCulture);
+                string detail=(config.Comparison?"sphere-bounds-v1":GazeRegions.Revision)+";padding_m="+(config.Comparison?0f:GazeRegions.TaskPaddingMeters).ToString(CultureInfo.InvariantCulture)+";tray_available="+trayVisible+";world_center_m="+taskBounds.center.ToString("F6",CultureInfo.InvariantCulture)+";world_size_m="+taskBounds.size.ToString("F6",CultureInfo.InvariantCulture);
                 engine.Note("gaze_task_region",detail,now,Time.frameCount);Debug.Log("Task gaze region: "+detail);
             }
             var sample=GazeRegions.Classify(valid,origin,direction,taskBounds,taskVisible,Media.Screen,videoVisible);
@@ -372,7 +404,7 @@ namespace EvidenceVR
             gazeSamples++;if(sample.valid)gazeValid++;if(sample.task)gazeTask++;if(sample.video)gazeVideo++;
             Row("gaze_samples.csv",sessionId,config.version,now,engine.Block,engine.TrialIndex,engine.Practice?(config.IsPersonalized?1:2):engine.Adaptive.Level,sample.valid,
                 sample.origin.x,sample.origin.y,sample.origin.z,sample.direction.x,sample.direction.y,sample.direction.z,sample.task,sample.video,
-                sphereVisible,videoVisible,GazeRegions.Revision,"tracked_eyes",taskVisible);
+                sphereVisible,videoVisible,config.Comparison?"sphere-bounds-v1":GazeRegions.Revision,"tracked_eyes",taskVisible);
             GazeDebug?.Present(sample,now);
         }
         public void SetEngineeringGazeRay(bool enabled)
@@ -385,7 +417,17 @@ namespace EvidenceVR
         public void Render()
         {
             if(disposed)return;
-            if(config.IsPersonalized){RenderPersonal();return;}
+            if(config.IsPersonalized)
+            {
+                RenderPersonal();
+                if(config.DesktopComparison)
+                {
+                    owner.body.text=owner.body.text.Replace("headset and sensors","EEG sensors").Replace("Headset or sensor","Sensor")
+                        .Replace("remove the headset","adjust the EEG sensors").Replace("headset or sensors","EEG sensors");
+                    owner.footer.text=owner.footer.text.Replace("headset and sensors","EEG sensors").Replace("headset","EEG sensors");
+                }
+                return;
+            }
             var view=owner.spatialView;
             if(engine.Phase==TaskPhase.Running)
             {

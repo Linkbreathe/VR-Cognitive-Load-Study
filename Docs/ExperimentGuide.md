@@ -1,26 +1,138 @@
 # Experiment guide: current modes
 
+## Current media bank
+
+The installed PC bank is `layer-ab-144-dialogue-v2-no-heidi` (2026-11-07): 92 comparison clips, with Heidi excluded. Both continuous A/B playlists were rebuilt to remove embedded Heidi excerpts while preserving their 300-second duration. Restart Unity Play Mode before the next assignment to load the updated bank. The completed run was stopped during deployment; no new session was started. Existing standalone/Quest installations need the updated runtime, catalog and media before use. Historical session media manifests retain their original content provenance. [Changes and validation](MediaExclusionReview.md).
+
+## Unity Editor menu
+
+The current **Evidence VR** menu has **Open Web Console**, **Signal Sources** and **Advanced**. Use Open Web Console for the existing service's study setup page; start the Python service using the existing launcher or Signal Sources connection workflow when needed. Choose stages, models, Desktop/Quest Pro and thresholds on the website, then use Unity Play Mode.
+
+Advanced contains **Use Web Console Workflow**, **Quest Link Settings**, **Eye Tracking Debug**, **Validate Setup** and **Build Quest App**. Use Web Console Workflow enables the existing operator-managed startup mode; it does not start a trial. Eye-debug entries are checked when enabled. Target Highlight is configured outside Play Mode; Eye Ray also supports the existing live engineering mode. Validate Setup runs the retained software checks and does not certify equipment. The old scene-building and protocol-switching menu entries are removed, with their underlying methods preserved. [Menu mapping and verification](EditorMenuReview.md).
+
+## Researcher workspace
+
+Open **Study setup** at `http://127.0.0.1:8765/tests`. Choose **Practice**, **Calibration** or **Adaptive Comparison** independently. For comparison, select the participant/model, choose **Desktop** or **Quest Pro**, review/edit ON and OFF thresholds with their held-out forest/arithmetic counts, then choose the A/B order. **Task rehearsal instead** prepares a task-only check without EEG/model scoring. Storage and legacy options are folded below the setup.
+
+The readiness card distinguishes model selection, EEG reception and Unity preparation. **Start Session** assigns the study; open Unity and complete its preparation before starting trials. Video thresholds remain editable with **Apply thresholds**. **Stop / release test** ends the assignment and retains its records.
+
+Open **Run monitor** for trial progress, the next scheduled checkpoint, playback state and the Decision graph. **Personal RF** contains the rolling score, cutoffs and recent trend; it can preview the selected model before Unity when sufficient EEG is received. No separate score panel is needed. No numeric score means no currently usable score; old telemetry is not shown as fresh playback.
+
+Select **View decision evidence** on a session in **Recent sessions**. Use **Round**, **Show** and **Checkpoint** to inspect a decision. Read the conclusion, Base controller proposal -> Patent evidence review -> Final command to Unity, and each observed value against its criterion. **Not evaluated** means the branch did not reach that check; it is not a failed eye check. **Technical details** contains original evidence and receipts. Contributing-trial buttons open the response/exposure timeline. Reports identify replay and known simulated inputs. See [review](ConsoleWorkflowReview.md).
+
+### Decision flow wording
+
+The three numbered cards distinguish the initial behavior/model proposal, the additional evidence review, and the final backend command to Unity. ON requests video on; OFF requests video off. HOLD keeps the video condition unchanged and does not pause the task. Each HOLD states Keep video ON/OFF when its recorded state is known. Review uses the state at the proposal; the final card uses the matching receipt state when available, otherwise the proposal state. Missing state is explicitly unknown. In round A, review is observation only and does not change the final command. Read the recorded reason above the cards for why a proposal was held; do not assume an eye check failed. The separate Unity receipt confirms acknowledgment only; inspect recorded playback in the trial timeline for delivery evidence. [Wording revision](DecisionFlowWordingReview.md).
+
+## Comparison environments
+
+2026-11-07, `comparison-environments-v1`. Open **Study stages > Adaptive Comparison**. Keep **A/B with a saved model** for real EEG/model scoring, select the participant/model and video thresholds, then choose **Comparison environment**:
+
+- **Desktop — no headset, fixed gaze 75% / 70%**: use the Unity desktop/Game view. C centers the task, A/B check response controls, Enter continues/starts, and P pauses. Eye inputs are fixed assumptions; task share is 70% of the valid-eye time. Mindtooth reception and model loading remain required for the saved-model run option.
+- **Quest Pro — headset with real eye tracking**: wear Quest Pro, enable eye tracking, complete seating/controller checks and continue. Missing real tracking is never replaced with fixed inputs.
+
+Start Session freezes the environment and thresholds for both A and B. Change environments by ending the current session and preparing a new one. The session card, Decision graph and comparison report identify **Simulated gaze** versus **Quest Pro gaze**. A branch that stops before eye evaluation still records the selected source; it does not claim an eye check passed. Desktop does not generate raw eye trajectories.
+
+The EEG-free **A/B task rehearsal** is a separate run option, suitable for software operation checks only. Use the updated Unity Editor source or a rebuilt Player; an older build does not implement the new environment configuration. See [review](ComparisonEnvironmentsReview.md) and [acceptance](AcceptanceRecord.md#comparison-environments).
+
+## Continuous 60-trial A/B
+
+New Web Console Adaptive Comparison sessions use 60 stimuli per arm, including two unscored warmups, and check every two responses using the latest five eligible trials. BA >= 0.80 with at most one omission supports ON; BA <= 0.60 or two omissions supports OFF. Both response classes are required for BA. B's gaze-supported model-only OFF deferral requires BA >= 0.80, valid eye coverage >= 70%, task share >= 60% and the existing temporal checks. The selected model and its pre-session score cutoffs remain shared across A/B.
+
+Video clips continue into the next clip while ON or HOLD. OFF hides and mutes while retaining the cursor; ON resumes. Source clips, cut points, first decoded frames and control actions are logged separately. Install `continuous-comparison-media.json` and both `continuous-comparison-*.mp4` files from `Builds/ContinuousComparison60` alongside the original media bank; the current PC is prepared. Create a fresh session to use this revision. Old assignments keep their original rules. Ten-new-trial verification and failed-probe phase locking remain; see [complete rules and verification](ContinuousComparisonReview.md).
+
+## Independent study stages
+
+Open **Physiology > Raw source waveforms** to inspect each live EEG channel. The engineering waveform display shows the received signal directly.
+
+In **Adaptive Comparison**, select the participant and saved forest/arithmetic RF. Open **Decision graph > Personal RF** to see a rolling ten-second preview from the selected Mindtooth stream, including before **Start Session** or Unity connection. It refreshes about once a second. Engineering scoring uses all ten one-second epochs in a complete, finite, correctly mapped EEG window. Amplitude, plateau and flatline rejection are disabled in both preview and comparison scoring. Preview data stay in memory. Once Unity connects, the node displays task-stage predictions. Select a specific controller request to inspect the score recorded for that decision. Both A and B use the same saved RF, spectral preprocessing and arithmetic-class score on task-aligned EEG, subject to session timing, sample availability and decision gates. A score may differ from the earlier preview because the windows end at different times.
+
+Selecting a forest/arithmetic model reveals **Video proposal thresholds**. Review the recommended ON and OFF values and edit either before **Start Session**. The two counts beside each field show how many held-out forest and arithmetic windows meet the inclusive cutoff. ON must be lower than OFF. You can also edit during preparation or either A/B round: click **Apply thresholds** to use the new pair from the next new decision. Typing alone does not apply a running-session change. **Applied** shows the currently saved pair and revision; the Personal RF node shows the current cutoffs. Previously generated decisions and retries retain their original values. **Recent sessions > Archive & configuration** and the downloaded report include the initial thresholds and timestamped change history. Completed sessions cannot be edited. Model selection and experiment environment remain part of the original assignment. A legacy model without stored held-out scores shows editable legacy defaults and unavailable counts. [Recommendation method](LoadReferenceCalibration.md#video-threshold-recommendations), [live-edit semantics and checks](LiveThresholdsReview.md).
+
+Run `StartEvidenceConsole.cmd` and open **Study stages**. Use the operator-managed Unity configuration and matching media pack. Enter a participant code and storage folder, choose a stage and run option, then start the assignment. In Unity, complete seating and button checks. After a stage closes, check the archive status. A later stage can use the same code and folder in a new session. Legacy engineering runs remain accessible via **Legacy engineering sessions**.
+
+For an A/B control calibration choose **Calibrate the A/B control model**. To reuse a saved forest/arithmetic workload RF, open **Adaptive Comparison**, enter the same participant ID, use the default **A/B with a saved model**, select the model and click **Start Session**. Both periods use its arithmetic-class score. Automatic order allocation balances new participant IDs within each run option and reuses the saved order for a returning ID. Select A/B or B/A explicitly when using an external allocation. Install the 144-trial media pack. Check actual source, rate, units, mounting and tracked eyes before worn operation. Use **Open comparison report** on a session card to inspect or download its recorded decisions and post-response evidence. [Decision criteria and acceptance boundaries](LayerABStudyGuide.md#independent-stage-operation).
+
+## 2026-11-06 — Occasional same-digit arithmetic options
+
+Each 18-prompt Calculate stage includes three prompts with one wrong answer sharing the true result’s final digit, one randomly positioned in each group of six. Participants still press A when the result appears and B when absent. The rule is recorded as `vermont-180s-math-occasional-decoy-v10`. [Calibration procedure](LoadReferenceCalibration.md).
+
+## Check the live EEG rate before calibration
+
+Use the top strip on Test sessions or the Evidence Console. Watch the actual rate settle near 250 Hz before starting Relax. A red low-rate or no-samples message during a task calls for an operator check of the amplifier and EEG App streaming. Task time continues. [Sampling-rate monitor](EvidenceConsoleGuide.md#live-eeg-sampling-rate)
+
+## 2026-11-06 — Calculate timeout feedback
+
+Stage 2/3 Calculate revision `vermont-180s-math-timeout-v9` scores an unanswered ten-second prompt as incorrect and displays its expression in red for 1.5 seconds. The log retains response=omitted and an empty reaction time. Interruptions remain unscored. Quest Pro readability is pending. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Dimmer Relax lighting
+
+Relax uses 40% of the room lighting settings during the forest walk. The original settings return on stage exit or interruption. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Three-minute calibration (v6)
+
+Start Relax with X / Enter and watch the Vermont trail for three minutes. At the Calculate instructions, review the worked example, then press X / Enter for eighteen ten-second questions. Press A for a listed result or B for an absent result. Restart the acquisition service before using the revised protocol. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Rolling calibration quality
+
+During Relax and Calculate, watch the calibration banner on any Evidence Console page or on Test sessions. After ten seconds of signal and a one-second ingestion allowance it checks the latest complete ten seconds at one-second steps. A warning shows the reason and flagged electrodes when available. Check the waveform and mapping. The timer continues. Electrode adjustment requires a fresh session. The training count uses disjoint windows and the model report records the outcome. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Calculate response feedback
+
+During Calculate, the expression turns green for a correct A/B response or red for an incorrect one. Feedback lasts until the next question. The four numbers retain their normal text color. Each new prompt starts in the neutral color. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-06 — Selected EEG input
+
+Select the outlet, choose EEG mapping, and enter the verified conversion to uV. Connect and check for Receiving before preparing a test. The engineering calibration accepts compatible selected EEG sources including CSV replay. Receive only is for preview.
+
+## Selecting an LSL source in the Unity Editor
+
+Stop Play Mode and disconnect the bridge. Open **Evidence VR > Stage 2 > LSL Signal Sources**, click **Scan**, choose an outlet by name, type, channel count, rate and UID, then click **Connect**. New outlets default to **Receive only**, which accepts numeric samples and text events. Rescan and reselect after a publisher restarts. In Advanced settings, verify source provenance before configuring EEG processing. The study EEG mapping requires the live eight-electrode, 250 Hz profile. Recorded XDF metadata takes precedence over operator provenance.
+
+After Connect, the status changes from Connecting to Receiving when recent samples arrive. An irregular event stream can show Connected, waiting for events between markers.
+
+During Relax, watch the Vermont forest trail for three minutes with eyes open. The room dims and the front screen plays forest sounds. During Calculate, solve each expression, then press A if its value appears among the four numbers or B if absent. Each prompt lasts ten seconds. The first valid press counts. The desktop A/B keys match the right-hand controller buttons. [Calibration procedure](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Personal workload RF (rest-math-iaf-rf-v2)
+
+Select Calibration only and complete two minutes each of eyes-open rest in the room and mental arithmetic. On Physiology inspect the personal RF score, resting alpha peak and held-out AUC. Start a fresh calibration to use this revision. Verify the LSL amplitude conversion before collecting model data. [Method and operation](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Local workload reference calibration
+
+Local personal calibration now uses 120 seconds of eyes-open rest and 120 seconds of arithmetic. The engineering load score is observed independently of the RF control thresholds. Synthetic processing and Editor stage transitions were checked. Worn EEG, units, questionnaire applicability and Quest Pro remain pending. [Operation, scoring and verification](LoadReferenceCalibration.md).
+
+## 2026-11-05 — Choose the physiological source
+
+In Test sessions, choose a saved personal model or the Mindtooth Workload engineering test. For the vendor option first connect AI-Based Workload on the Physiology page and check the vendor participant and session. [Operation, decision rules and verification](MindtoothModelSources.md).
+
+## Mindtooth acquisition
+
+All new sessions use the eight-electrode Mindtooth profile. The app displays µV. Verify the LSL scale using time-aligned device and LSL samples before enabling calibration. Record this outlet together with Unity task markers for synchronized task recordings. [Mindtooth acquisition, verification and pending checks](MindtoothAcquisitionReview.md).
+
+## Current A/B allocation
+
+Use `layer-ab-probe-v2` for new sessions. Generate a fresh allocation, install the 20-second media pack, restart the Python bridge and load the matching Unity configuration. Each training period has 144 stimuli. Both arms use the same OR thresholds. B reviews every proposed upgrade and verifies it after ten new trials. [Current setup, decision table, outcome definitions and pending acceptance](ProbeStudyReview.md). Earlier 96-trial counts, thresholds and mock plans below are retained for the corresponding study versions.
+
+**Historical 96-trial allocations:** `sliding-five-close-v1` retains behavioral and physiological history across ordinary level changes. Behavior uses the response just closed, while physiology uses the latest fully acquired, compatible five-trial window (one trial behind). Recalibrate with the new revision; start the updated Python service and updated Unity source/player. Supersedes the previous switch-capacity estimates only for the new allocations. [Operation, timing and validation](SlidingControlReview.md).
+
+
+**Behavior window update (2026-11-05):** `behavior20-stride5-include-transition-v1` evaluates the latest twenty behavioral trials every five trials without invalidating the whole window solely for transition flags. Physiological windows, calibration labels, actual exposure and execution gates are unchanged. Restart the Python service after ending the old session, then start a fresh session; running services do not hot-reload this change. Keep the 4.5-second cycle. Verified synthetic capacity is seven fallback or five physiology level changes per 96-trial phase under favorable conditions, not an expected human rate. The final trial-95 request cannot execute before phase end. [Rules, timing, tests and limitations](BehaviorWindowRevisionReview.md).
+
 Current A/B questionnaire revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Use the seven-point adaptation of Raw TLX on page 1 (six required 1-7 ratings), UEQ+ on page 2, and final preference after Training 2. See [scoring and literature](SevenPointTLXReview.md).
 
-**Optional A/B study (2026-11-05):** use the separate `StartLayerABStudy.cmd` entry on port **8766**, then load an allocated `layer-ab-v1` configuration from **Evidence VR > Layer A-B study** while Unity is stopped. Both periods use the same adaptive controller: A observes the layer and B enforces it. The new [Google Forms](LayerABGoogleForms.md) collect six Raw TLX ratings on page 1 and four UEQ+ Attractiveness ratings on page 2 immediately after each period, then a separate final preference after Training 2. Complete both pages before submitting. After successful submissions, the experimenter presses X/Enter in Unity; the first confirmation starts 180 seconds of rest. The local questionnaire page and save endpoints are removed; no IMI, repeated SSQ, adjustment-experience or calibration questions are included. Preserve Unity/Python folders and record `EvidenceVR_TaskEvents` with EEG/ECG in LabRecorder. [Full setup, reduced-questionnaire flow, timestamps, export and pending device acceptance](LayerABStudyGuide.md). The existing workflow below remains the legacy/test-console workflow, and its saved bootstrap was restored after validation.
+**Optional A/B study (2026-11-05):** use the separate `StartLayerABStudy.cmd` entry on port **8766**, then load an allocated `layer-ab-v1` configuration from **Evidence VR > Layer A-B study** while Unity is stopped. Both periods use the same adaptive controller: A observes the layer and B enforces it. The new [Google Forms](LayerABGoogleForms.md) collect six Raw TLX ratings on page 1 and four UEQ+ Attractiveness ratings on page 2 immediately after each period, then a separate final preference after Training 2. Complete both pages before submitting. After successful submissions, the experimenter presses X/Enter in Unity; the first confirmation starts 180 seconds of rest. The local questionnaire page and save endpoints are removed; no IMI, repeated SSQ, adjustment-experience or calibration questions are included. Preserve Unity/Python folders and record `EvidenceVR_TaskEvents` with Mindtooth EEG in LabRecorder. [Full setup, reduced-questionnaire flow, timestamps, export and pending device acceptance](LayerABStudyGuide.md). The existing workflow below remains the legacy/test-console workflow, and its saved bootstrap was restored after validation.
 
 ## Gaze overview on Physiology
 
 Refresh the console and select **Physiology > Gaze overview**. **Last 10 seconds** shows a fading distribution; **Latest point** shows only the freshest valid projected eye position. Task/Movie percentages use valid tracked time; Valid tracking uses the observed window. This is a front-wall projection with schematic object outlines, not a calibrated screen heatmap.
 
-The updated Unity source and genuine tracked eyes are required. EEG/ECG data alone does not create gaze points. **Waiting for Unity**, **Tracking unavailable** or **Gaze telemetry unavailable** identify different missing inputs. Existing APKs need rebuilding for this telemetry; an updated Editor session can provide it. No new build or Quest Pro physical acceptance accompanies this UI update. [Definitions, missing-data behavior and validation](GazeConsoleReview.md).
+The updated Unity source and genuine tracked eyes are required. Mindtooth EEG data alone does not create gaze points. **Waiting for Unity**, **Tracking unavailable** or **Gaze telemetry unavailable** identify different missing inputs. Existing APKs need rebuilding for this telemetry; an updated Editor session can provide it. No new build or Quest Pro physical acceptance accompanies this UI update. [Definitions, missing-data behavior and validation](GazeConsoleReview.md).
 
 ## Engineering calibration and saved-model tests
 
 **Persistent configuration (2026-11-04):** Unity LSL **Connect** and **StartEvidenceConsole.cmd** now automatically use `UserSettings/personalized-policy.json` when present. Explicit command-line policy paths take precedence. Unity preserves channel labels and **Analysis units (after scaling)** in saved mappings. For the same compatible engineering source/model, a bridge restart does not require recalibration or re-entering those settings. After a publisher restart, scan and explicitly reselect its new outlet; a matching remembered mapping is restored. For a new source or changed known layout, review the mapping and policy. Errors now show specific saved/current differences; do not edit a model manifest to bypass them. [Diagnosis, recovery and validation](ModelCompatibilityReview.md).
 
-The current Gin metadata was recovered from the exact selected outlet's declared units/layout, and the corrected service was restarted through Unity Connect. The V3 candidate passed a read-only load against that service configuration; the console launcher reused the same service. This verification did not start an assignment or run trials and does not replace participant-specific calibration.
-
-Use the single launcher **StartEvidenceConsole.cmd**, which opens `http://127.0.0.1:8765/tests`. The Gin test uses **V3 filtered-quality processing** and model **20261103T184931_8f2739fb95e8-1** for **SIM_GIN_TEST**. Select root `D:\ExperimentData\PatentDemo`, **Bioadaptive test**, that model, and **Allow unvalidated candidate model**. The unified service is receiving Gin; the Editor bootstrap also points to 8765. Unity is currently stopped with no active assignment. Enter Play Mode, press Start Session on the page, perform seating/A/B checks, then X/Enter. Physiology and Patent decisions are available from the same console. [Unified entry](UnifiedConsoleReview.md), [processing and evidence](SignalQualityV3Review.md).
-
-This new candidate uses 43 quality-qualified replay windows paired with the unchanged generated responses; it remains unvalidated. Offline reprocessing of the previous actual run produced 20 numeric predictions rather than zero. A new live Unity run remains pending because automatic approval review rejected its automated start. The earlier 26-slot run used the old processing/model. Old models are retained but rejected by the new preprocessing-version compatibility check; retrain rather than editing their manifests. Port 8765 now runs the updated processing and port 8877 is closed. The [original generated-response fixture](SimulationTrainingReview.md) is unchanged.
-
-For other configured engineering sources, use the same **StartEvidenceConsole.cmd** entry. Enter **Participant ID** and **Storage Folder** (default `D:\ExperimentData\PatentDemo`) on this computer page. In Unity, stop Play and select **Evidence VR > Test sessions > Enable operator-managed engineering tests**, then enter Play. Start a page assignment and complete the normal seating/A/B preparation checks in Unity. Actual mapped EEG and ECG must be receiving; OBSERVE-only reception is insufficient. Review the saved policy and mapping when changing sources.
+Launch **StartEvidenceConsole.cmd** and use a fresh test identity. In Physiology, verify eight Mindtooth traces at 250 Hz. In Unity select the operator-managed engineering configuration before starting an assignment. A live EEG mapping is required for managed preparation. [Mindtooth acquisition, verification and pending checks](MindtoothAcquisitionReview.md).
 
 Use **Calibration only** to save responses, training rows, reports and any fitted model. Next time select the same ID/root, choose **Bioadaptive test** and a saved model; compatible models load without calibration or refitting. A rejected model additionally requires **Allow unvalidated candidate model** and stays visibly engineering-only. Insufficient labeled data may produce no estimator. **Full protocol** retains the original sequence. The page shows model/control reasons and archive state; keep the app/service open until `complete_core_records`. This state verifies the five core files, including aborted runs, rather than successful experiment completion.
 
@@ -30,17 +142,13 @@ Latest candidate: dev6/code 30, with the updated Python host and operator bootst
 
 The LSL source window detects this project's receiving service even when it was restarted outside the window. Stop Play Mode, then click **Disconnect** before changing sources. When already disconnected, Disconnect is disabled while Scan, Connect and the source picker remain available. The publisher stays running, so its name can still appear in the list. An external service with recent Unity/Quest telemetry must finish its session first. [Disconnect correction](LslSourceSelectionReview.md).
 
-The `evidence-console-v1.1` update adds **Physiology > Raw source waveforms** for Receive only. Original numeric values display even with unconfirmed units and without Unity Play Mode. All signal columns appear by default; sample index is separately selectable. The preview follows the current LSL source, not a selected historical session. Units/provenance and feature/model admission remain separate. Open `http://127.0.0.1:8765/#physiology` or refresh the page. For the next experiment, start a fresh Unity session; the paused zero-trial engineering preparation was ended during backend deployment.
+Enable LSL on the connected amplifier. The console selects `104209-1083_eeg` and displays a bounded preview before Unity starts. If the selected publisher restarts during operation, rescan and start a fresh session.
 
-For a **Receive only** selection, open **Physiology > Incoming signals** to see connection status and the latest channel values. The screen updates once per second. Missing EEG/ECG waveform mappings are distinct from missing LSL reception; the source can be Receiving while those plots are unconfigured. Refresh the browser after the `console-receive-only-v1` update. Do not restart an ongoing experiment just to reload the page.
-
-The local three-page operator console is integrated as `evidence-console-v1`. Start the acquisition application and its LSL outlets, save exact mappings with **Evidence VR > Stage 2 > LSL Signal Sources > Save settings**, then double-click **StartEvidenceConsole.cmd** at the project root. It starts/reuses the matching Python bridge and opens `http://127.0.0.1:8765/`. Enter the configured Unity session separately and verify fresh telemetry, source identity and provenance. The operator's `02_007_5_eeg` selection now receives in OBSERVE mode after the 2026-11-03 connection repair; source provenance and physiological mapping remain unqualified. Re-scan after publisher restarts change its UID. Only one bridge may own a given port.
-
-The pages distinguish base proposals, Guard verdicts/delivered actions and matching Unity receipts; show current EEG/ECG waveforms and completed feature windows; and provide the protocol with oral questionnaire links. The guide is reference only and cannot confirm Google Forms submission. Closing the browser leaves recording running. After ending the experiment and closing Unity Play/the Quest app, wait five seconds and use **StartEvidenceConsole.cmd --stop**, or Disconnect in the Unity LSL window. Changed sources and service restarts require a fresh personalized session. Standalone Quest requires an explicit USB reverse tunnel or reachable LAN URL. [Complete setup, connection routes, records and verification boundaries](EvidenceConsoleGuide.md).
+The pages distinguish base proposals, Guard verdicts/delivered actions and matching Unity receipts; show current Mindtooth EEG waveforms and completed feature windows; and provide the protocol with oral questionnaire links. The guide is reference only and cannot confirm Google Forms submission. Closing the browser leaves recording running. After ending the experiment and closing Unity Play/the Quest app, wait five seconds and use **StartEvidenceConsole.cmd --stop**, or Disconnect in the Unity LSL window. Changed sources and service restarts require a fresh personalized session. Standalone Quest requires an explicit USB reverse tunnel or reachable LAN URL. [Complete setup, connection routes, records and verification boundaries](EvidenceConsoleGuide.md).
 
 ## Current task protocol
 
-Updated 2026-11-03 for current source and separate candidate `3.0.0-stage3-dev6` / code 30, retaining the dev11 configuration/HTTP contract, protocol `personalized-rf-v2` and Python policy `personalized-rf-pilot-v3-control70-40`. Project PlayerSettings remain dev12/24 outside separate builds. Stage 1 remains the default without an enabled adaptive override. Read the [lower-stimulus review](LowerStimulusReview.md), [desk-sign HUD review](DeskSignHudReview.md), [short calibration review](ShortCalibrationProgressReview.md), [control rules](PersonalizedControlRulesReview.md), [validity revision](PersonalizedValidityReview.md) and [acceptance record](AcceptanceRecord.md).
+Updated 2026-11-03 for current source and separate candidate `3.0.0-stage3-dev6` / code 30, retaining the dev11 configuration/HTTP contract, protocol `personalized-rf-v2` and Python policy `mindtooth-eeg250-pilot-v1`. Project PlayerSettings remain dev12/24 outside separate builds. Stage 1 remains the default without an enabled adaptive override. Read the [lower-stimulus review](LowerStimulusReview.md), [desk-sign HUD review](DeskSignHudReview.md), [short calibration review](ShortCalibrationProgressReview.md), [control rules](PersonalizedControlRulesReview.md), [validity revision](PersonalizedValidityReview.md) and [acceptance record](AcceptanceRecord.md).
 
 ## Optional Stage 3 evidence audit
 
@@ -55,8 +163,8 @@ The A/B meanings remain visible after checks and in a compact legend on subseque
 ## Run the current personalized protocol with the dev11 configuration contract
 
 1. Stop Play Mode. Choose **Evidence VR > Stage 2 > Enable dev11 Personalized Engineering Protocol**. The old override is backed up; configuration freezes at session start. For participants, generate a new allocation with the current tool and a unique managed enrollment index.
-2. Start the updated Python service and matching `personalized-rf-pilot-v3-control70-40` policy. Select exact LSL outlets and confirm actual EEG/ECG channels, units, reference and contact. The source panel starts with a non-admitting policy; `service.py --personalized-policy` selects an explicitly reviewed policy. The dev11 configuration/HTTP contract remains supported. Old policy files/models are rejected; restart the service and begin a fresh session/calibration after updating. Existing deployment ZIPs contain their original Python policy and must not be mistaken for this update.
-3. Complete seating/A/B checks and inspect source identity, EEG/ECG mapping, units and contact. Participant mode still requires ready media and a recent live/receiving service status; that connection check does not certify electrode quality. Continue directly to practice instructions and up to 14 practice stimuli. There is no timed resting baseline. X/Enter skips practice at the next boundary. Correctness feedback is shown in practice only.
+2. Start the updated Python service and matching `mindtooth-eeg250-pilot-v1` policy. Select exact LSL outlets and confirm actual Mindtooth EEG channels, units, reference and contact. The source panel starts with a non-admitting policy; `service.py --personalized-policy` selects an explicitly reviewed policy. The dev11 configuration/HTTP contract remains supported. Old policy files/models are rejected; restart the service and begin a fresh session/calibration after updating. Existing deployment ZIPs contain their original Python policy and must not be mistaken for this update.
+3. Complete seating/A/B checks and inspect source identity, Mindtooth EEG mapping, units and contact. Participant mode still requires ready media and a recent live/receiving service status; that connection check does not certify electrode quality. Continue directly to practice instructions and up to 14 practice stimuli. There is no timed resting baseline. X/Enter skips practice at the next boundary. Correctness feedback is shown in practice only.
 4. Run four alternating twelve-stimulus calibration blocks by default: 48 trials / 216 s (3:36). Explicit six/eight-block allocations remain supported. Existing saved allocations keep their specified budget; generate a new allocation or use the new four-block engineering example for this revision. Calibration and both training phases have a neutral countdown and no correctness feedback. Python labels each 22.5 s window from exactly its own five trials, trains the personal model and runs held-out-block and circular-permutation checks. Model computation may take several minutes in addition to acquisition. A first failure offers one supplemental L0/L1 pair (108 s, total 5:24); a second retains the invalid-model status and may use an explicitly logged behavioral fallback.
 5. Keep the headset and electrodes in place. The experimenter reads the calibration questionnaire aloud and records spoken answers in Forms. Then run Training 1 (96 stimuli), oral questionnaire/rest, Training 2 (96 stimuli), and the final oral questionnaire. Participant UI hides the strategy. X confirms completion, not a Forms submission. See [wording, scoring and linkage](QuestionnaireSetup.md).
 6. If removal or electrode movement is necessary, pause and start a new session after checks. H on the application's keyboard records movement; supported XR presence loss also invalidates and pauses. An invalidated session cannot resume or accept late model/control results. X stops; Left trigger / C restarts from preparation, practice and fresh calibration. Unsupported presence reporting cannot certify unchanged contact. On standalone, use pause/stop and Left trigger to restart.
@@ -208,3 +316,31 @@ Reference: [Meta Link development workflow](https://developers.meta.com/vr/docum
 Use `Evidence VR / Apply Quiet Lab Presentation` for the scene presentation, `Evidence VR / Run Automated Validation` for core checks, and `Evidence VR / Build Quest APK` for the Android package. Core results go to `Evidence/automated-validation.txt`; independent export verification is `python Tools/verify_exports.py`.
 
 See [AcceptanceRecord.md](AcceptanceRecord.md) for the evidence boundary and remaining headset checks. OpenXR setup follows the installed package and [Meta's configuration documentation](https://developers.meta.com/vr/documentation/unity/unity-xr-plugin/).
+# Isolated recorded EEG comparison
+
+For engineering replay, run `Tools/AdaptiveTraining/simulate_saved_model_comparison.py` with the project virtual environment. Supply `--model` (saved model folder), `--recording` (raw_signals JSONL or Mindtooth semicolon CSV), and `--output` (a new isolated folder). Optional `--reuse-inputs` points to a previous simulation folder to preserve its exact responses and gaze targets/validity/timing. Video visibility and task level follow the new decisions. The model and thresholds must match when reusing inputs.
+
+CSV input requires the model's eight channel labels in order, 250 Hz metadata, finite samples and increasing, sufficiently continuous millisecond timestamps. CSV units are not established by this format; the report explicitly labels the model's uV/scale 1 assumption. Each arm starts at its recorded replay offset; short recordings wrap. Outputs include provenance, decisions, simulated inputs, verification evidence when separately checked, and `report/index.html`. The report may be served locally; this workflow does not require Unity, change the live Console assignment, or establish synchronized participant outcomes. See [eye-open replay acceptance](AcceptanceRecord.md#eye-open-csv-replay).
+
+
+## Decision gaze evidence
+
+Console v1.21 provides the same compact evidence card in Run monitor and the session's Decision evidence page. Select a checkpoint, then switch **At decision** / **After decision**. The first view uses the recorded decision intervals; the second shows subsequent completed trials separately. Expand **Time-aligned evidence** for response/playback context and **Criteria & source records** for observed values, thresholds and the original receipt. Session totals are under **A/B session summary**.
+
+For a real heatmap, select the Quest Pro environment and supply genuine tracked-eye telemetry from Unity. The monitor updates the recorded map every five seconds; use Refresh in archived reports. Desktop's fixed 75%/70% values do not create positions. Missing or legacy coordinates display an empty map. If multiple projection frames exist, choose a frame; different coordinate frames are never overlaid. Heat intensity is elapsed time per cell, with a local scale printed below the map. It is not RF workload or proof that a decision was correct. [Detailed method and pending device checks](DecisionGazeEvidenceReview.md).
+
+
+## Decision clarity and operator wording
+
+Use **Create session assignment** in Study setup; complete preparation and start the task in Unity with Enter/X. The primary Experiment guide covers independent Practice, Calibration and Adaptive Comparison and identifies the instruction environment. Old continuous-protocol instructions are in the legacy reference.
+
+**Train Personal RF · forest / arithmetic** produces the saved workload RF for A/B. Legacy control calibration is a separate protocol, not an extra mandatory step for that RF. Mindtooth Neurometrics remains a separate single-period vendor test.
+
+Decision evidence separates base proposal inputs from current-condition review inputs. An unavailable current-condition RF is not replaced by the base score. The recorded reason identifies the review outcome; contextual explanations derived from saved fields are labeled. Desktop ratios are assumptions, and real gaze is not collected in that mode. A command receipt confirms acknowledgment; inspect playback records for decoded exposure.
+
+**Copy recommendation to draft** only fills the threshold fields. In a running session, current applied values remain unchanged until **Apply thresholds**. The display labels pending edits and calibration-window trigger counts. This wording revision changes no experimental rules. [Review](ConsoleClarityRevisionReview.md).
+
+
+## Checkpoint progress navigation
+
+In the session report, drag the Checkpoint bar or use the previous/next buttons to browse recorded decisions. Arrow keys move one checkpoint; Home/End select the first/last. The counter counts filtered checkpoints, not elapsed time or trial completion. The caption shows the arm, trial and base-to-delivered action. Round/Show filters update the available steps; Refresh retains the selected request when it remains available. This navigation never controls Unity. Key numeric evidence is bold while base and review windows remain separate.

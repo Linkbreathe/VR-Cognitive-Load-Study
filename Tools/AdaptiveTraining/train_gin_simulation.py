@@ -2,6 +2,10 @@
 
 Replay signals and generated responses are paired for engineering tests, never admission.
 """
+
+if __name__ == "__main__":
+    raise SystemExit("Retired P007/Gin workflow. Use StartEvidenceConsole.cmd with the Mindtooth device.")
+
 import argparse
 import copy
 from datetime import datetime, timezone

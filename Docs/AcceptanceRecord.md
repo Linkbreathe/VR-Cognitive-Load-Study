@@ -1,5 +1,9 @@
 # Current acceptance record
 
+## Console display v3
+
+2026-11-08, `console-display-v3-clarity`: software-verified front-end revision. Display contracts (existing plus route, first-unmet, headline, Round A hypothetical and OFF-deferral cases), Console script syntax checks and all 206 AdaptiveTraining Python tests passed. An isolated served-browser check of archived engineering session `20261107T203024_5e0116214361` confirmed the summary counts against the report JSON, the B10 blocked and A10 hypothetical cards, the two-lane timeline, Study setup readiness for Practice and Calibration, and the Run monitor, Signals and Guide headers. 1440 px and 390 px layouts had no document overflow. P3 completion: the populated Run monitor was rendered from the synthetic unit-test fixture (enforce decision with tracked-eye checks), and Guard-shaped records are covered by new contracts. Signals and Guide were checked at 1440 px and 390 px. Not performed: a Run monitor with live Unity telemetry, worn Quest Pro or EEG checks, or a participant session. Device acceptance is unchanged. [Review and evidence](ConsoleDisplayV3Review.md).
+
 ## Decision flow wording
 
 2026-11-08, `console-decision-flow-wording-v1`: software-verified explicit proposal/review/final-command wording, retained state for HOLD, observation-only A review, and separate receipt/playback explanation. JavaScript syntax and existing display contracts passed. Served-browser inspection of archived A and B10 checkpoints confirmed the actual labels and recorded reason; no console errors were captured. No new session, acquisition or physical output was tested. Device acceptance is unchanged; narrow-screen layout was not separately exercised in this wording revision. [Review and screenshot](DecisionFlowWordingReview.md).

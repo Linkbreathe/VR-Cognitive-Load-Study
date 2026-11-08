@@ -5,7 +5,7 @@
   const messages = {
     unconfigured: 'Select an EEG stream to monitor its sampling rate.',
     measuring: 'Measuring the incoming stream…',
-    no_samples: 'No EEG samples received. Check streaming in the EEG App.',
+    no_samples: 'No EEG samples received. Start streaming in the Mindtooth app.',
     low: 'Low EEG sampling rate. Check the amplifier and other connected clients.',
     timestamps: 'Irregular EEG timestamps. Check the signal source.',
     receiving: 'Receiving samples.',

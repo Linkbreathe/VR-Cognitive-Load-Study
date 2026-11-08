@@ -1,32 +1,31 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evidence Console</title><link rel="stylesheet" href="/console.css"><script defer src="/eeg-rate.js"></script><link rel="stylesheet" href="/workspace.css"><script defer src="/decision-evidence.js"></script><script defer src="/console.js"></script></head>
-<body class="monitor-shell"><div id="evidence-console" data-display-revision="console-checkpoint-scrubber-v1">
-<nav class="workflow-nav" aria-label="Study stages"><a href="/tests?stage=practice">Practice</a><a href="/tests?stage=calibration">Calibration</a><a href="/tests?stage=comparison">Adaptive Comparison</a><span>Independent stages · settings saved per session</span></nav>
-<header class="ec-bar"><div class="ec-brand"><span class="ec-logo" aria-hidden="true">e</span>Evidence Console</div><nav class="ec-nav" aria-label="Console pages"><button data-page="decision" aria-pressed="false">Patent decisions</button><button data-page="physiology" aria-pressed="false">Physiology</button><button data-page="guide" aria-pressed="true">Experiment guide</button></nav><span id="service-state" class="ec-tag amber" role="status">Connecting…</span></header>
-<div id="eeg-rate"><strong>Live EEG sampling rate</strong><span role="status">Checking receiver…</span></div>
+<body class="monitor-shell"><div id="evidence-console" data-display-revision="console-display-v3-clarity">
+<header class="workspace-bar"><a class="brand" href="/tests"><span class="brand-mark">e</span>Evidence Console</a><nav aria-label="Workspace"><a href="/tests">Study setup</a><button type="button" data-page="decision" aria-pressed="false">Run monitor</button><button type="button" data-page="physiology" aria-pressed="false">Signals</button><button type="button" data-page="guide" aria-pressed="true">Guide</button></nav><span id="service-state" class="chip warn" role="status">Connecting…</span></header>
+<div id="eeg-rate" class="ec-alert"><strong>Live EEG sampling rate</strong><span role="status">Checking receiver…</span></div>
 <div class="ec-session"><label>Session <select id="sessions" aria-label="Session"><option value="">Follow latest session</option></select></label><span id="session-status">Waiting for Unity telemetry</span></div>
 <div id="connection" class="connection" aria-live="polite">Connecting to the local Python service…</div>
 <div id="calibration-quality" role="status" hidden></div>
-<section id="ec-decision" class="ec-body" aria-label="Patent decisions" hidden>
- <div id="run-overview" class="run-strip" aria-label="Current run"></div><div class="ec-heading"><h1>Run monitor</h1><button class="ec-btn" data-page="physiology">Inspect physiology ↗</button></div>
- <div class="ec-work"><section class="ec-panel"><div class="ec-panel-head"><h2>Decision graph</h2><label>Request <select id="requests" aria-label="Decision request"><option value="">Latest decision</option></select></label></div><div class="ec-graph">
+<section id="ec-decision" class="ec-body" aria-label="Run monitor" hidden>
+ <div id="run-overview" class="run-strip" aria-label="Current run"></div><div class="ec-heading"><h1>Run monitor</h1><button class="ec-btn" data-page="physiology">Open Signals ↗</button></div>
+ <div class="ec-work"><section class="ec-panel"><div class="ec-panel-head"><h2>Decision graph</h2><label>Check <select id="requests" aria-label="Decision check"><option value="">Latest check</option></select></label></div><div class="ec-graph">
  <svg class="ec-edges" aria-hidden="true"></svg>
  <button class="ec-node" data-node="behavior"><span class="ec-node-label">Behavior</span><strong>—</strong><span class="ec-small">Awaiting a decision</span></button>
- <button class="ec-node" data-node="physiology"><span class="ec-node-label">Personal RF</span><strong>—</strong><span class="ec-small">No model result</span><svg id="rf-trend" class="rf-trend" viewBox="0 0 200 44" role="img" aria-label="Recent model scores with session thresholds"></svg><span id="rf-updated" class="ec-small">No score received</span></button>
- <button class="ec-node" data-node="judgment"><span class="ec-node-label">Base proposal</span><strong>—</strong><span class="ec-small">No request</span></button>
- <button class="ec-node" data-node="gaze"><span class="ec-node-label">Viewing evidence</span><strong>—</strong><span class="ec-small">No applicable review</span></button>
- <button class="ec-node" data-node="guard" aria-pressed="true"><span class="ec-node-label">Evidence Guard</span><strong>—</strong><span class="ec-small">Awaiting a decision</span></button>
- <button class="ec-node" data-node="execution"><span class="ec-node-label">Unity execution</span><strong>—</strong><span class="ec-small">No matching receipt</span></button>
- </div><div class="ec-graph-key">Solid: recorded connection · Dashed: pending or unavailable · Inspect evidence below for passed and unmet criteria</div></section><aside id="ec-decision-detail" class="ec-panel ec-inspector"></aside></div>
- <section class="ec-panel monitor-evidence"><div class="ec-panel-head"><h2>Decision evidence</h2><a id="full-evidence" href="/tests">Open session report ↗</a></div><div id="live-evidence"></div></section>
- <section class="ec-panel"><div class="ec-panel-head"><h2>Decision history</h2><span class="ec-small">Most recent 64 requests · select a row to inspect</span></div><div class="table-scroll"><table><thead><tr><th>Request</th><th>Base</th><th>Guard</th><th>Delivered</th><th>Unity receipt</th></tr></thead><tbody id="history"></tbody></table></div></section>
- <footer class="ec-bottom">Read-only monitoring · A delivered action is not proof of execution.</footer>
+ <button class="ec-node" data-node="physiology"><span class="ec-node-label">Workload model</span><strong>—</strong><span class="ec-small">No model result</span><svg id="rf-trend" class="rf-trend" viewBox="0 0 200 44" role="img" aria-label="Recent model scores with session thresholds"></svg><span id="rf-updated" class="ec-small">No score received</span></button>
+ <button class="ec-node" data-node="judgment"><span class="ec-node-label">Proposal</span><strong>—</strong><span class="ec-small">No request</span></button>
+ <button class="ec-node" data-node="gaze"><span class="ec-node-label">Gaze check</span><strong>—</strong><span class="ec-small">No applicable review</span></button>
+ <button class="ec-node" data-node="guard" aria-pressed="true"><span class="ec-node-label">Review</span><strong>—</strong><span class="ec-small">Awaiting a decision</span></button>
+ <button class="ec-node" data-node="execution"><span class="ec-node-label">Unity receipt</span><strong>—</strong><span class="ec-small">No matching receipt</span></button>
+ </div><div class="ec-graph-key">Solid line: recorded link · Dashed: pending or not used · Select a step to inspect it</div></section><aside id="ec-decision-detail" class="ec-panel ec-inspector"></aside></div>
+ <section class="ec-panel monitor-evidence"><div class="ec-panel-head"><h2>Latest decision</h2><a id="full-evidence" href="/tests">Open session report ↗</a></div><div id="live-evidence"></div></section>
+ <section class="ec-panel"><div class="ec-panel-head"><h2>Decision history</h2><span class="ec-small">Latest 64 checks · select a row to inspect</span></div><div class="table-scroll"><table><thead><tr><th>Check</th><th>Proposal</th><th>Review</th><th>Command</th><th>Unity receipt</th></tr></thead><tbody id="history"></tbody></table></div></section>
+ <footer class="ec-bottom">Read-only monitoring · A command counts as executed only when Unity confirms it.</footer>
 </section>
-<section id="ec-physiology" class="ec-body" aria-label="Physiology" hidden>
- <div class="ec-heading"><h1>Physiology</h1><label>Feature window <select id="windows" aria-label="Feature window"><option value="">Latest window</option></select></label></div>
+<section id="ec-physiology" class="ec-body" aria-label="Signals" hidden>
+ <div class="ec-heading"><h1>Signals</h1><label>Feature window <select id="windows" aria-label="Feature window"><option value="">Latest window</option></select></label></div>
 
- <section class="ec-panel" aria-label="Physiological model output">
-  <div class="ec-panel-head"><h2>Physiological model output</h2><label>Model source <select id="phys-model"><option value="personal">Personal trained model</option><option value="vendor">Mindtooth Neurometrics</option></select></label></div>
+ <section class="ec-panel" aria-label="Workload model output">
+  <div class="ec-panel-head"><h2>Workload model output</h2><label>Model source <select id="phys-model"><option value="personal">Personal workload model</option><option value="vendor">Mindtooth Neurometrics</option></select></label></div>
   <p id="model-output" role="status"></p>
   <div id="vendor-controls" hidden><button id="vendor-connect" type="button">Connect WebSocket</button> <button id="vendor-stop" type="button">Disconnect</button> <a href="https://app.mindtooth.com/" rel="noreferrer" target="_blank">Open Mindtooth</a><p id="vendor-message" role="status"></p></div>
  </section>
@@ -42,10 +41,10 @@
  <button class="ec-feature" data-feature="theta"><div class="ec-feature-title">Theta relative power</div><div class="ec-feature-value" data-value="theta">—</div><div class="ec-spark" data-spark="theta"></div><div class="ec-feature-footer">4–8 Hz · ln ratio</div></button>
  <button class="ec-feature" data-feature="alpha"><div class="ec-feature-title">Alpha relative power</div><div class="ec-feature-value" data-value="alpha">—</div><div class="ec-spark" data-spark="alpha"></div><div class="ec-feature-footer">8–13 Hz · ln ratio</div></button>
  </div><div class="ec-feature-detail"><div id="ec-feature-description"></div><div class="ec-context"><div class="ec-eyebrow">Context input · not physiology</div><div class="ec-context-value" id="movie">—</div><p>Movie playback fraction</p></div></div>
- <section class="ec-panel"><div class="ec-panel-head"><h2>Sources</h2><span class="ec-small">Connection and model qualification are separate</span></div><div id="sources" class="source-list">No LSL source configured</div></section>
+ <details class="ec-panel ec-sources"><summary><span>Source identifiers</span><span class="ec-small">LSL source ID and UID for each input · connection and model qualification are separate</span></summary><div id="sources" class="source-list">No LSL source configured</div></details>
 </section>
-<section id="ec-guide" class="ec-body" aria-label="Experiment guide">
- <div class="ec-heading"><h1>Experiment guide</h1><span class="ec-tag">Operator reference</span></div><div class="ec-guide-intro"><span>Preparation, task stages and oral questionnaires.</span><span id="protocol-duration">Independent stages · timing follows Unity</span></div>
+<section id="ec-guide" class="ec-body" aria-label="Guide">
+ <div class="ec-heading"><h1>Guide</h1><span class="ec-tag">Operator reference</span></div><div class="ec-guide-intro"><span>Preparation, task stages and oral questionnaires.</span><span id="protocol-duration">Independent stages · timing follows Unity</span></div>
  <div class="ec-guide-layout"><div class="ec-guide-content"><nav class="ec-panel ec-stage-nav" aria-label="Experiment stages"></nav><aside class="ec-panel ec-guide-reminders"><h3>Throughout the session</h3><p>Keep the headset and electrodes in place. Read questions and endpoints aloud. Follow the selected A/B session and its recorded allocation.</p><p>Stage selection is a reference, not a completion record. Form submission must be checked by the experimenter.</p></aside></div><div id="ec-guide-content" class="ec-guide-content"></div></div>
  <footer class="ec-bottom">Reference instructions · task control remains in Unity · verify form submissions separately</footer>
 </section></div></body></html>

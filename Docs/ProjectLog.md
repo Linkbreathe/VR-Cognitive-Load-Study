@@ -1,5 +1,26 @@
 # Project status and update log
 
+## Console display v3 completion: monitor, Signals and Guide
+
+Stage 2/3, 2026-11-08, same display revision `console-display-v3-clarity`. At the researcher's request, finished the remaining P3 items:
+- Removed an earlier higher-specificity token block that kept the old green palette on the monitor.
+- Compacted the decision graph (inputs → Proposal → Review with Gaze check → Unity receipt) and contained the connection notice; signal preview is no longer styled as a warning.
+- Tightened Signals empty states and folded source identifiers.
+- Replaced the legacy Guide steps with a pointer to this guide.
+- Fixed the decision card for Stage 3 Guard records: no invented rows, no "undefined" review and no contradictory gaze claim.
+- Fixed a toggle contrast defect and monitor padding.
+Validation: extended contracts, syntax checks and all 206 Python tests passed. A populated monitor was rendered from the existing synthetic unit-test fixture on a separate in-process port; Signals and Guide were rendered on the isolated port. No document overflow at 1440 px or 390 px. Not performed: live Unity monitor, headset, EEG or participant checks. [Review](ConsoleDisplayV3Review.md#p3--run-monitor-signals-and-guide).
+
+## Console display v3: wording, readiness and report
+
+Stage 2/3, 2026-11-08, display `console-display-v3-clarity` on the unchanged `evidence-console-v1.21-decision-gaze` service. The researcher approved a before/after proposal and asked for implementation in order: unified terminology (P0), wording and readiness fixes (P1), a conclusion-first Session report (P2), and a more refined palette.
+- P0: one shared display vocabulary; one header (Study setup · Run monitor · Signals · Guide · Session report); readable labels for rounds, review, workload model, commands, receipts and recorded codes. Recorded codes are not rewritten.
+- P1: readiness shows only the inputs a run option uses, says "Not ready to record" when required EEG is absent and no longer shows "Ready" in that state. Assignment gating is unchanged. The EEG alert is contained and hidden on the Guide; record paths moved to Session details. Session cards are readable. Fixed an existing notice-style defect and added hash-change navigation.
+- P2: report header with UTC start time and chips; an always-visible A/B summary; a two-lane decision timeline replacing the slider; event-first decision cards; proposal routes (either) separated from review checks (every check), with route status read from recorded trigger flags and the first unmet check marked.
+- Palette: ink-blue accent with brass highlights on warm porcelain; semantic colors kept separate; system fonts only.
+
+Validation: updated and extended display contracts passed; all Console scripts passed syntax checks; all 206 AdaptiveTraining Python tests passed. The diff is limited to Console front-end files and the contract test. An isolated served-browser check of archived session `20261107T203024_5e0116214361` matched the report JSON (A 90.0 s / 7 ON · 7 OFF; B 54.0 s / 2 ON · 2 OFF / 14 of 18 held) and rendered B10 and A10 as intended at 1440 px and 390 px with no overflow. The production service was not restarted; new sessions record the new display revision through the existing mechanism. No live Unity monitor run, headset, EEG or participant check was performed; physical acceptance remains pending. P3 monitor/Signals layout work was not part of this approval. [Review](ConsoleDisplayV3Review.md), [operation](ExperimentGuide.md#researcher-workspace), [acceptance](AcceptanceRecord.md#console-display-v3).
+
 ## Source publication checkpoint
 
 Stage 2/3, 2026-11-08, `source-checkpoint-20261108`, branch `codex/layer-ab-timing-study`. The researcher requested publication of the accumulated project code and documentation, including the current Unity integration, Mindtooth EEG acquisition/calibration, A/B evidence controls and Web Console. The source checkpoint includes reviewed engineering preview assets and validation scripts. Local recordings, temporary physiological analyses, ignored runtime evidence/builds and the 199,485,578-byte calibration forest video remain outside Git. Added explicit ignore entries and documented the required local calibration video path/hash; local files remain intact. Normalized whitespace reported by the staged diff check.
@@ -241,6 +262,8 @@ Literature and implementation rationale: [Seven-point TLX review](SevenPointTLXR
 
 
 ## Current status
+
+- Console display `console-display-v3-clarity` (2026-11-08): unified terminology, stage-specific readiness, conclusion-first Session report with decision timeline and route view, compact Run monitor and Signals, trimmed Guide and a refined palette. Front end only; software-verified with archived and synthetic data, not device-verified. [Review](ConsoleDisplayV3Review.md).
 
 - Calculate uses three same-digit decoy prompts per eighteen-question calibration. [Protocol](LoadReferenceCalibration.md).
 

@@ -228,5 +228,76 @@ html{color-scheme:light}body{margin:0;background:#f5f5f7}#evidence-console{max-w
 #eeg-rate {position:sticky;top:0;z-index:4;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline;padding:10px 24px;background:#edf1ee;color:#234234;border-left:5px solid #698574;font-variant-numeric:tabular-nums}
 #eeg-rate[data-state="timestamps"], #eeg-rate[data-state="low"], #eeg-rate[data-state="no_samples"], #eeg-rate[data-state="offline"] {background:#ffebe7;color:#7d251a;border-left-color:#ae3728}
 
-/* Shared researcher workspace palette. */
-body.monitor-shell{margin:0;background:#f4f5f0}.monitor-shell #evidence-console{--ec-bg:#f4f5f0;--ec-surface:#fff;--ec-inset:#f5f7f1;--ec-ink:#213e36;--ec-muted:#607269;--ec-line:#dbe3dc;--ec-blue:#285d48;--ec-blue-bg:#eaf1e7;--ec-green:#285d48;--ec-green-bg:#eaf3e8;--ec-amber:#8a5915;--ec-amber-bg:#fff2df;border:0;border-radius:0}.workflow-nav{display:flex;gap:24px;align-items:center;padding:15px 32px;border-bottom:1px solid #dbe3dc;background:#fcfdf9;font-size:13px}.workflow-nav a{color:#285d48;text-decoration:none;font-weight:600}.workflow-nav span{margin-left:auto;color:#607269;font-size:12px}.monitor-shell .ec-node{min-height:130px}.monitor-shell #rf-updated{font-size:10px}.monitor-shell .monitor-evidence h3{margin-bottom:9px!important}.monitor-shell .monitor-evidence p{margin:10px 0!important}.monitor-shell #run-overview{margin:0 0 20px}.monitor-shell .ec-graph-key{padding-top:16px}@media(max-width:760px){.workflow-nav{padding:12px 16px;gap:16px;flex-wrap:wrap}.workflow-nav span{display:none}}
+/* Shared researcher workspace palette: superseded by the display v3 block at the end of this file. */
+.monitor-shell #rf-updated{font-size:10px}.monitor-shell .monitor-evidence h3{margin-bottom:9px!important}.monitor-shell .monitor-evidence p{margin:10px 0!important}.monitor-shell #run-overview{margin:0 0 20px}.monitor-shell .ec-graph-key{padding-top:16px}
+
+/* Display v3 (console-display-v3-clarity): the Run monitor shares the Study setup header and palette.
+   Token names stay the same so existing component rules pick up the new colors. */
+body.monitor-shell{margin:0;background:#f5f4f0}
+#evidence-console{--ec-font:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;--ec-bg:#f5f4f0;--ec-surface:#fff;--ec-inset:#f9f8f5;--ec-ink:#17202c;--ec-muted:#666f7d;--ec-line:#e3e1db;--ec-blue:#1f3a5f;--ec-blue-bg:#e8edf4;--ec-green:#2d6a4f;--ec-green-bg:#e5efe9;--ec-amber:#8f6118;--ec-amber-bg:#f7eedc;--ec-purple:#9a7537;--ec-shadow:0 1px 2px #17202c0a;
+ border:0;border-radius:0;min-height:100vh;background:var(--ec-bg);color:var(--ec-ink);font-family:var(--ec-font)}
+#evidence-console .ec-panel{border:1px solid var(--ec-line);border-radius:12px;box-shadow:var(--ec-shadow)}
+#evidence-console .ec-heading h1{font:600 26px/1.2 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;letter-spacing:-.6px}
+#evidence-console .ec-btn{color:var(--ec-blue);border:1px solid var(--ec-line);border-radius:8px}
+#evidence-console .ec-btn.primary{background:var(--ec-blue);color:#fff;border-color:var(--ec-blue)}
+#evidence-console .ec-node{border-radius:10px;box-shadow:none}
+#evidence-console .ec-node[aria-pressed=true]{outline:2px solid #9a7537;outline-offset:2px}
+#evidence-console .ec-node.amber{background:var(--ec-amber-bg)}
+#evidence-console .ec-nav button[aria-pressed=true]{background:var(--ec-surface);color:var(--ec-blue)}
+#evidence-console .ec-session{padding:10px max(16px,2.4vw);background:var(--ec-surface)}
+#evidence-console .connection{padding:12px max(16px,2.4vw);background:var(--ec-inset);color:var(--ec-ink)}
+#evidence-console .connection.warn{background:var(--ec-amber-bg);color:#6b4a14}
+#evidence-console .connection details{margin:6px 0 0}
+#evidence-console .connection summary{font-size:12px;color:var(--ec-muted);font-weight:500}
+#evidence-console .ec-body{padding:24px max(16px,2.4vw) 28px}
+#evidence-console .workspace-bar nav button{font:inherit;font-size:14px}
+#evidence-console .chip{font-size:12px}
+/* EEG rate: a contained alert inside the page gutter, not an edge-to-edge band; hidden on the Guide. */
+#evidence-console #eeg-rate{position:static;margin:12px max(16px,2.4vw) 0;padding:9px 14px;border-radius:8px;border:1px solid var(--ec-line);border-left:4px solid var(--ec-green);background:var(--ec-surface);color:var(--ec-ink);font-size:13px}
+#evidence-console #eeg-rate span{color:var(--ec-muted)}
+#evidence-console #eeg-rate[data-state="timestamps"],#evidence-console #eeg-rate[data-state="low"],#evidence-console #eeg-rate[data-state="no_samples"],#evidence-console #eeg-rate[data-state="offline"]{background:#f7e6e3;border-color:#ecc9c3;border-left-color:#a23e36;color:#7c2b24}
+#evidence-console #eeg-rate[data-state="timestamps"] span,#evidence-console #eeg-rate[data-state="low"] span,#evidence-console #eeg-rate[data-state="no_samples"] span,#evidence-console #eeg-rate[data-state="offline"] span{color:#7c2b24}
+#evidence-console[data-page="guide"] #eeg-rate{display:none}
+@media(max-width:760px){#evidence-console .workspace-bar nav{order:3;flex-basis:100%}}
+#evidence-console .workspace-bar nav button{cursor:pointer}
+
+/* Display v3, P3: compact decision flow, contained notices and tighter Signals panels. */
+#evidence-console .ec-session{border-bottom:0;background:transparent;padding:12px max(16px,2.4vw) 0}
+#evidence-console .connection{margin:10px max(16px,2.4vw) 0;padding:11px 14px;border:1px solid var(--ec-line);border-radius:8px;background:var(--ec-surface)}
+#evidence-console .connection.warn{background:var(--ec-amber-bg);border-color:#e6d2ad;color:#6b4a14}
+#evidence-console .ec-work{align-items:start}
+#evidence-console .ec-inspector{gap:12px}
+#evidence-console .ec-node{min-height:0;padding:10px 12px;gap:2px}
+#evidence-console .ec-node strong{font-size:17px;font-weight:600;letter-spacing:-.2px}
+#evidence-console .ec-graph-key{background:var(--ec-inset);font-size:12px;padding:10px 18px}
+@media(min-width:561px){
+ /* Inputs → Proposal → Review (gaze check feeds it from below) → Unity receipt */
+ #evidence-console .ec-graph{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:auto auto auto;gap:14px 30px;padding:20px 18px 22px}
+ #evidence-console [data-node=behavior]{grid-column:1;grid-row:1}
+ #evidence-console [data-node=physiology]{grid-column:1;grid-row:2}
+ #evidence-console [data-node=judgment]{grid-column:2;grid-row:1 / span 2;align-self:center;min-height:0}
+ #evidence-console [data-node=guard]{grid-column:3;grid-row:1 / span 2;align-self:center;min-height:0}
+ #evidence-console [data-node=gaze]{grid-column:3;grid-row:3}
+ #evidence-console [data-node=execution]{grid-column:4;grid-row:1 / span 2;align-self:center;min-height:0}
+}
+@media(max-width:560px){#evidence-console .ec-graph{grid-template-rows:auto;gap:14px}}
+#evidence-console .monitor-evidence .empty-state{padding:14px}
+/* Signals */
+#evidence-console .gaze-metrics{gap:14px}
+#evidence-console .gaze-metrics div{gap:1px}
+#evidence-console .gaze-metrics strong{font-size:26px;line-height:1.2}
+#evidence-console .gaze-metrics small,#evidence-console .chart-note,#evidence-console .ec-feature-footer,#evidence-console .ec-eligibility{font-size:12.5px}
+#evidence-console .raw-charts .empty,#evidence-console .ec-wave .empty,#evidence-console .ec-spark .empty{height:auto;min-height:72px}
+#evidence-console .ec-feature{border:1px solid var(--ec-line);border-radius:12px;padding:16px 18px 12px;box-shadow:none}
+#evidence-console .ec-feature[aria-pressed=true]{border-color:var(--ec-blue);box-shadow:0 0 0 1px var(--ec-blue)}
+#evidence-console .ec-feature-value{font-size:30px;margin-top:6px}
+#evidence-console .ec-feature-detail{border:1px solid var(--ec-line);border-radius:12px;box-shadow:none}
+#evidence-console .ec-sources>summary{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:14px 20px;font-weight:600;cursor:pointer}
+#evidence-console .ec-sources[open]>summary{border-bottom:1px solid var(--ec-line)}
+#evidence-console .ec-sources .source-list{padding:6px 20px 16px}
+/* Guide */
+#evidence-console .ec-guide-legacy{font-size:13px;color:var(--ec-muted);padding:0 4px}
+/* The shared decision workspace inside the monitor: the console's ID-scoped button color would otherwise win. */
+#evidence-console .de-workspace button{color:var(--ec-ink)}
+#evidence-console .de-workspace button[aria-pressed=true]{color:#fff;background:var(--ec-blue);border-color:var(--ec-blue)}
+#evidence-console #live-evidence{padding:0 20px 20px}

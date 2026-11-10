@@ -1,5 +1,9 @@
 # Current acceptance record
 
+## Hand tracking troubleshooting reminder: unverified
+
+2026-11-10, Stage 2/3, `eye-hand-tracking-reminder-v1`: documented an optional headset hand-tracking-off check for recurrent eye-tracking interruptions, using Touch controllers and retaining eye tracking. The approximately 35 mode switches in one hour were reported by the researcher; this update did not independently recount logs, change settings or run a worn test. Documentation and links were checked. Causality, effectiveness and sustained Quest Pro recovery remain unverified; existing device/participant acceptance status is unchanged. See the [procedure and evidence to collect](ExperimentGuide.md#eye-tracking-interruptions-hand-tracking-check).
+
 ## Console display v3
 
 2026-11-08, `console-display-v3-clarity`: software-verified front-end revision. Display contracts (existing plus route, first-unmet, headline, Round A hypothetical and OFF-deferral cases), Console script syntax checks and all 206 AdaptiveTraining Python tests passed. An isolated served-browser check of archived engineering session `20261107T203024_5e0116214361` confirmed the summary counts against the report JSON, the B10 blocked and A10 hypothetical cards, the two-lane timeline, Study setup readiness for Practice and Calibration, and the Run monitor, Signals and Guide headers. 1440 px and 390 px layouts had no document overflow. P3 completion: the populated Run monitor was rendered from the synthetic unit-test fixture (enforce decision with tracked-eye checks), and Guard-shaped records are covered by new contracts. Signals and Guide were checked at 1440 px and 390 px. Not performed: a Run monitor with live Unity telemetry, worn Quest Pro or EEG checks, or a participant session. Device acceptance is unchanged. [Review and evidence](ConsoleDisplayV3Review.md).

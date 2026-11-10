@@ -1,5 +1,13 @@
 # Experiment guide: current modes
 
+## Eye tracking interruptions: hand tracking check
+
+Persistent reminder, 2026-11-10 (`eye-hand-tracking-reminder-v1`): if eye tracking interrupts, freezes or repeatedly drops out, suggest trying to turn off **hand tracking** in the headset under **Settings > Movement tracking > Hand and body tracking** (the researcher-provided menu path; labels may vary by headset software). Keep eye tracking enabled and use Touch controllers for project interaction. The current task does not use hand tracking; recheck this assumption if input support changes.
+
+The researcher reported approximately **35 switches between controller and hand modes during the preceding hour** on 2026-11-10. This count is historical context supplied with the reminder, not a new log measurement or proof that switching caused eye-tracking loss. Disabling hand tracking is an optional diagnostic step; its effect has not been physically verified.
+
+In a separate engineering session, record the hand-tracking setting and compare fresh native eye timestamps, independent eye movement with a still head, target hits and interruption frequency before and after the change. Preserve gaze-validity gates and keep engineering observations separate from participant data. A visible reticle or recovered status alone does not establish valid gaze or sustained recovery. This documentation update does not change headset settings or grant device acceptance.
+
 ## Current media bank
 
 The installed PC bank is `layer-ab-144-dialogue-v2-no-heidi` (2026-11-07): 92 comparison clips, with Heidi excluded. Both continuous A/B playlists were rebuilt to remove embedded Heidi excerpts while preserving their 300-second duration. Restart Unity Play Mode before the next assignment to load the updated bank. The completed run was stopped during deployment; no new session was started. Existing standalone/Quest installations need the updated runtime, catalog and media before use. Historical session media manifests retain their original content provenance. [Changes and validation](MediaExclusionReview.md).

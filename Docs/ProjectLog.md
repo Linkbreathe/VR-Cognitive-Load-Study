@@ -1,5 +1,7 @@
 # Project status and update log
 
+2026-11-10, Stage 2/3, `eye-hand-tracking-reminder-v1`: added the researcher's recurring eye-interruption troubleshooting reminder to root `AGENTS.md` and the [operator guide](ExperimentGuide.md#eye-tracking-interruptions-hand-tracking-check), so future maintenance can suggest disabling headset hand tracking while using Touch controllers. Preserved the researcher-reported approximately 35 controller/hand mode switches in the preceding hour as dated context, not a verified cause. Validation: documentation wording and cross-links checked; no runtime, headset setting or participant data changed. Pending: a separate engineering comparison with hand tracking disabled, fresh native timestamps, independent eye motion and sustained tracking. [Acceptance boundary](AcceptanceRecord.md#hand-tracking-troubleshooting-reminder-unverified).
+
 ## Console display v3 completion: monitor, Signals and Guide
 
 Stage 2/3, 2026-11-08, same display revision `console-display-v3-clarity`. At the researcher's request, finished the remaining P3 items:

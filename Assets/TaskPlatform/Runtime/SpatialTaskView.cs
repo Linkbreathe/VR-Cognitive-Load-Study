@@ -16,8 +16,10 @@ namespace EvidenceVR
         public const string StimulusPlacementRevision="low-stimulus-v2-movie-clearance";
         public const float InstructionForwardOffset=-.25f, HudForwardOffset=-.22f;
         public static readonly Color CorrectColor=LabPalette.Hex("70D69A"), IncorrectColor=LabPalette.Hex("F27D7D");
-        public const string CountdownRevision="response-countdown-v2-centiseconds";
-        public static string FormatCountdown(double remaining)=>Math.Max(0,remaining).ToString("F2",System.Globalization.CultureInfo.InvariantCulture);
+        public const string CountdownRevision="response-countdown-v3-integer-seconds";
+        public const string SelectionFeedbackRevision="comparison-green-timer-soft-tone-v1";
+        public const double SelectionFlashSeconds=.3;
+        public static string FormatCountdown(double remaining)=>Math.Ceiling(Math.Max(0,remaining)).ToString("0",System.Globalization.CultureInfo.InvariantCulture);
         public void Refresh(TaskPlatformController controller,double now)
         {
             var engine=controller.Engine;
@@ -35,7 +37,9 @@ namespace EvidenceVR
             timerLabel.text=remaining>0 ? "" : "Next";
             timer.color=LabPalette.Text;timerLabel.color=LabPalette.Muted;
             var result=engine.CurrentResult;
-            if(engine.ShowsCorrectnessFeedback && engine.Current.scored && result!=null && (result.responded || result.timeout))
+            if(engine.AllowsResponseRevision && result!=null && result.responded && remaining>0 && now>=result.responseTime && now-result.responseTime<SelectionFlashSeconds)
+                timer.color=CorrectColor;
+            else if(!engine.AllowsResponseRevision && engine.ShowsCorrectnessFeedback && engine.Current.scored && result!=null && (result.responded || result.timeout))
             {
                 bool correct=result.responded && result.correct;
                 timer.color=timerLabel.color=correct ? CorrectColor : IncorrectColor;

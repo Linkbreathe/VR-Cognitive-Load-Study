@@ -9,7 +9,7 @@ import json
 import math
 from threading import RLock
 
-REVISION = "decision-gaze-density-v1"
+REVISION = "decision-gaze-density-v2-expanded-view"
 _cache = OrderedDict()
 _lock = RLock()
 
@@ -97,20 +97,28 @@ def density(points, intervals, stage, cutoff=None, simulated=False):
                 continue
             if not finite(p.get('x')) or not finite(p.get('y')):
                 continue
-            frame = frames.setdefault(p['frame'], dict(frame=p['frame'], layout=p['layout'], bins={},
+            frame = frames.setdefault(p['frame'], dict(frame=p['frame'], layout=dict(p['layout']), referenceLayout=p['layout'], positions=[], bins={},
                 mappedSeconds=0., outsideSeconds=0., sampleCount=0, firstTime=p['time'], lastTime=p['time']))
             frame['lastTime'] = p['time']
             frame['sampleCount'] += 1
-            layout = frame['layout']
+            layout = frame['referenceLayout']
             x = (p['x']-layout['minX'])/(layout['maxX']-layout['minX'])
             y = (layout['maxY']-p['y'])/(layout['maxY']-layout['minY'])
             if not (0 <= x <= 1 and 0 <= y <= 1):
                 frame['outsideSeconds'] += duration
-                continue
-            cell = (min(47, int(x*48)), min(31, int(y*32)))
-            frame['bins'][cell] = frame['bins'].get(cell, 0.) + duration
+                view=frame['layout']
+                view['minX']=min(view['minX'],p['x']-.1);view['maxX']=max(view['maxX'],p['x']+.1)
+                view['minY']=min(view['minY'],p['y']-.1);view['maxY']=max(view['maxY'],p['y']+.1)
+            frame['positions'].append((p['x'],p['y'],duration))
             frame['mappedSeconds'] += duration
     for frame in frames.values():
+        layout=frame['layout']
+        for px,py,duration in frame.pop('positions'):
+            x=(px-layout['minX'])/(layout['maxX']-layout['minX'])
+            y=(layout['maxY']-py)/(layout['maxY']-layout['minY'])
+            cell=(min(47,max(0,int(x*48))),min(31,max(0,int(y*32))))
+            frame['bins'][cell]=frame['bins'].get(cell,0.)+duration
+        frame['expanded']=frame['outsideSeconds']>0
         frame['bins'] = [[x, y, seconds] for (x, y), seconds in sorted(frame['bins'].items())]
     result['frames'] = list(frames.values())
     if any(f['bins'] for f in result['frames']):

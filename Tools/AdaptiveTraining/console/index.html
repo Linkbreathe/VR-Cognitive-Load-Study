@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evidence Console</title><link rel="stylesheet" href="/console.css"><script defer src="/eeg-rate.js"></script><link rel="stylesheet" href="/workspace.css"><script defer src="/decision-evidence.js"></script><script defer src="/console.js"></script></head>
-<body class="monitor-shell"><div id="evidence-console" data-display-revision="console-display-v3-clarity">
+<body class="monitor-shell"><div id="evidence-console" data-display-revision="console-preflight-removed-v1">
 <header class="workspace-bar"><a class="brand" href="/tests"><span class="brand-mark">e</span>Evidence Console</a><nav aria-label="Workspace"><a href="/tests">Study setup</a><button type="button" data-page="decision" aria-pressed="false">Run monitor</button><button type="button" data-page="physiology" aria-pressed="false">Signals</button><button type="button" data-page="guide" aria-pressed="true">Guide</button></nav><span id="service-state" class="chip warn" role="status">Connecting…</span></header>
 <div id="eeg-rate" class="ec-alert"><strong>Live EEG sampling rate</strong><span role="status">Checking receiver…</span></div>
 <div class="ec-session"><label>Session <select id="sessions" aria-label="Session"><option value="">Follow latest session</option></select></label><span id="session-status">Waiting for Unity telemetry</span></div>
@@ -8,6 +8,7 @@
 <div id="calibration-quality" role="status" hidden></div>
 <section id="ec-decision" class="ec-body" aria-label="Run monitor" hidden>
  <div id="run-overview" class="run-strip" aria-label="Current run"></div><div class="ec-heading"><h1>Run monitor</h1><button class="ec-btn" data-page="physiology">Open Signals ↗</button></div>
+ <section class="ec-panel" id="session-questionnaires" aria-label="Session questionnaires"></section>
  <div class="ec-work"><section class="ec-panel"><div class="ec-panel-head"><h2>Decision graph</h2><label>Check <select id="requests" aria-label="Decision check"><option value="">Latest check</option></select></label></div><div class="ec-graph">
  <svg class="ec-edges" aria-hidden="true"></svg>
  <button class="ec-node" data-node="behavior"><span class="ec-node-label">Behavior</span><strong>—</strong><span class="ec-small">Awaiting a decision</span></button>

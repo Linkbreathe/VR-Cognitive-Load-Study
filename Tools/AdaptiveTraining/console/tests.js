@@ -33,9 +33,9 @@ function environmentNote(){
  'No headset required. Use the Unity desktop view and keyboard. Decision gaze inputs are fixed at 75% valid coverage and 70% task share of valid eye time, marked Simulated gaze. EEG/model and response inputs remain unchanged.':
  'Wear Quest Pro and enable real eye tracking. Missing tracking is never replaced with fixed values. The selected environment is locked for both A and B.';
 }
-function modes(){vendorLabel();$('calibration-mode-note').hidden=chosenStage!=='calibration';$('calibration-mode-note').textContent=$('mode').value==='control_calibration'?'Legacy calibration uses a separate protocol. It is not required to reuse a forest / arithmetic workload model in A/B.':$('mode').value==='calibration_rehearsal'?'Rehearsal checks the task sequence without EEG and does not train a model.':'Saves a workload model (Personal RF) and recommended video thresholds for Adaptive Comparison.';$('environment-wrap').hidden=!['comparison','comparison_candidate','comparison_rehearsal'].includes($('mode').value);environmentNote();$('comparison-policy').hidden=!['comparison','comparison_candidate','comparison_rehearsal'].includes($('mode').value);const reuse=['bioadaptive','comparison','comparison_candidate'].includes($('mode').value);$('order-wrap').hidden=!['comparison','comparison_candidate','comparison_rehearsal'].includes($('mode').value);$('candidate-wrap').hidden=$('mode').value!=='bioadaptive';$('model-wrap').hidden=!reuse;$('blocks-wrap').hidden=!['calibration','calibration_rehearsal'].includes($('mode').value);thresholdEditor();workspace();}
+function modes(){vendorLabel();$('calibration-mode-note').hidden=chosenStage!=='calibration';$('calibration-mode-note').textContent=$('mode').value==='control_calibration'?'Legacy calibration uses a separate protocol. It is not required to reuse a forest / arithmetic workload model in A/B.':$('mode').value==='calibration_rehearsal'?'Rehearsal checks the task sequence without EEG and does not train a model.':'Trains a new 5-second workload model (Personal RF) and video thresholds. Historical 10-second models require recalibration.';$('environment-wrap').hidden=!['comparison','comparison_candidate','comparison_rehearsal'].includes($('mode').value);environmentNote();$('comparison-policy').hidden=!['comparison','comparison_candidate','comparison_rehearsal'].includes($('mode').value);const reuse=['bioadaptive','comparison','comparison_candidate'].includes($('mode').value);$('order-wrap').hidden=!['comparison','comparison_candidate','comparison_rehearsal'].includes($('mode').value);$('candidate-wrap').hidden=$('mode').value!=='bioadaptive';$('model-wrap').hidden=!reuse;$('blocks-wrap').hidden=!['calibration','calibration_rehearsal'].includes($('mode').value);thresholdEditor();workspace();}
 function modelLabel(m){
- if(m.featureRevision==='rest-math-iaf-rf-v2')return 'Workload model · forest / arithmetic';
+ if(m.featureRevision==='rest-math-iaf-rf-v3-5s')return 'Workload model · forest / arithmetic'+(m.bandProfile?.mode==='fixed_bands_fallback'?' · fixed bands':'')+(Number.isFinite(m.meanHeldAuc)?` · AUC ${m.meanHeldAuc.toFixed(3)}`:'');
  if(m.featureRevision==='rest-math-120s-v1')return 'Personal load reference (observation)';
  return m.admitted?'Admitted at source session':'UNVALIDATED CANDIDATE';
 }
@@ -45,7 +45,7 @@ function thresholdValues(){
 }
 function thresholdEditor(){
  const m=models.find(x=>x.modelId===$('model').value);
- const visible=$('mode').value==='comparison_candidate' && m?.featureRevision==='rest-math-iaf-rf-v2';
+ const visible=$('mode').value==='comparison_candidate' && m?.featureRevision==='rest-math-iaf-rf-v3-5s';
  const session=lastStatus?.sessions.find(active);
  const canEdit=!!lastStatus?.thresholdEditing;
  $('threshold-wrap').hidden=!visible;
@@ -86,7 +86,7 @@ function thresholdEditor(){
 }
 function rememberGraphSelection(){
  const model=models.find(m=>m.modelId===$('model').value && m.participantCode===$('participant').value.trim());
- if($('mode').value==='comparison_candidate' && model?.featureRevision==='rest-math-iaf-rf-v2'){
+ if($('mode').value==='comparison_candidate' && model?.featureRevision==='rest-math-iaf-rf-v3-5s'){
    localStorage.setItem('study.rfPreview',JSON.stringify({participantCode:model.participantCode,storageFolder:$('folder').value,modelId:model.modelId,scoreThresholds:thresholdValues()}));
  }else localStorage.removeItem('study.rfPreview');
 }
@@ -94,7 +94,7 @@ function info(){
  thresholdEditor();
  const m=models.find(m=>m.modelId===$('model').value);
  $('model-summary').textContent=m?modelLabel(m)+' · '+m.createdUtc:'No model selected.';
- $('model-info').textContent=m?JSON.stringify({model:m.modelId,created:m.createdUtc,sourceSession:m.sourceSession,status:modelLabel(m),comparisonCompatibility:m.comparisonStatus,reasons:m.reasons,features:m.features,signalMapping:m.signalContract},null,2):'No saved model selected. Complete calibration with usable signals first.';
+ $('model-info').textContent=m?JSON.stringify({model:m.modelId,created:m.createdUtc,sourceSession:m.sourceSession,status:modelLabel(m),comparisonCompatibility:m.comparisonStatus,meanHeldAuc:m.meanHeldAuc,foldAuc:m.foldAuc,aucGating:m.aucGating,reasons:m.reasons,features:m.features,signalMapping:m.signalContract},null,2):'No saved model selected. Complete calibration with usable signals first.';
 }
 async function refreshModels(){models=await api('/tests/models?'+new URLSearchParams({root:$('folder').value,participant:$('participant').value}));const old=$('model').value;$('model').replaceChildren(new Option('Select a saved model',''));for(const m of models)$('model').add(new Option(`${m.createdUtc} · ${modelLabel(m)} · ${m.modelId}`,m.modelId));if(models.some(m=>m.modelId===old))$('model').value=old;else {const prior=JSON.parse(localStorage.getItem('study.rfPreview')||'null');const match=models.find(m=>m.participantCode===$('participant').value.trim() && m.modelId===prior?.modelId);if(match)$('model').value=match.modelId;else if(models.length===1)$('model').value=models[0].modelId;}info();rememberGraphSelection();workspace();}
 function para(parent,text,cls){const p=document.createElement('p');p.textContent=text;if(cls)p.className=cls;parent.append(p);}
@@ -111,7 +111,11 @@ function render(r){
  tag(tags,r.config.testSessionMode.includes('rehearsal')?'Task rehearsal · no EEG model':'Engineering session');
  if(r.scoreThresholds)tag(tags,`ON ≤ ${Number(r.scoreThresholds.on).toFixed(2)} · OFF ≥ ${Number(r.scoreThresholds.off).toFixed(2)}`,'num');
  if(r.sourceModel)para(card,modelLabel(r.sourceModel)+' · '+r.sourceModel.modelId,'session-meta');
- if(r.lastTraining)para(card,`Training: ${EvidenceUI.label('training',r.lastTraining.status).toLowerCase()} · ${r.lastTraining.hasModel?'model saved':'no model produced'}`,'session-meta');
+ if(r.lastTraining){
+   const t=r.lastTraining,auc=Number.isFinite(t.meanHeldAuc)?` · mean AUC ${t.meanHeldAuc.toFixed(3)}`:'';
+   const folds=t.foldAuc?.length?` · folds ${t.foldAuc.map(v=>v.toFixed(3)).join(' / ')}`:'';
+   para(card,`Training: ${EvidenceUI.label('training',t.status).toLowerCase()} · ${t.hasModel?'model saved':'no model produced'}${auc}${folds}${t.aucGating===false?' · AUC reported only':''}`,'session-meta');
+ }
  const detail=document.createElement('details');card.append(detail);const sum=document.createElement('summary');sum.textContent='Session details';detail.append(sum);
  para(detail,'Storage: '+r.folder,'session-meta');para(detail,'Core archive: '+r.archive.status,'session-meta');
  const pre=document.createElement('pre');pre.textContent=JSON.stringify({environment:r.config.comparisonEnvironment,order:r.config.counterbalanceGroup>=2?'BA':'AB',model:r.config.testModelId,thresholds:r.scoreThresholds,initialThresholds:r.initialScoreThresholds,thresholdHistory:r.thresholdHistory,training:r.lastTraining},null,2);detail.append(pre);

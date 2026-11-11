@@ -1,5 +1,6 @@
 "use strict";
 (() => {
+if(typeof document==='undefined')return;
 const root=document.getElementById("evidence-console");
 const q=s=>root.querySelector(s), all=s=>[...root.querySelectorAll(s)];
 const state={page:(["guide","physiology","decision"].includes(location.hash.slice(1))?location.hash.slice(1):"decision"),stage:0,node:"guard",feature:"theta",session:"",request:"",window:"",channel:0,rawChannel:"all",gazeMode:"distribution"};
@@ -16,7 +17,7 @@ const forms={"calibration":"https://docs.google.com/forms/d/e/1FAIpQLSeghD4XMzg3
   q('.ec-stage-nav').innerHTML=guideStages.map((stage,index)=>`<button type="button" class="ec-stage cursor-interaction" data-stage="${index}" aria-pressed="${index===state.stage}"><span class="ec-stage-number">${index+1}</span><span>${stage.name}</span></button>`).join('');
   q('.ec-guide-reminders').innerHTML=`<h3>${desktop?'Desktop controls':'Quest Pro controls'}</h3><p>${desktop?'Place task: C · Respond: A / B · Continue: Enter · Pause/resume: P. No headset is required.':'Place task: left trigger · Respond: A / B · Continue: X · Pause/resume: Y. Enable eye permission and confirm tracked eyes.'}</p><p>${desktop?'Eye inputs use fixed simulated assumptions; no real heatmap is collected.':'Tracked eyes are required for genuine gaze evidence. Configuration alone does not establish acquisition.'}</p><p>For EEG sessions, keep electrodes in place. Follow Unity prompts when pausing or recording equipment movement.</p>`;
   const training=safeForm(config.trainingFormUrl),preference=safeForm(config.preferenceFormUrl);
-  q('#ec-guide-content').innerHTML=`<section class="ec-panel ec-guide-section"><div class="ec-guide-title"><h2>${s.name}</h2><span class="ec-tag">${s.time}</span></div><label>Instructions for <select id="guide-environment" ${config.comparisonEnvironment?'disabled':''}><option value="desktop_fixed_gaze" ${desktop?'selected':''}>Desktop</option><option value="quest_pro" ${!desktop?'selected':''}>Quest Pro</option></select></label><p class="ec-small">${config.comparisonEnvironment?'Environment from the selected session.':'Reference only; set the actual environment in Study setup.'}</p><p>${s.intro}</p><ol>${s.actions.map(a=>`<li>${a}</li>`).join('')}</ol><div class="ec-guide-note">${s.note}</div><p><a href="/tests?stage=${['practice','calibration','comparison'][state.stage]||'practice'}">Open this stage in Study setup ↗</a></p><details><summary>Connection & recording</summary><p>Start Mindtooth EEG streaming when required. In Unity, use Evidence VR → Signal Sources to select the intended stream. Receiving data and model scoring are separate states. Closing the website does not stop acquisition.</p><p>Preserve the session ID, Unity records and service records. A command receipt confirms acknowledgment, not decoded video playback.</p></details>${state.stage===2?`<details><summary>Current A/B questionnaires</summary><p>Use the seven-point Raw TLX / UEQ+ form and final preference form specified by the session. Follow Unity for round order, rest and completion. Historical protocols retain their recorded questionnaire version.</p>${training?`<p><a href="${training}" target="_blank" rel="noopener noreferrer">Session training questionnaire ↗</a></p>`:'<p>Connect the session to display its configured form links.</p>'}${preference?`<p><a href="${preference}" target="_blank" rel="noopener noreferrer">Session final preference ↗</a></p>`:''}</details>`:''}</section><p class="ec-guide-legacy">Earlier allocations keep their own recorded protocol. Its steps are in Docs/ExperimentGuide.md. <a href="/tests?legacy">Open legacy session options ↗</a></p>`;
+  q('#ec-guide-content').innerHTML=`<section class="ec-panel ec-guide-section"><div class="ec-guide-title"><h2>${s.name}</h2><span class="ec-tag">${s.time}</span></div><label>Instructions for <select id="guide-environment" ${config.comparisonEnvironment?'disabled':''}><option value="desktop_fixed_gaze" ${desktop?'selected':''}>Desktop</option><option value="quest_pro" ${!desktop?'selected':''}>Quest Pro</option></select></label><p class="ec-small">${config.comparisonEnvironment?'Environment from the selected session.':'Reference only; set the actual environment in Study setup.'}</p><p>${s.intro}</p><ol>${s.actions.map(a=>`<li>${a}</li>`).join('')}</ol><div class="ec-guide-note">${s.note}</div><p><a href="/tests?stage=${['practice','calibration','comparison'][state.stage]||'practice'}">Open this stage in Study setup ↗</a></p><details><summary>Connection & recording</summary><p>Start Mindtooth EEG streaming when required. In Unity, use Evidence VR → Signal Sources to select the intended stream. Receiving data and model scoring are separate states. Closing the website does not stop acquisition.</p><p>Preserve the session ID, Unity records and service records. A command receipt confirms acknowledgment, not decoded video playback.</p></details>${state.stage===2?`<details><summary>Current A/B questionnaires</summary><p>Use the session post-condition form: page 1 Raw TLX, page 2 UEQ+, and page 3 movie display and training experience. Submit all three pages after each round, then complete final preference after the second round. New sessions use questionnaire v5.1 with brief UEQ+ explanations; historical records retain their recorded version. Follow Unity for round order, rest and completion. Historical protocols retain their recorded questionnaire version.</p>${training?`<p><a href="${training}" target="_blank" rel="noopener noreferrer">Session training questionnaire ↗</a></p>`:'<p>Connect the session to display its configured form links.</p>'}${preference?`<p><a href="${preference}" target="_blank" rel="noopener noreferrer">Session final preference ↗</a></p>`:''}</details>`:''}</section><p class="ec-guide-legacy">Earlier allocations keep their own recorded protocol. Its steps are in Docs/ExperimentGuide.md. <a href="/tests?legacy">Open legacy session options ↗</a></p>`;
   q('#guide-environment').onchange=e=>{state.guideEnvironment=e.target.value;guide();};
  }
 let data=null, offline=true, actualSession=null, guideKey="";
@@ -40,7 +41,16 @@ function currentDecision(){return data?.decisions.find(d=>d.delivered.requestId=
 function currentWindow(){return data?.windows.find(w=>windowKey(w)===state.window)||data?.windows.at(-1);}
 function navigate(page){state.page=page;root.dataset.page=page;history.replaceState(null,"","#"+page);all('[data-page]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.page===page)));for(const name of ['decision','physiology','guide'])q('#ec-'+name).hidden=name!==page;render();}
 function safeForm(url){try{const u=new URL(url);return u.protocol==='https:'&&u.hostname==='docs.google.com'&&u.pathname.startsWith('/forms/')?u.href:'';}catch{return '';}}
+function sessionQuestionnaires(){
+ const panel=q('#session-questionnaires'),config=data?.task?.config||{};
+ const comparison=['layer-ab-v1','layer-ab-probe-v2'].includes(config.studyDesign);
+ const training=comparison?safeForm(config.trainingFormUrl):'',preference=comparison?safeForm(config.preferenceFormUrl):'';
+ const links=[[training,'Open post-condition questionnaire','After each round'],[preference,'Open final preference','After both rounds']].filter(([url])=>url);
+ const html=`<div class="ec-panel-head"><h2>Questionnaires</h2><span class="ec-small">Google Forms · opens in a new tab</span></div>${links.length?`<p class="ec-small">Selected session: <strong>${esc(data.session)}</strong> · Participant: <strong>${esc(data.task.participantCode)}</strong></p><div class="ec-questionnaire-links">${links.map(([url,label,when])=>`<div><a class="ec-btn" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${label} ↗</a><span class="ec-small">${when}</span></div>`).join('')}</div><p class="ec-small">Use the participant code and session ID above. Training 1 / 2 means the first / second round completed, regardless of A/B order. Check submission in Google Forms before confirming in Unity.</p>`:'<p class="ec-small">Select an A/B comparison session with configured questionnaire links. Practice and calibration do not use these questionnaires.</p>'}`;
+ if(panel.innerHTML!==html)panel.innerHTML=html;
+}
 function renderConnection(){
+ sessionQuestionnaires();
  const t=data?.task,stale=offline||!t||data.telemetryAge>5||!!data?.guard?.failure;
  text('#service-state',offline?'Service disconnected':'Service connected');q('#service-state').className='chip '+(offline?'warn':'ok');
  text('#session-status',t?`${EvidenceUI.label('kind',t.sessionType)} · ${EvidenceUI.label('round',t.stage)} · Video ${t.level===1?'ON':t.level===0?'OFF':'—'} · updated ${fmt(data.telemetryAge,1)} s ago`:'No Unity session · signal preview runs without Unity');
@@ -76,7 +86,18 @@ function runOverview(){
  const stage=t?.stage==='layer_a'?'Round A':t?.stage==='layer_b'?'Round B':human(t?.stage);
  const budget=['layer_a','layer_b'].includes(t?.stage)?c.trainingTrials:null;
  const video=data?.playback?(data.playback.videoPlaying?'Playing':'Off'):'Not reported yet';
- q('#run-overview').innerHTML=[['Current stage',fresh?stage:'Waiting for Unity',fresh?data.session:'No fresh task telemetry'],['Trial progress',fresh&&Number.isFinite(count)?String(count)+(budget?' / '+budget:' completed'):'—','Completed positions; warmups are included'],['Next check',fresh&&['layer_a','layer_b'].includes(t.stage)&&next<c.trainingTrials?'In '+(next-count)+' trials':'—','Scheduled checkpoint, not a guaranteed change'],['Video',fresh?video:'—',fresh?'From decoded playback events':'Shown only from fresh Unity telemetry']].map(([label,value,detail])=>`<div><small>${esc(label)}</small><strong>${esc(value)}</strong><small>${esc(detail)}</small></div>`).join('');
+ q('#run-overview').classList.toggle('five',!!supportTile(t,fresh).length);q('#run-overview').innerHTML=[['Current stage',fresh?stage:'Waiting for Unity',fresh?data.session:'No fresh task telemetry'],['Trial progress',fresh&&Number.isFinite(count)?String(count)+(budget?' / '+budget:' completed'):'—','Completed positions; warmups are included'],['Next check',fresh&&['layer_a','layer_b'].includes(t.stage)&&next<c.trainingTrials?'In '+(next-count)+' trials':'—','Scheduled checkpoint, not a guaranteed change'],['Video',fresh?video:'—',fresh?'From decoded playback events':'Shown only from fresh Unity telemetry'],...supportTile(t,fresh)].map(([label,value,detail])=>`<div><small>${esc(label)}</small><strong>${esc(value)}</strong><small>${esc(detail)}</small></div>`).join('');
+}
+
+/* Round B opening authorization from the controller's recorded state; display only. */
+function supportTile(t,fresh){
+ const sp=data?.guard?.support;if(!fresh||!sp||sp.stage!==t?.stage)return [];
+ if(sp.state==='Probe_ON'){
+  const last=(data.decisions||[]).map(x=>x.probeReview).filter(r=>r?.stage===t.stage&&r.support?.probeEvaluation).at(-1)?.support.probeEvaluation;
+  return [['Opening authorization','Probe running',last?`${last.completed} of 4 trials · ${last.errors} mistake${last.errors===1?'':'s'} or omissions at the last check`:'4 trials with the video on; judged at the next two checks']];
+ }
+ if(sp.invalidated)return [['Opening authorization',sp.state==='OFF'?'Probe required':'Probe required next',`Next opening is a 4-trial probe after ${sp.requiredOffTrials} scored video-off trials`+(sp.probeFailures?` · ${sp.probeFailures} failed`:'')+(sp.probeInconclusive?` · ${sp.probeInconclusive} inconclusive`:'')]];
+ return [['Opening authorization',sp.state==='Restored_ON'?'Restored':'Direct opening',sp.state==='Restored_ON'?'Authorization restored via logged probe':'Normal ON allowed when the evidence agrees']];
 }
 
 async function readGraphScore(snap){
@@ -109,12 +130,12 @@ async function readGraphScore(snap){
    if(!(age>=0 && age<=9))return {...result,note:'Waiting for fresh EEG'};
    return {...result,value,stamp:pred.end,note:'Task score · '+human(pred.stage)+' · trial '+(pred.trial+1)};
  }
- if(current && (current.config.testSessionMode!=='comparison_candidate' || current.sourceModel?.featureRevision!=='rest-math-iaf-rf-v2'))return null;
+ if(current && (current.config.testSessionMode!=='comparison_candidate' || current.sourceModel?.featureRevision!=='rest-math-iaf-rf-v3-5s'))return null;
  const selected=current?{participantCode:current.participantCode,storageFolder:current.storageFolder,modelId:current.sourceModel.modelId}:
    JSON.parse(localStorage.getItem('study.rfPreview')||'null');
  if(!selected)return null;
  const preview=await get('/tests/workload-preview',{method:'POST',headers:{'Content-Type':'application/json','X-Test-Console':'engineering-model-reuse-v1'},body:JSON.stringify(selected)});
- const note=preview.reason==='ok'?'Live EEG · 10 s · screening off':human(preview.reason);
+ const note=preview.reason==='ok'?`Live EEG · ${preview.windowSeconds ?? 5} s · screening off`:human(preview.reason);
  return {thresholds:current?.scoreThresholds||selected.scoreThresholds,model:selected.modelId,value:preview.score,stamp:preview.end,note,quality:preview.quality};
 }
 function decisionView(){
@@ -208,13 +229,15 @@ function gazeOverview(){
  text('#gaze-valid',measurable?fmt(100*valid/duration,0)+'%':'—');
  const rectValid=r=>r?.available===true&&[r.x,r.y,r.width,r.height].every(Number.isFinite)&&r.width>0&&r.height>0;
  const candidate=g?.layout,layoutValid=accepted&&candidate?.available===true&&['minX','maxX','minY','maxY'].every(k=>Number.isFinite(candidate[k]))&&candidate.maxX>candidate.minX&&candidate.maxY>candidate.minY&&candidate.maxX-candidate.minX<100&&candidate.maxY-candidate.minY<100&&rectValid(candidate.movie);
- const layout=layoutValid?candidate:{minX:-2.2,maxX:2.2,minY:-2,maxY:1.4,movie:{available:true,x:-1.6,y:-.9,width:3.2,height:1.8},sphere:{available:true,x:-.10,y:-1.5,width:.2,height:.2},tray:{available:true,x:-.3,y:-1.65,width:.6,height:.07},task:{available:true,x:-.4,y:-1.75,width:.8,height:.55}};
+ const baseLayout=layoutValid?candidate:{minX:-2.2,maxX:2.2,minY:-2,maxY:1.4,movie:{available:true,x:-1.6,y:-.9,width:3.2,height:1.8},sphere:{available:true,x:-.10,y:-1.5,width:.2,height:.2},tray:{available:true,x:-.3,y:-1.65,width:.6,height:.07},task:{available:true,x:-.4,y:-1.75,width:.8,height:.55}};
+ const projected=rows.filter(r=>r.valid===true&&r.projected===true&&Number.isFinite(r.x)&&Number.isFinite(r.y));
+ const layout=layoutValid?window.EvidenceUI.fitGazeLayout(baseLayout,projected):baseLayout;
+ const offView=projected.filter(r=>r.x<baseLayout.minX||r.x>baseLayout.maxX||r.y<baseLayout.minY||r.y>baseLayout.maxY).length;
  const scale=Math.min(700/(layout.maxX-layout.minX),350/(layout.maxY-layout.minY));
  const left=(800-scale*(layout.maxX-layout.minX))/2,top=45+(350-scale*(layout.maxY-layout.minY))/2;
  const x=v=>left+(v-layout.minX)*scale,y=v=>top+(layout.maxY-v)*scale;
  const inside=r=>r.projected===true&&Number.isFinite(r.x)&&Number.isFinite(r.y)&&r.x>=layout.minX&&r.x<=layout.maxX&&r.y>=layout.minY&&r.y<=layout.maxY;
- const projected=rows.filter(r=>r.valid===true&&r.projected===true&&Number.isFinite(r.x)&&Number.isFinite(r.y));
- const visible=layoutValid&&!paused?projected.filter(inside):[],offView=projected.length-visible.length;
+ const visible=layoutValid&&!paused?projected.filter(inside):[];
  const age=last&&now!==null?Math.max(0,now-last.time)+(data?.telemetryAge||0):null;
  const current=layoutValid&&!stale&&!paused&&last?.valid===true&&inside(last)&&age<=1.5?last:null;
  let status=!data?.task?'Waiting for Unity':!accepted?'Gaze telemetry unavailable':stale?'Telemetry stale':paused?'Paused':!last?'Waiting for eye samples':last.valid!==true?'Tracking unavailable':!layoutValid?'Projection unavailable':!inside(last)?'Outside projection':age>1.5?'Waiting for fresh gaze':'Tracked eyes';
@@ -230,7 +253,7 @@ function gazeOverview(){
  if(state.gazeMode==='distribution')drawing+=visible.map(r=>`<circle class="gaze-history-dot" cx="${x(r.x)}" cy="${y(r.y)}" r="5" fill="var(--ec-blue)" opacity="${(stale ? .025 : .04)+(stale ? .04 : .18)*Math.max(0,1-(now-r.time)/10)}"/>`).join('');
  if(current)drawing+=`<circle cx="${x(current.x)}" cy="${y(current.y)}" r="13" fill="var(--ec-blue)" opacity=".12"/><circle id="gaze-current-point" cx="${x(current.x)}" cy="${y(current.y)}" r="5.5" fill="var(--ec-blue)" stroke="var(--ec-surface)" stroke-width="2"/>`;
  q('#gaze-scene').innerHTML=drawing;
- text('#gaze-coverage',measurable?`${fmt(duration,1)} s window · ${fmt(covered,1)} s covered · ${offView} projected samples outside view`:'Waiting for a measurable tracked-eye window.');
+ text('#gaze-coverage',measurable?`${fmt(duration,1)} s window · ${fmt(covered,1)} s covered · ${offView} projected samples outside the original view${offView ? "; plot expanded" : ""}`:'Waiting for a measurable tracked-eye window.');
  let message=!data?.task?'Connect a Unity session to receive genuine tracked-eye samples. No gaze points are simulated.':!accepted?'This Unity session has no compatible gaze-position telemetry. Use the updated Editor source or a rebuilt Player.':stale?'Last received distribution. The current gaze point is hidden until fresh telemetry arrives.':paused?'Gaze display is paused. No current point is shown.':!layoutValid?'Waiting for a valid scene projection. No gaze points are drawn.':last?.valid!==true?`No valid current eye tracking (${g.status||'unavailable'}). Faint points, if present, are earlier valid samples.`:current?`Latest sample ${fmt(age,2)} s ago · ${human(last.target)}. Dots show real tracked-eye rays projected onto the reference plane.`:'Current tracked eyes do not yield an in-view projection; no point is clamped to the diagram edge.';
  text('#gaze-message',message);
 }
@@ -271,9 +294,10 @@ function modelOutput(){
  q('#vendor-controls').hidden=!vendor;
  if(!vendor){
    const prediction=data?.predictions?.at(-1);
-   if(!offline && data?.model?.report?.featureRevision==='rest-math-iaf-rf-v2'){
+   if(!offline && data?.model?.report?.featureRevision==='rest-math-iaf-rf-v3-5s'){
      const r=data.model.report;
-     text('#model-output',`Workload model (Personal RF) · arithmetic-class score 0–1: ${fmt(prediction?.loadScore)} · resting alpha peak ${fmt(r.iafHz)} Hz · held-out AUC ${fmt(r.meanHeldAuc)} · ${r.reasons.map(EvidenceUI.human).join(', ')}`);
+     const bands=r.bandProfile?.mode==='fixed_bands_fallback'?'Fixed bands: theta 4–8 Hz / alpha 8–12 Hz (individual peak unavailable)':`Resting alpha peak ${fmt(r.iafHz)} Hz`;
+     text('#model-output',`Workload model (Personal RF) · arithmetic-class score 0–1: ${fmt(prediction?.loadScore)} · ${bands} · held-out AUC ${fmt(r.meanHeldAuc)}${r.aucGating===false?' (reported only)':''} · ${r.reasons.map(EvidenceUI.human).join(', ')}`);
      return;
    }
    if(!offline && data?.model?.report?.featureRevision==='rest-math-120s-v1'){
@@ -304,7 +328,7 @@ function render(){
  banner.hidden=!quality || offline || data.telemetryAge>5;
  banner.className='connection'+(quality?.warning?' warn':'');
  banner.textContent=banner.hidden?'':quality.text;
- modelOutput();renderConnection();if(state.page==='decision')decisionView();if(state.page==='physiology')physiologyView();const key=JSON.stringify([state.stage,forms,data?.session,data?.task?.config?.comparisonEnvironment,data?.task?.config?.trainingFormUrl]);if(state.page==='guide'&&guideKey!==key){guide();guideKey=key;}}
+ modelOutput();renderConnection();if(state.page==='decision')decisionView();if(state.page==='physiology')physiologyView();const key=JSON.stringify([state.stage,forms,data?.session,data?.task?.config?.comparisonEnvironment,data?.task?.config?.trainingFormUrl,data?.task?.config?.preferenceFormUrl]);if(state.page==='guide'&&guideKey!==key){guide();guideKey=key;}}
 function selectRequest(id){state.request=id;const d=currentDecision(),predictionIds=(d?.judgments||[]).flatMap(j=>j.evidence_ids||j.dependencies||[]);const matched=(data?.windows||[]).filter(w=>predictionIds.includes('signal:'+w.stage+':'+w.trial));state.window=matched.length?windowKey(matched.at(-1)):'';render();}
 root.addEventListener('click',e=>{const button=e.target.closest('button');if(!button)return;if(button.dataset.page)navigate(button.dataset.page);if(button.dataset.stage!==undefined){state.stage=Number(button.dataset.stage);render();}if(button.dataset.node){state.node=button.dataset.node;decisionView();}if(button.dataset.gazeMode){state.gazeMode=button.dataset.gazeMode;gazeOverview();}if(button.dataset.feature){state.feature=button.dataset.feature;physiologyView();}if(button.dataset.request)selectRequest(button.dataset.request);});
 q('#raw-channel').addEventListener('change',e=>{state.rawChannel=e.target.value;physiologyView();});

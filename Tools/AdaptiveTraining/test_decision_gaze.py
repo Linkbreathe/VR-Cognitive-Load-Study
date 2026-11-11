@@ -15,6 +15,26 @@ def point(t, **kwargs):
 
 
 class DecisionGazeTests(unittest.TestCase):
+    def test_all_valid_points_outside_original_view_are_plotted_without_changing_source(self):
+        rows=[point(0,x=1.5,y=-3),point(.05,x=1.6,y=-3.2),point(.1)]
+        original=json.dumps(rows,sort_keys=True)
+        d=density(rows,[[0,.1]],'layer_b')
+        self.assertEqual(d['status'],'available')
+        f=d['frames'][0]
+        self.assertTrue(f['expanded'])
+        self.assertAlmostEqual(f['mappedSeconds'],.1)
+        self.assertAlmostEqual(f['outsideSeconds'],.1)
+        self.assertLess(f['layout']['minY'],-3.2)
+        self.assertEqual(f['referenceLayout'],LAYOUT)
+        self.assertAlmostEqual(sum(b[2] for b in f['bins']),.1)
+        self.assertEqual(json.dumps(rows,sort_keys=True),original)
+
+    def test_late_or_invalid_outliers_do_not_expand_decision_view(self):
+        rows=[point(0),point(.05,x=20,availableAt=5),point(.1,y=-20,valid=False),point(.15)]
+        f=density(rows,[[0,.15]],'layer_b',cutoff=1)['frames'][0]
+        self.assertFalse(f['expanded'])
+        self.assertEqual(f['layout'],LAYOUT)
+
     def test_duration_clipping_gaps_and_late_arrival(self):
         rows=[point(0), point(.05), point(1, availableAt=4), point(1.1)]
         d=density(rows, [[.025,1.1]], 'layer_b', cutoff=2)

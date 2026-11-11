@@ -68,8 +68,7 @@ namespace EvidenceVR
             get
             {
                 var device=UnityEngine.XR.InputDevices.GetDeviceAtXRNode(UnityEngine.XR.XRNode.Head);
-                return device.isValid && device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.isTracked,out bool tracked) && tracked &&
-                    (!device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.userPresence,out bool present) || present);
+                return IsHeadTracked(device);
             }
         }
         public bool CanStart=>(!config.IsLayerAB || StudyClockReady) && ComparisonTrackingReady && (config.operatorManaged ? ServiceConnected && TestAssignmentConfirmed && (config.TaskOnly || TestSignalsReady) && Media!=null && Media.EngineeringReady &&
@@ -94,6 +93,9 @@ namespace EvidenceVR
 #endif
         double nextTelemetry,nextGaze,offset,uncertainty=999;
         int gazeSamples,gazeValid,gazeTask,gazeVideo;
+        readonly EyeFreezeDetector eyeFreeze=new EyeFreezeDetector();
+        readonly EyeSampleFreshness eyeFreshness=new EyeSampleFreshness();
+        bool lastEyeFrozen;
         int rating=3,ratingIndex;
         RectTransform countdown;
         Vector2 originalCountdownPosition;
@@ -110,7 +112,7 @@ namespace EvidenceVR
             Open("training_blocks.csv","session_id,config_version,block,stage,level,start_s,end_s,eligible,matches,nonmatches,balanced_accuracy,median_correct_rt_s,omissions,transition_trials,valid,mixed_level,levels");
             Open("media_events.csv","session_id,config_version,block,stage,level,media_id,modality,status,planned_s,actual_s,duration_s,prior_exposures,x,y,z,detail");
             Open("gaze_trials.csv","session_id,config_version,block,trial,level,samples,valid_samples,task_samples,video_samples,valid_fraction,task_fraction_valid,video_fraction_valid");
-            Open("gaze_samples.csv","session_id,config_version,time_s,block,trial,level,valid,origin_x,origin_y,origin_z,direction_x,direction_y,direction_z,task_roi,video_roi,task_visible,video_visible,roi_revision,gaze_source,task_region_visible");
+            Open("gaze_samples.csv","session_id,config_version,time_s,block,trial,level,valid,origin_x,origin_y,origin_z,direction_x,direction_y,direction_z,task_roi,video_roi,task_visible,video_visible,roi_revision,gaze_source,task_region_visible,head_forward_x,head_forward_y,head_forward_z,eye_in_head_x,eye_in_head_y,eye_in_head_z,eye_frozen,eye_freeze_spread_deg,eye_freeze_revision,eye_sample_time,eye_location_flags,eye_sample_status,eye_sample_revision");
             Open("physio_features.csv","session_id,config_version,received_s,payload_json");
             Open("controller_decisions.jsonl",null);Open("clock_sync.jsonl",null);
             if(config.IsLayerAB)Open("clock_sync_ab.jsonl",null);
@@ -139,8 +141,9 @@ namespace EvidenceVR
                 engine.Note("personal_progress_display",TaskEngine.PersonalProgressRevision+";left=countdown;right=completed_trial_slots;calibration=block;practice_and_training=phase;placement=desk_signs;centers_m=+-0.40;center_height_m=0.86",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             }
             engine.Note("gaze_debug_configuration",GazeDebugHighlighter.Revision+";requested="+config.engineeringGazeHighlight+";effective="+GazeDebug.Allowed+";roi="+GazeRegions.Revision+";source=tracked_eyes_only",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            engine.Note("eye_freeze_configuration",EyeFreezeDetector.Revision+";window_s="+EyeFreezeDetector.WindowSeconds.ToString(CultureInfo.InvariantCulture)+";tolerance_deg="+EyeFreezeDetector.ToleranceDegrees.ToString(CultureInfo.InvariantCulture)+";frozen_samples=invalid",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             InitializeGazePermission();
-            Debug.Log("Stage 2 initialized: "+config.evaluationPolicy+"; countdown F2; mode="+config.mode+"; basis="+config.controlBasis+"; data="+owner.DataPath);
+            Debug.Log("Stage 2 initialized: "+config.evaluationPolicy+"; countdown="+SpatialTaskView.CountdownRevision+"; mode="+config.mode+"; basis="+config.controlBasis+"; data="+owner.DataPath);
         }
         void InitializeGazePermission()
         {
@@ -184,7 +187,7 @@ namespace EvidenceVR
         {
             if(disposed)return;
             if(e.type=="pause" || e.type=="resume" || e.type=="protocol_stage" || e.type=="personal_mount_interrupted" || e.type=="adaptive_level_changed")previousGuardGaze=null;
-            if(e.type=="pause" || e.type=="session_complete" || e.type=="session_aborted" || e.type=="block_complete"){GazeDebug?.Clear();GazeRay?.Clear();}
+            if(e.type=="pause" || e.type=="session_complete" || e.type=="session_aborted" || e.type=="block_complete"){GazeDebug?.Clear();GazeRay?.Hold();}
             if(events.Count<2048)events.Add(e);
             else {events.Clear();engine.Pause(e.actual,e.frame,"telemetry_queue_full");}
             if(e.type=="personal_decision_due" && config.mode!="OFF")StartCoroutine(Send(true));
@@ -343,7 +346,6 @@ namespace EvidenceVR
                 if(Keyboard.current.escapeKey.wasPressedThisFrame)StopNow();
             }
             if(now>=nextGaze){nextGaze=now+1.0/30;SampleGaze(now);}
-            else if(engine.Phase!=TaskPhase.Running)GazeDebug?.Clear();
             if(now>=nextTelemetry){nextTelemetry=now+1;StartCoroutine(Send(false));}
         }
         string lastGazeCompatibilityState;
@@ -355,7 +357,8 @@ namespace EvidenceVR
                 previousGuardGaze=null;GazeDebug?.Clear();
                 return;
             }
-            if(Application.isEditor && lastGazeCompatibilityState!=QuestLinkEyeSpaceFeature.LastResult)
+            PrepareGazeFrame(now);
+            if(lastGazeCompatibilityState!=QuestLinkEyeSpaceFeature.LastResult)
             {
                 lastGazeCompatibilityState=QuestLinkEyeSpaceFeature.LastResult;
                 engine.Note("gaze_link_compatibility",QuestLinkEyeSpaceFeature.Revision+";"+lastGazeCompatibilityState,now,Time.frameCount);
@@ -366,11 +369,44 @@ namespace EvidenceVR
             // Recheck authorization so revocation cannot leave an accepted gaze sample.
             if(!UnityEngine.Android.Permission.HasUserAuthorizedPermission(QuestEyePermission)){eyeDevices.Clear();GazeTrackingStatus="EYE PERMISSION MISSING";}
 #endif
-            Vector3 position=Vector3.zero;Quaternion rotation=Quaternion.identity;bool valid=false;
+            Vector3 position=Vector3.zero;Quaternion rotation=Quaternion.identity;bool eyeTracked=false;
+            UnityEngine.XR.InputDevice eyeDevice=eyeDevices.Count>0?eyeDevices[0]:default;
             foreach(var device in eyeDevices)
                 if(device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.isTracked,out bool tracked)&&tracked &&
-                    device.TryGetFeatureValue(new InputFeatureUsage<Vector3>("gazePosition"),out position)&&
-                    device.TryGetFeatureValue(new InputFeatureUsage<Quaternion>("gazeRotation"),out rotation) && GazeRegions.ValidRotation(rotation)){valid=true;break;}
+                    device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.trackingState,out InputTrackingState state) &&
+                    (state&(InputTrackingState.Position|InputTrackingState.Rotation))==(InputTrackingState.Position|InputTrackingState.Rotation)){eyeTracked=true;eyeDevice=device;break;}
+            var headDevice=UnityEngine.XR.InputDevices.GetDeviceAtXRNode(UnityEngine.XR.XRNode.Head);
+            bool headTracked=IsHeadTracked(headDevice) && GazeRegions.Finite(owner.head.localPosition) && GazeRegions.ValidRotation(owner.head.localRotation);
+            ObserveGazeDevices(headDevice,eyeDevice,now);
+            long eyeSampleTime=0;ulong eyeLocationFlags=0;
+            bool timestampRequired=QuestLinkEyeSpaceFeature.SampleTimeCheckRequired;
+            // Pose, tracking flags and timestamp come from one locate in Unity's current app space.
+            bool nativeReadable=QuestLinkEyeSpaceFeature.TryReadSample(out position,out rotation,out eyeSampleTime,out eyeLocationFlags);
+            bool poseTracked=eyeTracked && headTracked && nativeReadable;
+            bool timestampFresh=eyeFreshness.Update(now,poseTracked,eyeSampleTime);
+            bool coordinatesReady=eyeContinuity.Observe(now,poseTracked && timestampFresh,gazeDeviceGeneration,0,
+                gazeTrackingEpoch,gazeTrackingMatrix,eyeSampleTime);
+            if(gazeContinuityGeneration!=eyeContinuity.Generation)
+            {gazeContinuityGeneration=eyeContinuity.Generation;previousGuardGaze=null;GazeDebug?.Clear();GazeRay?.Hold();}
+            bool valid=poseTracked && timestampFresh && coordinatesReady;
+            // Both poses are in tracking space: the head's local rotation and the eye rotation share a frame.
+            Vector3 headForward=owner.head.forward;
+            Vector3 eyeInHead=poseTracked?Quaternion.Inverse(owner.head.localRotation)*(rotation*Vector3.forward):Vector3.zero;
+            bool eyeFrozen=eyeFreeze.Update(now,poseTracked,eyeInHead,eyeFreshness.Status=="EYE SAMPLE STALE");
+            if(eyeFrozen!=lastEyeFrozen)
+            {
+                lastEyeFrozen=eyeFrozen;
+                string freezeDetail=EyeFreezeDetector.Revision+";frozen="+eyeFrozen+";spread_deg="+eyeFreeze.LastSpreadDegrees.ToString("F4",CultureInfo.InvariantCulture);
+                engine.Note("eye_freeze",freezeDetail,now,Time.frameCount);
+                Debug.Log("Eye gaze freshness: "+freezeDetail+(eyeFrozen?". Native sample time is stale; angular spread alone never rejects gaze.":""));
+            }
+            // Display only: a frozen pose is still drawn (amber) so the operator sees it follow the head.
+            var rawDisplay=new GazeRegionSample();
+            if(poseTracked && eyeFrozen)
+            {
+                rawDisplay.valid=true;rawDisplay.origin=owner.head.parent.TransformPoint(position);
+                rawDisplay.direction=owner.head.parent.TransformDirection(rotation*Vector3.forward).normalized;
+            }
             var origin=valid?owner.head.parent.TransformPoint(position):Vector3.zero;
             var direction=valid?owner.head.parent.TransformDirection(rotation*Vector3.forward):Vector3.zero;
             bool sphereVisible=engine.StimulusVisible && owner.stimulus.enabled && owner.stimulus.gameObject.activeInHierarchy;
@@ -378,34 +414,49 @@ namespace EvidenceVR
             bool taskVisible=engine.Phase==TaskPhase.Running && (sphereVisible || trayVisible),videoVisible=Media.IsVideoVisible;
             var sphereBounds=owner.stimulus.bounds;
             var taskBounds=GazeRegions.TaskBounds(sphereBounds,trayVisible?focusTray.bounds:sphereBounds);
-            if(config.Comparison){taskBounds=sphereBounds;taskVisible=sphereVisible;}
             if(!focusBoundsRecorded || lastFocusBounds!=taskBounds)
             {
                 focusBoundsRecorded=true;lastFocusBounds=taskBounds;
-                string detail=(config.Comparison?"sphere-bounds-v1":GazeRegions.Revision)+";padding_m="+(config.Comparison?0f:GazeRegions.TaskPaddingMeters).ToString(CultureInfo.InvariantCulture)+";tray_available="+trayVisible+";world_center_m="+taskBounds.center.ToString("F6",CultureInfo.InvariantCulture)+";world_size_m="+taskBounds.size.ToString("F6",CultureInfo.InvariantCulture);
+                string detail=GazeRegions.Revision+";padding_m="+GazeRegions.TaskPaddingMeters.ToString(CultureInfo.InvariantCulture)+";tray_available="+trayVisible+";world_center_m="+taskBounds.center.ToString("F6",CultureInfo.InvariantCulture)+";world_size_m="+taskBounds.size.ToString("F6",CultureInfo.InvariantCulture);
                 engine.Note("gaze_task_region",detail,now,Time.frameCount);Debug.Log("Task gaze region: "+detail);
             }
             var sample=GazeRegions.Classify(valid,origin,direction,taskBounds,taskVisible,Media.Screen,videoVisible);
             if(sample.valid)GazeTrackingStatus="TRACKED EYES";
+            else if(GazeTrackingStatus=="NO XR RUNTIME" || GazeTrackingStatus=="NO EYE DEVICE" || GazeTrackingStatus=="EYE PERMISSION MISSING")
+            {/* Preserve the more specific acquisition failure. */}
+            else if(!headTracked)GazeTrackingStatus="HEAD NOT TRACKED";
+            else if(!eyeTracked){/* Preserve the eye-device/permission diagnosis. */}
+            else if(!timestampFresh)GazeTrackingStatus=eyeFreshness.Status;
+            else if(!coordinatesReady)GazeTrackingStatus="EYE COORDINATES RECOVERING";
             else if(valid)GazeTrackingStatus="INVALID EYE POSE";
             RecordConsoleGaze(now,sample,sphereBounds,focusTray!=null?focusTray.bounds:sphereBounds,taskBounds,taskVisible,videoVisible);
-            bool rayPhase=engine.Phase==TaskPhase.Preparation || engine.Phase==TaskPhase.Instructions || engine.Phase==TaskPhase.Running;
-            GazeRay?.Present(sample,GazeTrackingStatus,now,rayPhase);
+            // The engineering reticle persists in every phase; without fresh eyes it holds its last point.
+            var displaySample=sample.valid?sample:rawDisplay;
+            float hitDistance=GazeRay!=null && GazeRay.RayEnabled && displaySample.valid
+                ? GazeRegions.HitDistance(displaySample,sphereVisible?sphereBounds:new Bounds(),Media.Screen,EngineeringGazeRay.DefaultHitDistance)
+                : EngineeringGazeRay.DefaultHitDistance;
+            GazeRay?.Present(displaySample,GazeTrackingStatus,now,true,hitDistance,!sample.valid && rawDisplay.valid);
             if(now>=nextGazeStatusLog && lastGazeStatus!=GazeTrackingStatus)
             {
                 nextGazeStatusLog=now+1;lastGazeStatus=GazeTrackingStatus;
-                string detail=GazeTrackingStatus+";runtime="+UnityEngine.XR.OpenXR.OpenXRRuntime.name+";eye_devices="+eyeDevices.Count;
+                string detail=GazeTrackingStatus+";runtime="+UnityEngine.XR.OpenXR.OpenXRRuntime.name+";eye_devices="+eyeDevices.Count+
+                    ";sample_time="+eyeSampleTime+";location_flags="+eyeLocationFlags+";freshness_revision="+EyeSampleFreshness.Revision;
                 engine.Note("gaze_tracking_status",detail,now,Time.frameCount);
                 Debug.Log("Eye gaze: "+detail);
             }
-            // Preparation diagnostics never enter trial statistics or production gaze rows.
-            if(engine.Phase!=TaskPhase.Running){previousGuardGaze=null;GazeDebug?.Clear();return;}
-            RecordGuardGaze(now,sample,sphereVisible,videoVisible);
+            // The placed outline can be checked in preparation too. This separate visual sample
+            // uses the same geometry but never enters trial statistics, Guard or gaze rows.
+            var visualSample=engine.Phase==TaskPhase.Running?sample:GazeRegions.Classify(valid,origin,direction,taskBounds,
+                owner.stimulus.gameObject.activeInHierarchy,Media.Screen,videoVisible);
+            GazeDebug?.Present(visualSample,now);
+            if(engine.Phase!=TaskPhase.Running){previousGuardGaze=null;return;}
+            RecordGuardGaze(now,sample,taskVisible,videoVisible);
             gazeSamples++;if(sample.valid)gazeValid++;if(sample.task)gazeTask++;if(sample.video)gazeVideo++;
             Row("gaze_samples.csv",sessionId,config.version,now,engine.Block,engine.TrialIndex,engine.Practice?(config.IsPersonalized?1:2):engine.Adaptive.Level,sample.valid,
                 sample.origin.x,sample.origin.y,sample.origin.z,sample.direction.x,sample.direction.y,sample.direction.z,sample.task,sample.video,
-                sphereVisible,videoVisible,config.Comparison?"sphere-bounds-v1":GazeRegions.Revision,"tracked_eyes",taskVisible);
-            GazeDebug?.Present(sample,now);
+                sphereVisible,videoVisible,GazeRegions.Revision,"tracked_eyes",taskVisible,
+                headForward.x,headForward.y,headForward.z,eyeInHead.x,eyeInHead.y,eyeInHead.z,eyeFrozen,eyeFreeze.LastSpreadDegrees,EyeFreezeDetector.Revision,
+                eyeSampleTime,eyeLocationFlags,timestampRequired?eyeFreshness.Status:"NOT_APPLICABLE",EyeSampleFreshness.Revision);
         }
         public void SetEngineeringGazeRay(bool enabled)
         {
@@ -467,6 +518,7 @@ namespace EvidenceVR
             }
 #endif
             StopAllCoroutines();
+            DisposeGazeTracking();
             DisposePersonalProgress();
             if(engine!=null){engine.CanApplyAdaptiveChange=null;engine.OnEvent-=OnEvent;engine.OnTrial-=OnTrial;engine.OnTrainingBlock-=OnBlock;}
             if(GazeDebug!=null){GazeDebug.Clear();GazeDebug.OnStateChanged-=OnGazeVisualChanged;Destroy(GazeDebug.gameObject);}

@@ -4,6 +4,122 @@
 
 2026-11-10, Stage 2/3, `eye-hand-tracking-reminder-v1`: documented an optional headset hand-tracking-off check for recurrent eye-tracking interruptions, using Touch controllers and retaining eye tracking. The approximately 35 mode switches in one hour were reported by the researcher; this update did not independently recount logs, change settings or run a worn test. Documentation and links were checked. Causality, effectiveness and sustained Quest Pro recovery remain unverified; existing device/participant acceptance status is unchanged. See the [procedure and evidence to collect](ExperimentGuide.md#eye-tracking-interruptions-hand-tracking-check).
 
+## Comparison selection and soft highlight: software-verified
+
+2026-11-10, Stage 2/3: `comparison-last-selection-v1`, `comparison-green-timer-soft-tone-v1`, `selection-sine-520hz-65ms-v1` and `engineering-gaze-outline-v5-soft-edge` are implemented. Formal Comparison/A/B rounds accept answer changes until four seconds and score the final choice, with a 300 ms green countdown and quiet acknowledgement tone per accepted press. This explicitly approved input sound does not signal correctness. Engineering target outlines use softer feathered edges; participant lockout remains. New metadata and events record revisions, choices, sound requests and finalization. Unity compilation, 100 Edit Mode and 100 isolated Play Mode checks passed; synthetic sphere render inspected; current console errors zero. No worn Quest Pro, physical sound/input latency, actual headset movie-border appearance, APK/IL2CPP or participant acceptance is granted. [Detailed review and evidence](ResponseSelectionHighlightReview.md).
+
+## Eye software repair: implemented and software-verified
+
+2026-11-10, Stage 2/3: `eye-space-v2-atomic-pose-all-modes`, `eye-freeze-v2-native-stale-angular-diagnostic`, `eye-coordinate-continuity-v1` and `engineering-gaze-outline-v4-preflight-hit` supersede the software scope in the historical entry below. Fresh small movements no longer fail an angular heuristic. Native eye pose/time share a locate call; head validity and coordinate recovery are gated in all configured modes. Preparation highlighting is engineering-only and display-only. Task/ROI/controller policies and logging schemas are unchanged; existing revisions identify the correction. Compilation, 1,085 checks each in Edit/isolated Play, 2,042 geometry checks, 13 ROI checks, 13 retry checks and 96,013 distraction checks passed; synthetic outline renders inspected. The native snapshot had no active XR runtime. No worn accuracy, actual reconnect, Android/IL2CPP or participant acceptance is granted. [Review and evidence](EyeTrackingRepairReview.md).
+
+## Native eye freshness and restored Link settings
+
+2026-11-10, Stage 2/3, `eye-sample-freshness-v1-native-time`: Unity compilation and 918 checks in each of Edit/isolated Play Mode passed, rejecting all 900 existing frozen native samples. Timestamp checking applies to the active engineering Editor/Oculus compatibility path; shared eye reads also require position/rotation tracking flags. Cycling Link's developer master reset child features; after explicit consent all original transmission features were restored and visually verified ON. This accepts setting restoration only. No worn tracking recovery, calibration, practice/comparison gaze accuracy or participant/Android acceptance is claimed. [Exact state and evidence](EyeInputRecoveryReview.md).
+
+## Gaze display and Editor focus
+
+2026-11-10, `console-gaze-expanded-view-v1` / `engineering-gaze-ray-v3-editor-focus`: implemented and software-verified (258 Python tests, Node display contracts, 26 Unity Edit Mode checks, headless Edge replay at three widths). The requested comparison already uses five eligible trials; no policy reduction was needed. Recorded off-view positions are displayed without changing target membership. The temporary live probe had a static untracked camera and is invalid for gaze accuracy; the normal controller was restored and worn testing stopped at the researcher's request. Backend restart was blocked by automatic approval review, so v1.30 historical report processing and real-device acceptance remain pending. [Review](GazeVisibilityDiagnosisReview.md).
+
+## Shared task gaze area
+
+2026-11-10, `gaze-roi-v5-unified-sphere-tray-area`: implemented and software-verified. A/B now uses practice's sphere/tray enclosing area with 4 cm padding, shared across classification, Console and guard visibility. Metadata/CSV/events identify v5. Compilation, 13 checks in each of Edit/Play Mode, 2,042 gaze checks, 16 projection checks and 106 guard checks passed. No worn Quest Pro accuracy or participant acceptance is claimed. Historical sphere-only records remain unchanged; fresh assignment required. [Review](UnifiedTaskGazeReview.md).
+
+## Normalized seated height
+
+2026-11-10, `seated-eye-height-v2-normalized`: implemented and software-verified. Preparation places virtual eyes at 1.20 m for floor/device origins and records the revision, target and actual offset. Unity compilation, 58 isolated checks in Edit Mode and 58 in Play Mode, and 96,013 existing distraction checks passed; console ground truth has zero errors. Archived P002 gaze was valid but almost never intersected the sphere; its intended fixation and offset cause are unverified. High/low-chair Quest Pro comfort, real-eye accuracy and sustained tracking remain pending. This is not acceptance of a complete task-gaze fix. [Review](SeatedHeightReview.md).
+
+## Workload AUC report only
+
+2026-11-10, `workload-auc-report-only-v1`: the researcher removed the AUC >= 0.65 save requirement for workload RF models. Mean/fold AUC remain reported; a saved model is not labeled as an AUC pass. Other computability requirements remain. Latest P002 mean AUC 0.5656566 model is saved and reload-verified separately; archived results preserved. 255 regression tests and JavaScript syntax/display contracts passed; backend v1.29 restarted and model-list reporting verified. [Review](AUCReportOnlyReview.md). Fresh live and independent performance validation remain pending. Earlier AUC-gated descriptions below are historical for this path.
+
+## Alpha-peak fallback
+
+2026-11-10, `iaf-or-fixed-theta4-8-alpha8-12-v1`: implemented and software-verified. Reliable detected peaks retain individual bands; absent/weak peaks use labeled fixed [4,8)/[8,12) Hz bands with null measured IAF. Twelve focused and 254 full regression tests passed. P002 reanalysis generated a separate `-bands-v1` engineering model (mean AUC 0.760185); save/reload verified and original failures preserved. Console v1.28 restarted. Independent validation, fresh acquisition and physical acceptance remain pending. [Review](AlphaPeakFallbackReview.md).
+
+## Unscreened workload training
+
+2026-11-10, `workload-training-no-artifact-screen-v1`: implemented and software-verified. Training no longer excludes epochs for artifacts, flatline or amplitude, and records included seconds without asserting clean signal. Ten focused tests, 252 full regression tests and isolated P002 replay confirm the path; P002 retains 36/34 windows but fails alpha-peak extraction. No replay model was published. Console backend restarted; Unity left stopped. [Review](UnscreenedTrainingReview.md). Fresh worn calibration and physical/participant validation remain pending. Earlier screened-training descriptions are historical.
+
+## Video-closing BA threshold
+
+Software-verified: 251 AdaptiveTraining tests passed in 63.858 seconds; Node display contracts and syntax checks passed.
+
+2026-11-10, Stage 2/3, `scored5-on65-off50-v5`: current 60-trial shared/review OFF uses BA <= 0.50. ON stays 0.65; model-only OFF deferral stays 0.80. Two omissions, model OFF, independent support-probe failure rules and legacy 144-trial OFF <= 0.60 are retained. Boundary/evidence/display checks passed; no physical or participant acceptance is added. Start backend `evidence-console-v1.26-on65-off50` and create a fresh assignment. [Validation and operation](OffBAThresholdReview.md). The following ON-only entry records the preceding revision.
+
+## Video-opening BA threshold
+
+2026-11-10, Stage 2/3, `scored5-on65-off60-v4`: implemented and software-verified; 248 AdaptiveTraining tests and Console display/syntax checks passed. The 60-trial ON proposal and current-state ON review use BA >= 0.65. OFF <= 0.60 and OFF-deferral >= 0.80 remain unchanged, along with EEG, gaze, omissions, probes and 144-trial rules. Boundary/evidence and display checks verify the lower ON cutoff, retained gates and recorded thresholds. No new physical or participant acceptance; start the updated backend `evidence-console-v1.25-on-ba65` and create a fresh assignment. [Validation details](OnBAThresholdReview.md).
+
+## Engineering gaze debug inheritance
+
+2026-11-10, Stage 2/3, `engineering-gaze-claim-v1`: implemented and software-verified. Console engineering assignments inherit local Target Highlight / Eye Ray preferences before configuration freeze; participant denial remains enforced. Unity compilation, 24 Python tests, 97 compiled preference checks and 12 live isolated Unity/HTTP checks passed. Frozen metadata, renderer allocation, accepted telemetry and hash-verified archive agree. The session remained in Preparation and was aborted; trial files are header-only. No XR runtime was available, so worn Quest Pro display visibility and accuracy were not verified. No APK built; both updated service/client and a fresh assignment are required. [Detailed review](GazeDebugInheritanceReview.md).
+
+## Eye preflight panel removal
+
+2026-11-10, `console-preflight-removed-v1`: the separate Eye-tracking preflight panel was removed at the researcher's request. JavaScript syntax and decision-display contracts passed. Read-only browser verification against the running Console found no panel on Run monitor, Signals or Guide, retained Gaze overview and its Latest point control, and zero page errors. Existing eye acquisition, logs and control rules are unchanged. Refresh the browser to apply; no new physical verification is claimed. [Review](GazePreflightReview.md#removal-2026-11-10).
+
+## Five-second workload windows
+
+2026-11-10, `rest-math-iaf-rf-v3-5s` / `rolling5-stride1-disjoint-fold60-v3`: implemented and software-verified. Five-second candidates advance every second; accepted training windows are disjoint and require three clean epochs, with 12–36 windows per condition. Saved-model scoring and live preview use the same five-second duration. Full AdaptiveTraining regression passed 241 tests, including synthetic fit/save/reload and score agreement; Console syntax and decision-display checks passed. Historical ten-second models are retained but cannot be loaded as five-second models. Service restart, fresh calibration, independent task validation and physical Quest Pro acceptance remain pending. No physiological or participant benefit is established. [Detailed review](FiveSecondWorkloadReview.md).
+
+## Eye-tracking preflight (historical; removed)
+
+2026-11-10, `gaze-preflight-v1`: implemented and software-verified. The Console shows connection/tracking state, available last-ten-second valid-time percentage and latest eye update age/time before trials in Preparation. Diagnostic tests and existing decision-display contracts pass. Isolated Edge checks cover connected, disconnected, stale, ended, desktop and partial-window states across all monitor tabs and four widths, with no page errors or overflow; screenshots inspected. No live service, new worn Quest Pro, sustained Link, Unity build or participant validation. The production service was offline during checks; start normally and refresh. Start controls and review policy are unchanged. [Review and evidence](GazePreflightReview.md).
+
+## Gaze review thresholds
+
+2026-11-10, `gaze-review-coverage60-task40-v1`: implemented and software-verified. ON authorization and eligible model-only OFF deferral use valid eye coverage >= 60% and task share >= 40% of valid-eye time. 57 AdaptiveTraining and 14 Evidence Guard tests passed, including exact/below-threshold cases and missing tracking; Console decision-display contracts passed. Session/review revision and numeric thresholds are recorded. Service restart and a fresh session are required. Revised-policy Quest Pro and participant validation remain pending. [Review](GazeThresholdReview.md).
+
+## Integer response countdown
+
+2026-11-10, `response-countdown-v3-integer-seconds`: implemented and compiled. Whole-second ceiling display gives 4, 3, 2, 1 and zero only at/after the deadline. The compiled formatter and unchanged four-second response/4.5-second cycle were read back; a Play Mode TMP preview had no overflow. New session metadata uses the revised constant. No new APK, physical timing or headset readability verification. This supersedes the decimal-display portion of dev5 only. [Review](IntegerCountdownReview.md).
+
+## Quest Pro Link gaze recovery
+
+2026-11-10, `quest-link-eye-settings-recovery-v1`: compilation and 13 software checks passed. The user wore Quest Pro over Link; native eye-space retry succeeded and a real-input probe returned 128/160 valid samples. An isolated Preparation-only engineering session delivered `TRACKED EYES` and 92/92 valid projected samples to the Console API. This is observed live acquisition/transport evidence for this PC/Link configuration, not full Quest Pro acceptance. Accuracy, sustained tracking, standalone Android, rendered-browser and participant checks remain pending. Check session stopped and archived; no trials; Play Mode stopped. [Review](QuestLinkEyeRepairReview.md).
+
+## P001 forced workload candidate
+
+2026-11-10, `forced-offline-no-artifact-screening-v1`: researcher-requested candidate exported and visible to the live Console model-list API. Existing loader/hash checks and independent retrain/reload score agreement passed on 35 unscreened windows. Original calibration remains failed (zero quality-qualified windows per condition). Mean held-out AUC 0.837037 includes one fold using a fixed 10 Hz fallback; artifact screening was bypassed. `admitted=false`; no participant, cross-session or physical/device acceptance. No active-session changes or new assignment. Clean recalibration and independent signal checks remain pending. [Review and evidence](P001ForcedModelReview.md).
+
+## UEQ explanations and Console form buttons
+
+2026-11-08, questionnaire v5.1 / display `console-questionnaire-links-v1`. Browser-verified: four approved descriptions saved beneath the original UEQ+ questions; endpoints and required scales retained; preview values cleared with no submission. Run monitor exposes the selected A/B session's post-condition and final-preference URLs; both buttons opened the expected responder forms. Software-verified: eight A/B tests, JavaScript syntax and existing display contracts passed; Unity compile completed and v5.1 read back, with current console errors zero. No device or participant validation. The previously blocked Console restart remains required before creating new v5.1 assignments; static browser links are already served. [Review and evidence](UEQClarificationConsoleReview.md).
+
+## Three-page questionnaire v5
+
+2026-11-08, `raw-tlx7-ueq4-experience7-preference-google-forms-v5`. Implemented and browser-verified: the post-condition form contains three pages and twenty required fields (three linkage fields plus seventeen ratings); A2/A3 accept N/A. Seven new items and their exact anchors were inspected; original TLX/UEQ+ items are retained. Preview navigation reached Page 3; submission was disabled and engineering preview entries were cleared. Final preference timing text now references all three pages. No questionnaire response was submitted.
+
+Software-verified: all 8 existing A/B tests passed (1.044 s), JavaScript syntax and git whitespace checks passed. Unity recompile completed, compilationFailed=false and current consoleErrors=0; an eval read back the compiled v5 constant. The log buffer retains one earlier Unity AI relay-process error at 20:51 UTC, unrelated to this compile. Play Mode remains stopped; pre-existing auto-tick remains enabled.
+
+Deployment limitation: automatic approval review rejected the idle Console service restart command with "blocked by policy" and no further reason. No restart occurred; health still reports PID 11796. Restart the Console before generating the next assignment so it loads the v5 Python constant, then create a fresh assignment. Do not reuse a v4 allocation with the recompiled v5 Unity code. Form edits are already saved and independent of this local service restart. Participant comprehension, real submission/export/join, headset/EEG checks and validation of the seven study-specific items remain pending. UEQ+ item explanations are only a proposal. [Review, scoring and evidence](QuestionnaireExperienceReview.md).
+
+## Round B support display v2
+
+2026-11-08, `evidence-console-v1.23.1-support-monitor` / `console-support-probe-v2`: display only. Includes the monitor authorization tile, setup rule text, probe progress and outcome wording, and narrow layout. Software-verified: 238 Python tests, 14 Guard tests and the JavaScript contracts passed. Synthetic browser check: 30/30 passed, with no overflow at 1440 px or 390 px. Deployment verified: idle service restarted with unchanged configuration; health reports v1.23.1 and the served assets contain the changes. Not performed: live Unity monitor, headset, EEG or participant check. [Review](SupportProbeReview.md#display-revision-v2-2026-11-08).
+
+## Selective support and logged probe (Round B)
+
+2026-11-08, `current-condition-support-probe4-cooldown2-v1` / `selective-support-probe4-cooldown2-v1`: implemented for Round B of the 60-trial comparison. A turn-off note of `during` or `mixed` suspends direct opening. The next opening is a logged four-trial probe. A pass restores authorization. Each participant failure adds a two-trial cooldown, capped at seven, with no lock. A playback failure or interruption, or no decoded playback, is inconclusive: support stays suspended, with no cooldown. Probe openings stop after check 54. Round A and the 144-trial verification are unchanged.
+
+Software-verified: all 237 AdaptiveTraining tests passed, including 25 compact checks: 13 new support/probe checks and full synthetic A/B rounds with failure, interruption, audit and report export. All 14 generic Guard tests, the JavaScript display contracts and syntax checks passed. The Wei_004 recorded closed-loop simulation gave the same commands as a v1.22 control run; B's opening at 26 ran as a probe and passed at 30. Deployment verified: The idle service on 127.0.0.1:8765 was restarted with the same host, LSL selection and policy (hashes unchanged). Before the restart it had no Unity telemetry and no prepared, claimed or running assignment among 18 records. Health now reports `evidence-console-v1.23-support-probe` (PID 52896). The served HTML/JavaScript contain `console-support-probe-v1`, the ON AUTHORIZATION block and the inconclusive wording. No assignment was created; the next run needs a fresh assignment and Unity session. Not performed: Unity build, headset, Mindtooth, participant or benefit verification. Evidence: `Evidence/SupportProbe-20261108/`. [Review](SupportProbeReview.md).
+
+## Current-condition review without opening tests (v1.22, superseded for Round B by the support probe)
+
+2026-11-08, `current-condition-no-opening-test-v1`: implemented for the 60-trial A/B comparison. Six-trial tests, shadow tests, failure locks and the trial-52 cap are removed without a replacement mechanism. Remaining ON/OFF evidence rules and 144-trial verification are retained. New metadata and history-only Console notes identify the policy; old recordings retain their own evidence.
+
+Software-verified: all 224 AdaptiveTraining tests passed, including 12 compact checks and the retained 144-trial verification/lock regressions. Full synthetic A/B rounds have 29 checks each, repeated ordinary OFF/reopening, an ON at 58, cached-response identity and report revision/export. All 14 generic Guard tests, JavaScript display contracts and syntax checks passed. Deployment verified: the idle service was restarted without an active assignment, using the same configuration; health reports v1.22 and the served assets contain the new display revision and history-only wording. No new assignment was created. Evidence: `Evidence/NoOpeningTest-20261108/verification.json` and `python-regression.txt`. No Unity build or fresh headset, Mindtooth, participant or benefit verification. [Review](CurrentConditionReview.md).
+
+## Opening test (historical, superseded for current 60-trial sessions)
+
+2026-11-08, `test6-two-errors-retry1-v1`: software-verified. 221 Python tests passed, including the new rule cases. The closed-loop harness reproduced the original Wei_004 session under the earlier rules. Under the new rule Round A was unchanged and Round B had 45.0 s of video with one failed test and one pass. Not performed: devices, participants, or reactions to the new schedule. [Review](OpeningTestReview.md).
+
+## Attribution and evidence relations
+
+2026-11-08 update, `off-annotation-on-review-v2`: software-verified. 218 Python tests passed. The Wei_004 replay kept 57/57 commands; turn-off notes now always answer (6 during, 4 before, 2 mixed; none insufficient). The B32 card was checked in the served browser. Device and participant acceptance are unchanged.
+
+2026-11-08, `attribution-claim-v1` / `reverse-bands-session-cutoffs-v1` / `off-annotation-on-review-v1`: software-verified. 217 Python tests (11 new), 14 Guard tests, JS contracts and syntax checks passed. A recorded-session replay of Wei_004 first reproduced the original 57 decisions with the earlier code and the saved forest hash from the calibration recording. The new flow then kept 57/57 commands, verdicts and reasons, raised reverse checks from 0 to 25, and recorded 11 OFF annotations and 18 linked ON reviews. Served-browser rendering of the replayed report passed at 1440 px and 390 px. Not performed: closed-loop alternatives, worn Quest Pro tracked eyes, worn EEG or participants. Thresholds for change and feature consistency remain unvalidated engineering choices. [Review](AttributionReview.md).
+
 ## Console display v3
 
 2026-11-08, `console-display-v3-clarity`: software-verified front-end revision. Display contracts (existing plus route, first-unmet, headline, Round A hypothetical and OFF-deferral cases), Console script syntax checks and all 206 AdaptiveTraining Python tests passed. An isolated served-browser check of archived engineering session `20261107T203024_5e0116214361` confirmed the summary counts against the report JSON, the B10 blocked and A10 hypothetical cards, the two-lane timeline, Study setup readiness for Practice and Calibration, and the Run monitor, Signals and Guide headers. 1440 px and 390 px layouts had no document overflow. P3 completion: the populated Run monitor was rendered from the synthetic unit-test fixture (enforce decision with tracked-eye checks), and Guard-shaped records are covered by new contracts. Signals and Guide were checked at 1440 px and 390 px. Not performed: a Run monitor with live Unity telemetry, worn Quest Pro or EEG checks, or a participant session. Device acceptance is unchanged. [Review and evidence](ConsoleDisplayV3Review.md).

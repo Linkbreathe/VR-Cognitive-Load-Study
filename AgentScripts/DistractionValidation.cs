@@ -54,7 +54,7 @@ public static class DistractionValidation
         Assert(d.windowRoots.Length==1 && d.windowScreens.Length==1,"Single front window");
         foreach(float rawHeight in new[]{0f,1.02f,1.2f,1.65f})
         {
-            Assert(TaskPlatformController.TrackingRigHeight(true,rawHeight)==0,"Floor tracking has no additional height offset");
+            Assert(Math.Abs(TaskPlatformController.TrackingRigHeight(true,rawHeight)+rawHeight-1.2f)<.001f,"Floor tracking normalizes seated eye height");
             Assert(Math.Abs(TaskPlatformController.TrackingRigHeight(false,rawHeight)+rawHeight-1.2f)<.001f,"Device fallback normalizes seated eye height");
         }
         var report="PASS: "+checks+" checks across 1,000 seeds; eleven formal events per block (five video, six audio), matched blocks, 12.3-second event slots, no overlaps, deterministic replay, eight distinct streets and all five front positions per session, no adjacent position repeats, pause clocks, 40 local media assets, mono audio and requested duration ranges; floor/device height arithmetic.\n";

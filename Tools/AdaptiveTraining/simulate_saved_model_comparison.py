@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 
 import numpy as np
+import workload_rf
 
 from comparison_report import report
 from service import StudyService
@@ -185,7 +186,7 @@ def main():
         forestHash=digest(args.model / "workload_rf.joblib"),
         thresholds=assignment["scoreThresholds"], evidence="recorded EEG; synthetic behavior, gaze, media and execution",
         recording=str(args.recording), recordingHash=digest(args.recording),
-        epochs="10-second workload windows, artifact screening disabled",
+        epochs=f"{workload_rf.WINDOW_SECONDS}-second workload windows, artifact screening disabled",
         comparisonLimit="Different randomized arm inputs confound comparisons of performance. This exercises software behavior.")
     provenance.update(recordingDetails=recording_notes, reuseInputs=str(args.reuse_inputs) if args.reuse_inputs else None,
         evaluationPolicy=config["evaluationPolicy"], trialsPerArm=total, decisionStride=stride,

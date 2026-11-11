@@ -10,8 +10,8 @@ def finite(value):
 @dataclass(frozen=True)
 class GuardConfig:
     revision: str = "evidence-guard-v3-minimal-1"
-    min_gaze_valid: float = .70
-    min_task_gaze: float = .60
+    min_gaze_valid: float = .60
+    min_task_gaze: float = .40
     # Broad engineering association ranges, not validated physiological latencies.
     response_delays: dict = field(default_factory=lambda: {"rf": [0., 10.], "eeg": [0., 5.], "behavior": [0., 4.5]})
     max_sample_seconds: float = .10

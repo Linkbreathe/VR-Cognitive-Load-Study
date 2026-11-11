@@ -5,6 +5,7 @@ using EvidenceVR;
 using UnityEditor;
 using UnityEditor.XR.OpenXR.Features;
 using UnityEngine.XR.OpenXR;
+using EvidenceVR.Editor;
 public static class QuestLinkEyeCompatibilityValidation
 {
     public static string Run()
@@ -28,12 +29,33 @@ public static class QuestLinkEyeCompatibilityValidation
         var space=type.GetNestedType("SpaceInfo",BindingFlags.NonPublic);
         if(IntPtr.Size!=8 || Marshal.SizeOf(action)!=224 || Marshal.OffsetOf(action,"pathCount").ToInt32()!=84 || Marshal.OffsetOf(action,"paths").ToInt32()!=88 || Marshal.SizeOf(space)!=64 || Marshal.OffsetOf(space,"subactionPath").ToInt32()!=24)throw new Exception("Unexpected x64 OpenXR ABI layout.");
         if(EditorApplication.isPlaying)throw new Exception("Run validation in Edit Mode.");
+        var settings=OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Standalone);
+        var original=settings.GetFeature<QuestLinkEyeSpaceFeature>();
+        if(original==null)throw new Exception("Missing referenced compatibility feature.");
+        bool enabledBefore=original.enabled,retryBefore=original.retryWithNullPath;
+        try
+        {
+            // Reproduce the regression on the referenced feature, regardless of orphan assets.
+            original.enabled=false;original.retryWithNullPath=false;
+            QuestLinkPreviewSetup.EnsureEyeCompatibility();
+            var recovered=settings.GetFeature<QuestLinkEyeSpaceFeature>();
+            if(recovered!=original || !recovered.enabled || !recovered.retryWithNullPath)throw new Exception("Referenced feature was not repaired.");
+            checks++;
+            QuestLinkPreviewSetup.EnsureEyeCompatibility();
+            if(settings.GetFeature<QuestLinkEyeSpaceFeature>()!=original)throw new Exception("Repair created a duplicate feature.");
+            checks++;
+        }
+        finally
+        {
+            original.enabled=enabledBefore;original.retryWithNullPath=retryBefore;
+            EditorUtility.SetDirty(original);AssetDatabase.SaveAssetIfDirty(original);
+        }
         FeatureHelpers.RefreshFeatures(BuildTargetGroup.Standalone);
         var feature=OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Standalone).GetFeature<QuestLinkEyeSpaceFeature>();
-        if(feature==null || !feature.enabled || !feature.retryWithNullPath)throw new Exception("Engineering Editor compatibility feature not enabled.");
+        if(feature==null || !feature.enabled || !feature.retryWithNullPath)throw new Exception("Standalone eye freshness/compatibility feature not enabled.");
         var android=OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Android).GetFeature<QuestLinkEyeSpaceFeature>();
-        if(android!=null && android.enabled)throw new Exception("Compatibility must not be enabled in Android settings.");
+        if(android==null || !android.enabled || android.retryWithNullPath)throw new Exception("Android must enable native eye freshness without the Oculus Link retry.");
         AssetDatabase.SaveAssets();
-        return "PASS: "+checks+" retry boundaries; x64 native ABI; Standalone enabled; Android not enabled. Real pose and headset confirmation are separate evidence.";
+        return "PASS: "+checks+" retry/recovery checks; x64 native ABI; Standalone freshness/retry enabled after refresh; Android freshness enabled, retry disabled. Real pose and headset confirmation are separate evidence.";
     }
 }

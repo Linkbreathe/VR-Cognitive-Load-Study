@@ -13,8 +13,14 @@ namespace EvidenceVR
     // The operator assigns identity before recording. Local core records survive network loss.
     public sealed class TestSessionClient : MonoBehaviour
     {
-        [Serializable] sealed class Claim {public string clientId,controllerUrl;}
-        [Serializable] sealed class Assignment {public bool ready;public string sessionId;public AdaptiveTrainingConfig config;}
+        public const string GazeDebugInheritanceRevision="engineering-gaze-claim-v1";
+        [Serializable] public sealed class GazeDebugPreferences
+        {
+            public string revision=GazeDebugInheritanceRevision;
+            public bool highlight,ray;
+        }
+        [Serializable] sealed class Claim {public string clientId,controllerUrl;public GazeDebugPreferences gazeDebug;}
+        [Serializable] sealed class Assignment {public bool ready;public string sessionId,gazeDebugInheritanceRevision;public AdaptiveTrainingConfig config;}
         [Serializable] sealed class Upload {public string sessionId,clientId,name,data;public long offset;public Entry[] manifest;}
         [Serializable] sealed class Entry {public string name,sha256;public long size;}
         [Serializable] sealed class Ack {public bool ok;public long offset;}
@@ -25,6 +31,19 @@ namespace EvidenceVR
         string endpoint;
         public string ClientId {get;private set;}
         public string Status {get;private set;}="Waiting for assignment";
+        public static GazeDebugPreferences CaptureGazeDebugPreferences(AdaptiveTrainingConfig local)
+        {
+            bool allowed=EngineeringGazeRay.IsAllowed(local);
+            return new GazeDebugPreferences{highlight=allowed && local.engineeringGazeHighlight,ray=allowed && local.engineeringGazeRay};
+        }
+        Claim CreateClaim()
+        {
+            AdaptiveTrainingConfig local=null;
+            string path=Path.Combine(Application.persistentDataPath,"adaptive-training-config.json");
+            try {if(File.Exists(path))local=JsonUtility.FromJson<AdaptiveTrainingConfig>(File.ReadAllText(path));}
+            catch(Exception e){Debug.LogWarning("Eye debug preferences unavailable; requesting disabled overlays: "+e.Message);}
+            return new Claim{clientId=ClientId,controllerUrl=endpoint,gazeDebug=CaptureGazeDebugPreferences(local)};
+        }
         public void Bind(TaskPlatformController controller,string url)
         {
             owner=controller;endpoint=url.TrimEnd('/');
@@ -47,7 +66,14 @@ namespace EvidenceVR
                 if(!assignment.ready)return false;
                 if(assignment.config.testSessionId!=assignment.sessionId || assignment.config.controllerUrl.TrimEnd('/')!=endpoint)
                     throw new InvalidOperationException("Operator assignment mismatch");
-                owner.StartAssignedTest(assignment.config);Status="Assignment confirmed locally; waiting for service acknowledgement";return true;
+                owner.StartAssignedTest(assignment.config);
+                if(assignment.gazeDebugInheritanceRevision==GazeDebugInheritanceRevision)
+                {
+                    string detail=GazeDebugInheritanceRevision+";highlight="+assignment.config.engineeringGazeHighlight+";ray="+assignment.config.engineeringGazeRay+";source=local_engineering_preferences";
+                    owner.Engine.Note("gaze_debug_inheritance",detail,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                    Debug.Log("Engineering gaze preferences inherited: "+detail);
+                }
+                Status="Assignment confirmed locally; waiting for service acknowledgement";return true;
             }
             catch(Exception e){Status=e.Message;Debug.LogWarning("Operator test assignment: "+e.Message);return false;}
         }
@@ -57,7 +83,7 @@ namespace EvidenceVR
             {
                 if(owner.Engine==null || owner.Engine.Phase==TaskPhase.Complete || owner.Engine.Phase==TaskPhase.Aborted)
                 {
-                    using(var request=Post("/tests/claim",new Claim{clientId=ClientId,controllerUrl=endpoint}))
+                    using(var request=Post("/tests/claim",CreateClaim()))
                     {
                         yield return request.SendWebRequest();
                         if(request.result==UnityWebRequest.Result.Success)Apply(request.downloadHandler.text);

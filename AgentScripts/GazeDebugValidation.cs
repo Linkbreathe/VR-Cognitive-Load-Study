@@ -84,6 +84,7 @@ public static class GazeDebugValidation
             await Task.Delay(1400);
             Check(e.Adaptive.Config.engineeringGazeHighlight && c.AdaptiveRuntime.GazeDebug.Allowed,"Engineering switch active");
             Check(!c.AdaptiveRuntime.GazeDebug.TaskHighlighted && !c.AdaptiveRuntime.GazeDebug.VideoHighlighted,"Preparation not highlighted");
+            Check(c.AdaptiveRuntime.GazeDebug.TaskArmed,"Preparation shows the persistent faint outline at the placed sphere");
             fixtureObject=new GameObject("Synthetic gaze visual fixture");var fixture=fixtureObject.AddComponent<GazeDebugHighlighter>();fixture.Bind(c,e.Adaptive.Config);
             deniedObject=new GameObject("Participant lockout fixture");var denied=deniedObject.AddComponent<GazeDebugHighlighter>();
             denied.Bind(c,new AdaptiveTrainingConfig{enabled=true,sessionType="participant",engineeringGazeHighlight=true});
@@ -108,10 +109,17 @@ public static class GazeDebugValidation
             fixture.Present(ball,Time.realtimeSinceStartupAsDouble);
             Check(fixture.TaskHighlighted && !fixture.VideoHighlighted,"Synthetic ball ray lights only outline");
             Check(c.stimulus.sharedMaterial.color==original,"Stimulus color unchanged");
+            var away=GazeRegions.Classify(true,c.head.position,Quaternion.AngleAxis(-30,c.head.right)*(c.stimulus.transform.position-c.head.position),
+                GazeRegions.TaskBounds(c.stimulus.bounds,c.stimulus.bounds),e.StimulusVisible,null,false);
+            Check(away.valid && !away.task && !away.video,"Synthetic off-target ray classified as other");
+            fixture.Present(away,Time.realtimeSinceStartupAsDouble);
+            Check(fixture.TaskArmed && !fixture.TaskHighlighted && !fixture.VideoHighlighted,"Valid off-target eyes show faint armed outline only");
+            fixture.Present(default,Time.realtimeSinceStartupAsDouble);Check(fixture.TaskArmed && !fixture.TaskHighlighted,"Persistent faint outline stays without valid eyes");
+            fixture.Present(ball,Time.realtimeSinceStartupAsDouble);
             denied.Present(ball,Time.realtimeSinceStartupAsDouble);disabled.Present(ball,Time.realtimeSinceStartupAsDouble);
             Check(!denied.TaskHighlighted && !denied.VideoHighlighted && !disabled.TaskHighlighted,"Denied overlays remain dark with valid ray");
             ScreenCapture.CaptureScreenshot(Path.GetFullPath(Folder+"/sphere-outline.png"));await Task.Delay(45);
-            fixture.Present(default,Time.realtimeSinceStartupAsDouble);Check(!fixture.TaskHighlighted && !fixture.VideoHighlighted,"Invalid ray clears immediately");
+            fixture.Present(default,Time.realtimeSinceStartupAsDouble);Check(!fixture.TaskHighlighted && !fixture.VideoHighlighted && fixture.TaskArmed,"Invalid ray drops highlight immediately; faint outline remains");
             fixture.Present(ball,Time.realtimeSinceStartupAsDouble);await Task.Delay(180);Check(!fixture.TaskHighlighted,"Stale sample clears after 100 ms");
             double deadline=Time.realtimeSinceStartupAsDouble+16;
             while(!c.AdaptiveRuntime.Media.IsVideoVisible && Time.realtimeSinceStartupAsDouble<deadline)

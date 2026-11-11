@@ -7,7 +7,7 @@ namespace EvidenceVR
     // Session identity and source provenance remain visible independently of task feedback.
     public sealed class ExperimentStatusView : MonoBehaviour
     {
-        public const string Revision = "mode-status-v5-blinded-personal-protocol";
+        public const string Revision = "mode-status-v6-engineering-eye-target";
         TaskPlatformController owner;
         TMP_Text hud, eyeHud;
         string lastRecorded;
@@ -101,10 +101,12 @@ namespace EvidenceVR
             hud.text=compact;
             if(eyeHud!=null)
             {
-                eyeHud.enabled=runtime?.GazeRay?.RayEnabled==true;
-                eyeHud.text=eyeHud.enabled?"ENGINEERING EYE RAY | "+runtime.GazeTrackingStatus+" | "+(runtime.GazeRay.Visible?"VISIBLE":"HIDDEN"):"";
+                eyeHud.enabled=runtime?.GazeRay?.RayEnabled==true || runtime?.GazeDebug?.Allowed==true;
+                string target=runtime?.GazeDebug?.TaskHighlighted==true?"TASK HIT":runtime?.GazeDebug?.VideoHighlighted==true?"MOVIE HIT":"POSITION ONLY";
+                string ray=runtime?.GazeRay?.RayEnabled==true?" | "+runtime.GazeRay.State.ToString().ToUpperInvariant():"";
+                eyeHud.text=eyeHud.enabled?"ENGINEERING EYES | "+runtime.GazeTrackingStatus+ray+" | "+target:"";
             }
-            owner.badge.text=compact+(runtime?.GazeRay?.RayEnabled==true?" | EYE: "+runtime.GazeTrackingStatus:"")+
+            owner.badge.text=compact+(runtime?.GazeRay?.RayEnabled==true || runtime?.GazeDebug?.Allowed==true?" | EYE: "+runtime.GazeTrackingStatus:"")+
                 (engine.Phase==TaskPhase.Paused?" | Paused":"");
             if(engine.Phase==TaskPhase.Running && engine.Current!=null)
             {

@@ -67,6 +67,11 @@ function caption(c){
  const k=kind(c),words={on:'Video ON executed',off:'Video OFF executed',blocked:`${c.base.action==='ON'?'Video ON blocked':'Video OFF deferred'} by review`,hold:'No change'};
  return `${round(c.stage)} · Trial ${c.trial} · ${words[k]}${hypothetical(c)?' · B rules would hold':''}`;
 }
+/* Fractional trial position of a Unity time in one round: trial k spans [k-1, k). */
+function clock(stage){
+ const starts=(data.trials||[]).filter(t=>t.stage===stage).map(t=>[t.start,t.trial]).sort((a,b)=>a[0]-b[0]);
+ return time=>{if(!starts.length||typeof time!=='number')return null;let i=starts.length-1;while(i>0&&starts[i][0]>time)i--;return starts[i][1]-1+(time-starts[i][0])/4.5;};
+}
 function drawTimeline(){
  const box=el('timeline-lanes');box.replaceChildren();if(!data)return;
  const stages=['layer_a','layer_b'].filter(s=>el('arm-filter').value==='all'||el('arm-filter').value===s);
@@ -75,24 +80,86 @@ function drawTimeline(){
  const included=new Set(filteredCheckpoints.map(c=>c.request));
  for(const stage of stages){
   const rows=data.checkpoints.filter(c=>c.stage===stage);if(!rows.length)continue;
+  const at=clock(stage),place=c=>at(c.time)??c.trial;
   const lane=append(box,'div',null,'tl-lane');
   const name=append(lane,'div',null,'tl-name');append(name,'strong',round(stage));append(name,'small',T().label('roundRole',stage));
   const track=append(lane,'div',null,'tl-track'),band=append(track,'div',null,'tl-band');
-  let level=rows[0].base.level===1?1:0,start=level?0:null;
-  for(const c of rows){
-   if(c.delivered==='ON'&&!level){level=1;start=c.trial;}
-   else if(c.delivered==='OFF'&&level){const seg=append(band,'i');seg.style.left=pos(start)+'%';seg.style.width=(pos(c.trial)-pos(start))+'%';level=0;}
+  const clips=data.evidenceRelations?.clips?.[stage];
+  if(clips){
+   /* Actual decoded clips; each is split by the share of its supported / unresolved / disputed relations. */
+   band.classList.add('clips');
+   for(const clip of clips){
+    const k=clip.states,total=k.SUPPORTED+k.UNRESOLVED+k.DISPUTED,seg=append(band,'span',null,'tl-clip');
+    const a=at(clip.start)??clip.startTrial-1,z=at(clip.end)??clip.endTrial;
+    seg.style.left=pos(a)+'%';seg.style.width=Math.max(.6,pos(z)-pos(a))+'%';
+    seg.title=`Clip ${Math.round(clip.seconds*10)/10} s · trials ${clip.startTrial}–${clip.endTrial} · ${k.SUPPORTED} supported · ${k.UNRESOLVED} unresolved · ${k.DISPUTED} disputed`;
+    if(total)['SUPPORTED','UNRESOLVED','DISPUTED'].forEach((state,i)=>{if(k[state])append(seg,'i',null,['s-sup','s-unr','s-dis'][i]).style.width=100*k[state]/total+'%';});
+   }
+  }else{
+   let level=rows[0].base.level===1?1:0,start=level?0:null;
+   for(const c of rows){
+    if(c.delivered==='ON'&&!level){level=1;start=c.trial;}
+    else if(c.delivered==='OFF'&&level){const seg=append(band,'i');seg.style.left=pos(start)+'%';seg.style.width=(pos(c.trial)-pos(start))+'%';level=0;}
+   }
+   if(level){const seg=append(band,'i');seg.style.left=pos(start)+'%';seg.style.width=(100-pos(start))+'%';}
   }
-  if(level){const seg=append(band,'i');seg.style.left=pos(start)+'%';seg.style.width=(100-pos(start))+'%';}
   for(const c of rows){
    const b=append(track,'button',null,'tl-mark '+kind(c)+(hypothetical(c)?' hyp':'')+(included.has(c.request)?'':' dim'));
-   b.type='button';b.style.left=pos(c.trial)+'%';b.dataset.request=c.request;b.title=caption(c);b.setAttribute('aria-label',caption(c));
+   b.type='button';b.style.left=pos(place(c))+'%';b.dataset.request=c.request;b.title=caption(c);b.setAttribute('aria-label',caption(c));
    b.tabIndex=c.request===currentRequest?0:-1;if(c.request===currentRequest)b.setAttribute('aria-current','true');
    b.disabled=!included.has(c.request);b.onclick=()=>selectCheckpoint(filteredCheckpoints.findIndex(x=>x.request===c.request));
   }
+  if(clips)scoreRow(lane,stage,clips,budget);
  }
  const axis=append(box,'div',null,'tl-axis');append(axis,'span');const ticks=append(axis,'div');
  for(const t of [0,Math.round(budget/2),budget]){const s=append(ticks,'span',t?'Trial '+t:'Start');s.style.left=pos(t)+'%';}
+}
+
+/* Score row: the workload score with the session cutoffs. A reverse check is a crossing of those cutoffs,
+   drawn where it happened; a filled mark linked to a clip was traced back to that clip. Played clips are
+   shaded, each followed by the 10 s the forward check looks at. Positions use fractional trials. */
+function scoreRow(lane,stage,clips,budget){
+ const ev=data.evidenceRelations,bands=ev.summary?.[stage]?.bands,ns='http://www.w3.org/2000/svg';
+ const at=time=>clock(stage)(time)??0;
+ const x=v=>10*Math.max(0,Math.min(100,100*v/budget));
+ const windows=(data.eegWindows||[]).filter(w=>w.stage===stage&&w.valid&&typeof w.score==='number').sort((a,b)=>a.end-b.end);
+ const scores=windows.map(w=>w.score).concat(bands?[bands.stable_max,bands.struggling_min]:[]);
+ const lo=Math.min(...scores)-.02,hi=Math.max(...scores)+.02,y=v=>5+(hi-v)/(hi-lo)*46;
+ const label=append(lane,'div',null,'tl-name tl-score-name');append(label,'small','Workload score');
+ const row=append(lane,'div',null,'tl-score'),svg=document.createElementNS(ns,'svg');row.append(svg);
+ svg.setAttribute('viewBox','0 0 1000 56');svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('aria-hidden','true');
+ const draw=(tag,attrs)=>{const e=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);svg.append(e);return e;};
+ for(const clip of clips){
+  const a=x(at(clip.start)),b=x(at(clip.end)),tail=x(at(clip.end)+10/4.5);
+  draw('rect',{x:a,y:0,width:Math.max(2,b-a),height:56,class:'sc-clip'});
+  draw('rect',{x:b,y:0,width:Math.max(0,tail-b),height:56,class:'sc-tail'});
+ }
+ if(bands){
+  draw('rect',{x:0,y:y(bands.struggling_min),width:1000,height:Math.max(.5,y(bands.stable_max)-y(bands.struggling_min)),class:'sc-buffer'});
+  for(const v of [bands.stable_max,bands.struggling_min])draw('line',{x1:0,x2:1000,y1:y(v),y2:y(v),class:'sc-cut'});
+ }
+ let d='',last=null;
+ for(const w of windows){const px=x(at(w.end));d+=(last===null||w.start-last>12?'M':'L')+px.toFixed(1)+','+y(w.score).toFixed(1)+' ';last=w.end;}
+ draw('path',{d,class:'sc-line'});
+ const byId=Object.fromEntries((data.eegWindows||[]).map(w=>[w.id,w]));
+ /* The selected decision: a guide at its time and the score window it actually used. */
+ const chosen=data.checkpoints.find(c=>c.request===currentRequest&&c.stage===stage);
+ if(chosen){
+  const used=byId[chosen.evidenceRelations?.signal],gx=x(at(chosen.time));
+  if(used){draw('rect',{x:x(at(used.start)),y:0,width:Math.max(2,x(at(used.end))-x(at(used.start))),height:56,class:'sc-used'});}
+  draw('line',{x1:gx,x2:gx,y1:0,y2:56,class:'sc-guide'});
+  if(used&&typeof used.score==='number'){const ring=append(row,'span',null,'sc-ring');ring.style.left=(x(at(used.end))/10)+'%';ring.style.top=(y(used.score)/56*100)+'%';
+   ring.title=`Score used by this decision: ${Math.round(used.score*1000)/1000} (window ended ${Math.round((chosen.time-used.end)*10)/10} s before the decision)`;}
+ }
+ for(const m of ev.reverseMarks?.[stage]||[]){
+  const w=byId[m.signal];if(!w)continue;
+  const px=x(at(w.end)),py=y(w.score),clip=clips.find(c=>c.id===m.claimedEvent);
+  if(clip){const end=x(at(clip.end));if(px>end)draw('line',{x1:end,x2:px,y1:py,y2:py,class:'sc-link'});}
+  const dot=append(row,'span',null,'sc-dot '+(m.direction==='down'?'down':'up')+(m.claimedEvent?' linked':''));
+  dot.style.left=(px/10)+'%';dot.style.top=(py/56*100)+'%';
+  dot.title=`Reverse check · score ${m.direction==='down'?'fell into stable':'rose into struggling'} at ${Math.round(w.score*1000)/1000}`+
+   (clip?` · traced back to the clip in trials ${clip.startTrial}–${clip.endTrial}`:' · no clip played before it');
+ }
 }
 function selectCheckpoint(index){
  const rows=filteredCheckpoints,i=Math.max(0,Math.min(rows.length-1,Number(index)||0)),c=rows[i];
@@ -121,7 +188,7 @@ function summary(){
  const head=t.createTHead().insertRow();append(head,'th');
  for(const s of stages){const th=append(head,'th');append(th,'strong',round(s));append(th,'span',T().label('roundRole',s));}
  const body=t.createTBody(),maxVideo=Math.max(...stages.map(s=>data.summary[s].videoSeconds||0),1);
- const row=(label,cells)=>{const tr=body.insertRow();append(tr,'th',label).scope='row';for(const cell of cells){const td=tr.insertCell();append(td,'span',cell.main,'big'+(cell.muted?' muted':''));if(cell.sub)append(td,'span',cell.sub,'sub');if(cell.bar!=null){const bar=append(td,'span',null,'bar');append(bar,'i').style.width=cell.bar+'%';}}};
+ const row=(label,cells)=>{const tr=body.insertRow();append(tr,'th',label).scope='row';for(const cell of cells){const td=tr.insertCell();append(td,'span',cell.main,'big'+(cell.muted?' muted':''));if(cell.sub)append(td,'span',cell.sub,'sub');if(cell.bar!=null){const bar=append(td,'span',null,'bar');append(bar,'i').style.width=cell.bar+'%';}if(cell.stack){const total=cell.stack.reduce((a,b)=>a+b,0)||1,bar=append(td,'span',null,'bar stack');cell.stack.forEach((v,i)=>{append(bar,'i',null,['s-sup','s-unr','s-dis'][i]).style.width=100*v/total+'%';});}}};
  row('Video on screen',stages.map(s=>({main:fixed(data.summary[s].videoSeconds,1)+' s',bar:100*(data.summary[s].videoSeconds||0)/maxVideo})));
  row('Video changes executed',stages.map(s=>({main:String(data.summary[s].executedChanges),sub:executedSplit(s,data.summary[s])})));
  row('Proposals held by review',stages.map(s=>{const v=data.summary[s],held=v.deferredON+v.deferredOFF;return s==='layer_a'?{main:String(held),muted:true,sub:'B rules would hold · not applied'}:{main:`${held} of ${v.ON+v.OFF}`,sub:`${v.deferredON} ON · ${v.deferredOFF} OFF`};}));
@@ -129,6 +196,18 @@ function summary(){
  row('Held for insufficient eye data',stages.map(s=>({main:String(data.summary[s].missingEyeChecks)})));
  row('Errors in the 10 trials after each ON',stages.map(s=>{const v=data.summary[s];return {main:v.postUpgradeObserved?Math.round(100*v.postUpgradeErrors/v.postUpgradeObserved)+'%':'—',sub:`${v.postUpgradeErrors} of ${v.postUpgradeObserved} trials`};}));
  row('Decision checks',stages.map(s=>({main:String(data.checkpoints.filter(c=>c.stage===s).length)})));
+ if(stages.some(s=>data.summary[s].support))row('Openings · normal / logged probe',stages.map(s=>{const v=data.summary[s].support;return v?{main:`${v.normalOn} / ${v.probeOn}`,sub:`${v.probePassed} passed · ${v.probeFailed} failed · ${v.probeInconclusive??0} inconclusive · ${v.probeWindowClosed} held near round end`}:{main:'—',muted:true,sub:'Not applied in this round'};}));
+ const ev=data.evidenceRelations;
+ if(ev){
+  const group=body.insertRow();group.className='group';const th=append(group,'th','Evidence relations');th.colSpan=stages.length+1;
+  row('Forward checks · video → score',stages.map(s=>({main:`${ev.summary[s].clips} clips`,sub:`${ev.summary[s].relatedWindows} score windows related`})));
+  row('Relation states',stages.map(s=>{const k=ev.summary[s].states;return {main:`${k.SUPPORTED} · ${k.UNRESOLVED} · ${k.DISPUTED}`,sub:'supported · unresolved · disputed',stack:[k.SUPPORTED,k.UNRESOLVED,k.DISPUTED]};}));
+  row('Reverse checks · score → sources',stages.map(s=>{const r=ev.summary[s].reverse;return {main:String(r.total),sub:r.total?`${r.up} up · ${r.down} down · ${r.withClip} with a clip`:'no stable ↔ struggling crossing'};}));
+  const first=stages.map(s=>ev.summary[s]).find(x=>x.bands),unresolved=stages.reduce((a,s)=>a+ev.summary[s].unresolvedDifferentVideoState,0);
+  const note=append(box,'p',null,'evidence-note');
+  note.textContent=(first?.bands?`Reverse bands follow the session cutoffs: stable ≤ ${fixed(first.bands.stable_max,2)}, struggling ≥ ${fixed(first.bands.struggling_min,2)}, minimum change ${fixed(first.bands.min_change,2)}. `:'This session records no reverse bands; the engine used 0.45 / 0.65. ')+
+   `${unresolved} unresolved relations pair a score window with a clip in a different video state. Audio exposure is the software playback state; visual exposure needs tracked eyes. Relations show timing and exposure only and are not used by any decision.`;
+ }
  const cards=el('arm-cards');cards.replaceChildren();
  for(const s of stages){
   const card=append(cards,'section',null,'arm-card');append(card,'p',s==='layer_a'?'WHY B RULES WOULD HOLD · ROUND A':'WHY THE REVIEW HELD · ROUND B','eyebrow');

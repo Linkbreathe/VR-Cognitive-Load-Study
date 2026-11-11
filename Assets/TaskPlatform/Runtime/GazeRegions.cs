@@ -11,7 +11,7 @@ namespace EvidenceVR
 
     public static class GazeRegions
     {
-        public const string Revision="gaze-roi-v4-sphere-tray-area";
+        public const string Revision="gaze-roi-v5-unified-sphere-tray-area";
         public const float TaskPaddingMeters=.04f;
         public static Bounds TaskBounds(Bounds sphere,Bounds tray)
         {
@@ -22,6 +22,20 @@ namespace EvidenceVR
         public static bool Finite(float x)=>!float.IsNaN(x) && !float.IsInfinity(x);
         public static bool Finite(Vector3 v)=>Finite(v.x) && Finite(v.y) && Finite(v.z);
         public static bool ValidRotation(Quaternion q)=>Finite(q.x) && Finite(q.y) && Finite(q.z) && Finite(q.w) && Quaternion.Dot(q,q)>1e-8f;
+        // Display-only: distance to the first surface the eye ray meets. Never used for classification.
+        public static float HitDistance(GazeRegionSample sample,Bounds sphere,Transform screen,float fallback,float maximum=10f)
+        {
+            if(!sample.valid)return fallback;
+            const float start=.2f;
+            var ray=new Ray(sample.origin,sample.direction);
+            float best=float.PositiveInfinity;
+            if(Physics.Raycast(sample.origin+sample.direction*start,sample.direction,out var hit,maximum,Physics.DefaultRaycastLayers,QueryTriggerInteraction.Ignore))
+                best=hit.distance+start;
+            if(Finite(sphere.center) && Finite(sphere.size) && sphere.size.sqrMagnitude>0 && !sphere.Contains(sample.origin) &&
+                sphere.IntersectRay(ray,out float d) && d>0)best=Mathf.Min(best,d);
+            if(screen!=null && new Plane(screen.forward,screen.position).Raycast(ray,out float w) && w>0)best=Mathf.Min(best,w);
+            return best<=maximum?best:fallback;
+        }
         public static GazeRegionSample Classify(bool tracked,Vector3 origin,Vector3 direction,
             Bounds taskBounds,bool taskVisible,Transform screen,bool videoVisible)
         {

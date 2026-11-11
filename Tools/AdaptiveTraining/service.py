@@ -146,6 +146,10 @@ class StudyService:
                 metadata_value = json.loads(metadata.read_text(encoding="utf-8"))
                 metadata_value["consoleRevision"] = CONSOLE_REVISION
                 metadata_value["consoleDisplayRevision"] = (WEB / "display-revision.txt").read_text(encoding="utf-8").strip()
+                import attribution, workload_rf
+                metadata_value["attributionRevisions"] = dict(claim=attribution.REVISION, reverseBands=attribution.BANDS_REVISION,
+                    offAnnotation=attribution.ANNOTATION_REVISION, featureReference=workload_rf.FEATURE_REFERENCE_REVISION,
+                    minChange=attribution.MIN_CHANGE, featureSd=attribution.FEATURE_SD)
                 metadata.write_text(json.dumps(metadata_value, indent=2), encoding="utf-8")
             if session["config"] != packet["config"] or session["kind"] != kind:
                 raise ValueError("Session configuration is immutable")
@@ -241,7 +245,8 @@ class StudyService:
         saved, meta = store.load_model(request["storageFolder"], request["participantCode"], request["modelId"], True)
         if meta["featureRevision"] != workload_rf.REVISION:
             raise ValueError("Live preview requires a forest / arithmetic workload model.")
-        result = dict(modelId=meta["modelId"], modelHash=meta["sha256"], score=None)
+        result = dict(modelId=meta["modelId"], modelHash=meta["sha256"], score=None,
+                      featureRevision=workload_rf.REVISION, windowSeconds=workload_rf.WINDOW_SECONDS)
         with self.lock:
             eeg = self.observation_display.get("console_waves", {}).get("EEG")
             if not eeg or not eeg["rows"]:

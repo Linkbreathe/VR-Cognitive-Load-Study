@@ -1,7 +1,7 @@
 {
   "revision": "evidence-guard-v3-minimal-1",
-  "min_gaze_valid": 0.7,
-  "min_task_gaze": 0.6,
+  "min_gaze_valid": 0.6,
+  "min_task_gaze": 0.4,
   "response_delays": {"rf": [0, 10], "eeg": [0, 5], "behavior": [0, 4.5]},
   "max_sample_seconds": 0.1,
   "max_evidence_age": 30,

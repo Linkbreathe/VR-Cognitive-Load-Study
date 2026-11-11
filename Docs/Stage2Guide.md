@@ -57,7 +57,7 @@ The first two scored trials after a level change are excluded from control, givi
 
 OFF/SHADOW/ACTIVE retain their distinct meanings. Automatic control is not enabled just by entering Stage 2. The local user's mode is preserved during configuration migration. The new `rolling_evaluations.jsonl` contains each window; mixed-level statistics rows use `level=-1` with an explicit levels list. Keep these rows and actual per-trial levels when analyzing exposures.
 
-The response countdown now displays two decimals, for example `3.27` and `0.00`. Its four-second deadline, feedback colors and early-answer behavior are unchanged; displayed precision does not imply centisecond hardware timing accuracy. Session metadata records the countdown revision in both modes.
+The response countdown displays integer seconds: `4`, `3`, `2`, `1`, then `0` at the deadline. Remaining time is rounded upward so zero is never displayed early. Its four-second deadline, feedback colors and early-answer behavior are unchanged. Session metadata records `response-countdown-v3-integer-seconds` in both modes. See [review](IntegerCountdownReview.md).
 
 ## Run the P007 recorded-data demo
 

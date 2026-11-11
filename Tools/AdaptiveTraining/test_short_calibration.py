@@ -21,7 +21,7 @@ class ShortCalibrationTests(unittest.TestCase):
                 metadata = json.loads((folder / "personal_protocol.json").read_text())
                 self.assertEqual(metadata["rest_seconds"], 180)
                 self.assertEqual(metadata["arithmetic_seconds"], 180)
-                self.assertEqual(metadata["calibration_revision"], "rest-math-iaf-rf-v2")
+                self.assertEqual(metadata["calibration_revision"], "rest-math-iaf-rf-v3-5s")
                 self.assertEqual(s.policy, DEFAULT_POLICY)
             for blocks in (2, 3, 5, 10):
                 p = packet(); p["config"]["calibrationBlocks"] = blocks

@@ -10,7 +10,7 @@ import time
 import threading
 
 
-REVISION = "evidence-console-v1.21-decision-gaze"
+REVISION = "evidence-console-v1.30-gaze-display"
 WEB = Path(__file__).with_name("console")
 
 
@@ -176,6 +176,10 @@ def snapshot(service, session_id=None):
             if adapter:
                 result["guard"] = {"mode": adapter.mode, "failure": adapter.failure,
                                    "audit": deepcopy(list(adapter.console_audit))}
+                probe = adapter.probe
+                if probe is not None and probe.support_applied:
+                    # Display only: the controller's current Round B support state, including execution-time changes.
+                    result["guard"]["support"] = dict(probe.support_state(adapter.level), stage=probe.stage)
                 core = adapter.guard
                 if core:
                     for decision in result["decisions"]:

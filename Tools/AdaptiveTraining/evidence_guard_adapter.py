@@ -2,6 +2,7 @@
 from copy import deepcopy
 from layer_ab import PROBE, guard_mode
 from probe_control import ProbeReview
+import attribution
 from collections import deque
 from dataclasses import asdict
 import hashlib
@@ -20,7 +21,7 @@ def identity(value):
 class GuardAdapter:
     def __init__(self, packet, folder, config=None):
         self.mode = guard_mode(packet["config"], packet["stage"])
-        self.probe = ProbeReview() if packet['config'].get('studyDesign')==PROBE else None
+        self.probe = ProbeReview(packet['config']) if packet['config'].get('studyDesign')==PROBE else None
         self.probe_reviews = {}
         self.console_audit = deque(maxlen=128)
         if self.mode not in ("off", "observe", "enforce"):
@@ -56,6 +57,40 @@ class GuardAdapter:
         self.guard.ingest(Evidence(key, kind, self.sid, start, end, source, level, self.scene,
                                    bool(quality), data, self.guard.epoch))
 
+    def _attribute(self, key, r, data, personal):
+        """Session-following reverse bands and, on a crossing, an attribution claim recorded before ingest."""
+        if not getattr(personal, "workload_control", False):
+            return
+        record = personal.test_store.records.get(personal.sid, {}) if personal.test_store else {}
+        cutoffs = record.get("scoreThresholds") or personal.score_thresholds
+        band = attribution.bands(cutoffs["on"], cutoffs["off"], record.get("thresholdRevision", 0))
+        data["reverse_bands"] = band
+        score = r.get("score")
+        if not (r.get("valid") and attribution.finite(score)):
+            return
+        # Same comparison window as the engine's reverse check.
+        previous = [e for e in self.guard.query(float("-inf"), r["start"], {"signal"})
+                    if e.id != key and e.end <= r["start"] and e.epoch == self.guard.epoch and e.quality
+                    and attribution.finite(e.data.get("score"))]
+        if not previous:
+            return
+        p = max(previous, key=lambda e: (e.end, e.id))
+        stage = lambda e: e.data.get("metadata", {}).get("stage")
+        clips = [dict(id=e.id, start=e.start, end=e.end) for e in self.guard.query(r["start"] - attribution.LOOKBACK_SECONDS, r["end"], {"media"})
+                 if e.data.get("actual") and e.epoch == self.guard.epoch and stage(e) == r["stage"]]
+        clips += [dict(id=k, start=v[0], end=None) for k, v in getattr(self, "media_starts", {}).items()
+                  if k not in self.guard.evidence and v[1].get("stage") == r["stage"]]
+        reference = getattr(personal, "feature_reference", None) or (personal.report or {}).get("featureReference")
+        claim = attribution.claim(dict(id=key, score=score, start=r["start"], end=r["end"], features=r.get("loadFeatures")),
+                                  dict(id=p.id, score=p.data["score"], end=p.end, features=p.data.get("loadFeatures")),
+                                  band, clips, reference)
+        if claim is None:
+            return
+        data["attribution"] = claim
+        if claim["claimedEvent"]:
+            data["claimed_event"] = claim["claimedEvent"]
+            data["change_onset"] = claim["onsetLatest"]
+
     def receive(self, packet, personal, decision=None):
         self.mode = guard_mode(packet["config"], packet["stage"])
         if self.guard is not None: self.guard.mode = self.mode
@@ -88,7 +123,11 @@ class GuardAdapter:
                     self.guard.on_enactment(Enactment("ack:" + key, detail.get("request", ""), self.sid,
                         when, int(detail.get("previous_level", self.level)), target, detail.get("scene", self.scene)))
                     if self.probe and detail.get("request") in self.probe_reviews:
+                        logged = len(self.probe.support_events)
                         self.probe.enact(when,int(detail["previous_level"]),target,self.probe_reviews[detail["request"]])
+                        for row in self.probe.support_events[logged:]:
+                            # Execution-time support transitions (invalidation, probe start/failure) in the audit.
+                            self._persist(dict(record="support_event", stage=packet["stage"], **row))
                     self.level = target
                 if self.probe and typ in ("adaptive_media_failure","adaptive_media_interrupted","pause","personal_mount_interrupted"):
                     self.probe.failed_media=True
@@ -146,6 +185,7 @@ class GuardAdapter:
                             "movie_fraction_reference": x[-1], "causal_prediction": False, "in_distribution": "unknown"}
                     except Exception as error:
                         data["counterfactual"] = {"unavailable": type(error).__name__}
+                self._attribute(key, r, data, personal)
                 self._evidence(key, "signal", r["start"], r["end"], r["level"], r["valid"] and score is not None, data, "personal_rf")
             if decision is None:
                 return None
@@ -156,7 +196,10 @@ class GuardAdapter:
                     raise ValueError("Stale or mutated decision retry")
                 return deepcopy(result)
             if self.probe and decision["basis"]=="probe_or_controller":
+                logged=len(self.probe.support_events)
                 review=self.probe.assess(packet,personal,decision,self.guard,self.scene)
+                for row in self.probe.support_events[logged:]:
+                    self._persist(dict(record="support_event",stage=packet["stage"],**row))
                 self.probe_reviews[key]=review
                 proposed=decision["action"]
                 recommended=review["recommended"]

@@ -17,14 +17,18 @@ namespace EvidenceVR
             public string experimentMode = "FixedBlockExperiment";
             public string statusDisplayVersion = ExperimentStatusView.Revision;
             public string countdownDisplayVersion = SpatialTaskView.CountdownRevision;
+            public string responseSelectionRevision="first-selection-v1",selectionFeedbackRevision="not_used",selectionCueRevision="not_used";
             public string stimulusPlacementRevision=SpatialTaskView.StimulusPlacementRevision;
+            public string seatedHeightRevision=TaskPlatformController.SeatedHeightRevision;
+            public float seatedEyeHeightMeters=TaskPlatformController.SeatedEyeHeightMeters;
             public float sphereTrayClearanceMeters=SpatialTaskView.SphereTrayClearanceMeters;
             public float stimulusDiameterScale=SpatialTaskView.StimulusDiameterScale;
             public float traySurfaceHeightMeters=SpatialTaskView.TraySurfaceHeight;
             public string gazeRoiRevision="not_used", gazeDebugRevision="not_used";
             public string gazeOverviewRevision="not_used";
             public bool gazeDebugRequested,gazeDebugEnabled;
-            public string gazeRayRevision="not_used";
+            public string gazeRayRevision="not_used"; public string eyeFreezeRevision="not_used";
+            public string eyeSampleFreshnessRevision="not_used";
             public bool gazeRayRequested,gazeRayInitiallyEnabled;
             public string gazeLinkCompatibilityRevision="not_used",gazeLinkCompatibilityInitialState="inactive";
             public string evidenceGuardMode="off",evidenceGuardRevision=EvidenceGuardContract.Revision;
@@ -41,7 +45,7 @@ namespace EvidenceVR
         static string F(double n) => n.ToString("R", CultureInfo.InvariantCulture);
         static string B(bool b) => b ? "1" : "0";
         public SessionRecorder(string root, TaskConfig config, string participant = "anonymous", string kind = "participant", string presentationVersion = null,
-            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false,string evidenceGuardMode="off",string assignedSessionId=null,string studyDesign="legacy",bool comparison=false,string comparisonEnvironment="quest_pro")
+            bool gazeDebugRequested=false,bool gazeDebugEnabled=false,bool gazeRayRequested=false,bool gazeRayEnabled=false,string evidenceGuardMode="off",string assignedSessionId=null,string studyDesign="legacy",bool comparison=false,string comparisonEnvironment="quest_pro",bool revisableComparisonResponses=false)
         {
             string id = assignedSessionId ?? DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
             if(!System.Text.RegularExpressions.Regex.IsMatch(id,"^[A-Za-z0-9_-]{1,100}$"))throw new ArgumentException("Invalid assigned session ID.");
@@ -51,12 +55,14 @@ namespace EvidenceVR
             metadata = new Metadata { sessionId = id, sessionType = kind, participantCode = participant, utcStarted = DateTime.UtcNow.ToString("O"), applicationVersion = Application.version, unityVersion = Application.unityVersion, device = SystemInfo.deviceModel, status = "in_progress", config = config,
                 timingNote = "Unity realtimeSinceStartupAsDouble in seconds; software events, not measured photon onset. RT from actual software onset includes pauses; interrupted trials are excluded from clean summaries. Warmups are unscored and do not require an answer. Frame gaps are diagnostic, not hardware dropped-frame counts." };
             if(presentationVersion!=null){metadata.presentationVersion=presentationVersion;metadata.experimentMode="AdaptiveDistractionTraining";}
-            if(presentationVersion!=null){metadata.gazeRoiRevision=comparison?"sphere-bounds-v1":GazeRegions.Revision;metadata.gazeDebugRevision=GazeDebugHighlighter.Revision;metadata.gazeOverviewRevision=GazeConsoleProjection.Revision;}
+            if(presentationVersion!=null){metadata.gazeRoiRevision=GazeRegions.Revision;metadata.gazeDebugRevision=GazeDebugHighlighter.Revision;metadata.gazeOverviewRevision=GazeConsoleProjection.Revision;}
             metadata.gazeDebugRequested=gazeDebugRequested;metadata.gazeDebugEnabled=gazeDebugEnabled;
-            if(presentationVersion!=null)metadata.gazeRayRevision=EngineeringGazeRay.Revision;
+            if(presentationVersion!=null){metadata.gazeRayRevision=EngineeringGazeRay.Revision;metadata.eyeFreezeRevision=EyeFreezeDetector.Revision;metadata.eyeSampleFreshnessRevision=EyeSampleFreshness.Revision;}
             metadata.gazeRayRequested=gazeRayRequested;metadata.gazeRayInitiallyEnabled=gazeRayEnabled;
             metadata.evidenceGuardMode=evidenceGuardMode;
             metadata.studyDesign=studyDesign;
+            if(revisableComparisonResponses)
+            {metadata.responseSelectionRevision=TaskEngine.ComparisonResponseRevision;metadata.selectionFeedbackRevision=SpatialTaskView.SelectionFeedbackRevision;metadata.selectionCueRevision=TrialOnsetCue.SelectionCueVersion;}
             if(comparison)
             {
                 metadata.comparisonEnvironment=comparisonEnvironment;metadata.comparisonEnvironmentRevision="comparison-environments-v1";
@@ -71,7 +77,7 @@ namespace EvidenceVR
             }
             if(presentationVersion==TaskEngine.PersonalPresentationRevision)
             {metadata.trialProgressRevision=TaskEngine.PersonalProgressRevision;metadata.personalCalibrationRevision=TaskEngine.PersonalCalibrationRevision;}
-            if(presentationVersion!=null && Application.isEditor){metadata.gazeLinkCompatibilityRevision=QuestLinkEyeSpaceFeature.Revision;metadata.gazeLinkCompatibilityInitialState=QuestLinkEyeSpaceFeature.LastResult;}
+            if(presentationVersion!=null){metadata.gazeLinkCompatibilityRevision=QuestLinkEyeSpaceFeature.Revision;metadata.gazeLinkCompatibilityInitialState=QuestLinkEyeSpaceFeature.LastResult;}
             WriteMetadata();
             trials = Writer("trials.csv"); practice = Writer("practice_trials.csv"); events = Writer("events.jsonl");
             const string header = "block,trial,mode,practice,scored,color,seed,expected_match,responded,response_match,correct,timeout,interrupted,aborted,planned_onset_s,actual_onset_s,onset_frame,response_time_s,response_frame,rt_s,offset_time_s,close_time_s,level,training_stage,transition,phase_trial,block_trial,trial_end_s";

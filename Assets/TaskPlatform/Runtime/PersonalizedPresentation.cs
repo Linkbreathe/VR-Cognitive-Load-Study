@@ -266,7 +266,7 @@ namespace EvidenceVR
             {
                 owner.heading.text=engine.ProtocolStageLabel;
                 owner.body.text=
-                    "Compare with the color TWO positions earlier.\nA: Match   |   B: Non-match\nFirst two colors: observe only.\nContinue answering during movie clips.\n"+(stage=="practice"?"Practice shows answer feedback.":"No answer feedback in this stage.");
+                    "Compare with the color TWO positions earlier.\nA: Match   |   B: Non-match\nFirst two colors: observe only.\nContinue answering during movie clips.\n"+(engine.AllowsResponseRevision?"Change your answer until zero; your last choice counts.\nGreen timer + quiet tone = input received, not correctness.":stage=="practice"?"Practice shows answer feedback.":"No answer feedback in this stage.");
                 owner.presentation.exampleCaption.text=stage=="practice"?"X / ENTER during practice skips the remaining practice at the next boundary.":
                     stage=="calibration"?"Conditions alternate without a break. Keep the color sequence in memory.":"Keep the headset and sensors in place. Wait for the experimenter before starting.";
                 owner.presentation.actionHint.text="X / ENTER  Start";

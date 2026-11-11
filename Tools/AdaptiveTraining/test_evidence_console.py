@@ -161,6 +161,23 @@ class ConsoleTests(unittest.TestCase):
             self.assertTrue(d["judgments"])
             self.assertTrue(d["viewChecks"][-1]["available"])
 
+    def test_round_b_support_state_is_projected_for_the_monitor(self):
+        from layer_ab import COMPACT_POLICY, PROBE
+        from probe_control import ProbeReview
+        with tempfile.TemporaryDirectory() as folder:
+            service, packet = fixture(folder)
+            self.assertNotIn("support", snapshot(service)["guard"])
+            adapter = service.sessions[packet["sessionId"]]["guard"]
+            adapter.probe = ProbeReview(dict(studyDesign=PROBE, evaluationPolicy=COMPACT_POLICY))
+            adapter.probe.reset("layer_b")
+            adapter.probe.support_invalidated, adapter.probe.required_off_trials = True, 7
+            value = snapshot(service)["guard"]["support"]
+            self.assertEqual((value["stage"], value["invalidated"], value["requiredOffTrials"]), ("layer_b", True, 7))
+            value["requiredOffTrials"] = 5
+            self.assertEqual(adapter.probe.required_off_trials, 7, "Snapshot must be a copy")
+            adapter.probe.reset("layer_a")
+            self.assertNotIn("support", snapshot(service)["guard"])
+
     def test_raw_origin_channel_mapping_and_snapshot_isolation(self):
         with tempfile.TemporaryDirectory() as folder:
             service, packet = fixture(folder)

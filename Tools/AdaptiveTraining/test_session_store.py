@@ -24,6 +24,7 @@ from personalized_model import VERSION, PROTOCOL, policy_config
 from personalized_signals import FEATURES, REVISION as FEATURE_REVISION
 
 REVISION = "engineering-model-reuse-v1"
+GAZE_DEBUG_INHERITANCE_REVISION = "engineering-gaze-claim-v1"
 MODES = ("practice", "practice_eeg", "calibration_rehearsal", "control_calibration", "comparison", "comparison_candidate", "comparison_rehearsal", "full", "calibration", "bioadaptive", "vendor_workload")
 ARCHIVE_FILES = {"session.json", "adaptive-training-config.json", "trials.csv", "practice_trials.csv", "events.jsonl"}
 
@@ -142,7 +143,11 @@ class TestSessionStore:
                 training = read(report_path) if not observation and report_path.is_file() else {}
                 if meta["featureRevision"] == workload_rf.REVISION:
                     if available:
-                        meta["thresholdProfile"] = model_threshold_profile(path.parent, meta, read(path.parent/"reference.json"))
+                        reference_report = read(path.parent/"reference.json")
+                        meta["thresholdProfile"] = model_threshold_profile(path.parent, meta, reference_report)
+                        meta["meanHeldAuc"] = reference_report.get("meanHeldAuc")
+                        meta["foldAuc"] = [f["auc"] for f in reference_report.get("folds", [])]
+                        meta["aucGating"] = reference_report.get("aucGating")
                     comparison = "Personal workload RF for engineering A/B"
                 elif observation:
                     comparison = "Workload observation only"
@@ -275,9 +280,26 @@ class TestSessionStore:
         parsed = urlsplit(url)
         if parsed.scheme != "http" or not parsed.hostname or parsed.query or parsed.fragment: raise ValueError("Invalid controller URL")
         if r["clientId"] and r["config"]["controllerUrl"] != url: raise ValueError("Claim transport changed")
+        if not r["clientId"]:
+            preferences = request.get("gazeDebug")
+            if preferences is not None:
+                if (not isinstance(preferences, dict) or preferences.get("revision") != GAZE_DEBUG_INHERITANCE_REVISION
+                        or type(preferences.get("highlight")) is not bool or type(preferences.get("ray")) is not bool):
+                    raise ValueError("Invalid engineering gaze debug preferences")
+                allowed = r["config"].get("enabled") is True and r["config"].get("sessionType") == "engineering"
+                r["config"]["engineeringGazeHighlight"] = allowed and preferences["highlight"]
+                r["config"]["engineeringGazeRay"] = allowed and preferences["ray"]
+                r["gazeDebugInheritance"] = dict(revision=GAZE_DEBUG_INHERITANCE_REVISION,
+                    source="local_engineering_preferences", requested=copy.deepcopy(preferences),
+                    highlight=r["config"]["engineeringGazeHighlight"], ray=r["config"]["engineeringGazeRay"])
+            # Never authorize participant overlays, including a malformed legacy assignment.
+            if r["config"].get("sessionType") != "engineering" or not r["config"].get("enabled"):
+                r["config"]["engineeringGazeHighlight"] = False
+                r["config"]["engineeringGazeRay"] = False
         r["clientId"] = client; r["state"] = "claimed"; r["config"]["controllerUrl"] = url
         write(Path(r["folder"]) / "test-session.json", r); self.save()
-        return {"ready": True, "sessionId": sid, "config": r["config"]}
+        return {"ready": True, "sessionId": sid, "config": copy.deepcopy(r["config"]),
+                "gazeDebugInheritanceRevision": r.get("gazeDebugInheritance", {}).get("revision", "")}
 
     @synchronized
     def verify_packet(self, packet):
@@ -326,7 +348,10 @@ class TestSessionStore:
     def publish_reference(self, personal):
         r = self.records[personal.sid]
         report = personal.report
-        r["lastTraining"] = dict(status=report["status"], reasons=report["reasons"], hasModel=bool(personal.reference))
+        r["lastTraining"] = dict(status=report["status"], reasons=report["reasons"], hasModel=bool(personal.reference),
+                                 meanHeldAuc=report.get("meanHeldAuc"),
+                                 foldAuc=[f["auc"] for f in report.get("folds", [])],
+                                 aucGating=report.get("aucGating"), aucPolicyRevision=report.get("aucPolicyRevision"))
         if personal.reference:
             model_id = personal.sid + "-load"
             folder = Path(r["storageFolder"]) / personal.participant / "models" / model_id
@@ -337,6 +362,9 @@ class TestSessionStore:
                   sourceSession=personal.sid, createdUtc=datetime.now(timezone.utc).isoformat(), admitted=False,
                   reasons=["engineering_load_observation"], sha256=digest(folder/"reference.json"),
                   features=report["features"], featureRevision=report["featureRevision"],
+                  workloadWindowContract=workload_rf.window_contract(),
+                  bandProfile=report.get("bandProfile"),
+                  aucPolicyRevision=report.get("aucPolicyRevision"), meanHeldAuc=report.get("meanHeldAuc"),
                   signalContract=r["signalContract"], policy=personal.policy))
             r["lastTraining"]["modelId"] = model_id
         self.save()
@@ -350,6 +378,8 @@ class TestSessionStore:
             raise FileNotFoundError("The selected model is unavailable for this participant and storage folder.")
         meta = read(folder / "manifest.json")
         if meta["participantCode"] != participant or meta["modelId"] != model_id: raise ValueError("Model participant/identity mismatch")
+        if meta.get("featureRevision") == "rest-math-iaf-rf-v2":
+            raise ValueError("This is a historical 10-second workload model. Run a fresh 5-second calibration; do not relabel old models or reuse their thresholds.")
         if meta.get("featureRevision") in (load_reference.REVISION, workload_rf.REVISION):
             if meta["signalContract"] != signal_contract(self.streams) or not self.streams or meta["policy"] != self.policy:
                 raise ValueError("Load reference signal mapping or policy changed")
@@ -361,6 +391,9 @@ class TestSessionStore:
             if report.get("featureRevision") != meta["featureRevision"]:
                 raise ValueError("Load model revision mismatch")
             if meta["featureRevision"] == workload_rf.REVISION:
+                contract = workload_rf.window_contract()
+                if meta.get("workloadWindowContract") != contract or any(report.get(k) != v for k, v in contract.items()):
+                    raise ValueError("Workload window contract mismatch; run a fresh calibration")
                 artifact = folder / "workload_rf.joblib"
                 if report["sklearn"] != sklearn.__version__ or digest(artifact) != report["forestSha256"]:
                     raise ValueError("Workload forest software version or hash mismatch")

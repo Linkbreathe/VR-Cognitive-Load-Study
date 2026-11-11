@@ -6,7 +6,7 @@ namespace EvidenceVR
     {
         public const string SlidingRevision="sliding-five-close-v1";
         public const string Revision="layer-ab-v1";
-        public const string QuestionnaireRevision="raw-tlx7-ueq4-preference-google-forms-v4";
+        public const string QuestionnaireRevision="raw-tlx7-ueq4-experience7-preference-google-forms-v5.1";
         public static bool FreshSlidingReply(string revision,double received,double deadline,int activeTrial,int closedCount)
             =>revision==SlidingRevision && received<deadline && activeTrial==closedCount-1;
         public static bool IsTraining(string stage)=>stage=="random" || stage=="bioadaptive" || stage=="layer_a" || stage=="layer_b";

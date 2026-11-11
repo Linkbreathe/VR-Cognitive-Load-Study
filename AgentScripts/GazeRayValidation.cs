@@ -21,6 +21,8 @@ public static class GazeRayValidation
         }
         finally{UnityEngine.Object.DestroyImmediate(runtimeObject);if(mediaObject!=null)UnityEngine.Object.DestroyImmediate(mediaObject);}
     }
+    static void Lifecycle(EngineeringGazeRay ray,string name,params object[] args)
+        =>typeof(EngineeringGazeRay).GetMethod(name,System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(ray,args);
     static int checks;
     static void Check(bool value,string message){checks++;if(!value)throw new Exception(message);}
     public static async Task<string> Run()
@@ -42,8 +44,24 @@ public static class GazeRayValidation
             ray.SetEnabled(true);
             var sample=GazeRegions.Classify(true,Vector3.zero,Vector3.forward,new Bounds(Vector3.forward*2,Vector3.one*.2f),false,null,false);
             ray.Present(sample,"SYNTHETIC FIXTURE ONLY",Time.realtimeSinceStartupAsDouble,true);
-            Check(ray.Visible,"Valid non-ROI gaze visible");
-            var lines=root.GetComponentsInChildren<LineRenderer>();Check(lines.Length==1,"One continuous line");
+            Check(ray.Visible && ray.LineVisible && ray.State==EngineeringGazeRay.DisplayState.Live,"Valid non-ROI gaze visible (live)");
+            var all=root.GetComponentsInChildren<LineRenderer>();Check(all.Length==2,"One ray line plus one hit reticle");
+            var reticle=all.Single(l=>l.loop);var lines=all.Where(l=>!l.loop).ToArray();Check(lines.Length==1,"One continuous line");
+            Check(ray.ReticleVisible && reticle.positionCount==EngineeringGazeRay.ReticleSegments,"Reticle visible with valid eyes");
+            float expectedRadius=EngineeringGazeRay.DefaultHitDistance*Mathf.Tan(EngineeringGazeRay.ReticleRadiusDegrees*Mathf.Deg2Rad);
+            for(int i=0;i<reticle.positionCount;i++)
+            {
+                var p=reticle.GetPosition(i);var center=sample.origin+sample.direction*EngineeringGazeRay.DefaultHitDistance;
+                Check(Mathf.Abs(Vector3.Distance(p,center)-expectedRadius)<.0001f && Mathf.Abs(Vector3.Dot(p-center,sample.direction))<.0001f,"Reticle ring centered on gaze hit, facing the eye");
+            }
+            Check(Mathf.Approximately(reticle.sharedMaterial.GetFloat("_ZTest"),(float)UnityEngine.Rendering.CompareFunction.Always),"Reticle not hidden by its hit surface");
+            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true,1f);
+            Check(Vector3.Distance(reticle.GetPosition(0),sample.origin+sample.direction)<expectedRadius,"Reticle follows supplied hit distance");
+            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);
+            var surface=new Bounds(Vector3.forward*1.5f,Vector3.one*.2f);
+            float surfaceHit=GazeRegions.HitDistance(sample,surface,null,9f);Check(surfaceHit>0 && surfaceHit<=1.4001f,"Reticle lands no farther than the sphere surface");
+            Check(GazeRegions.HitDistance(default,surface,null,9f)==9f,"Invalid eyes use fallback distance");
+            reticle.gameObject.layer=30;
             for(int i=0;i<lines.Length;i++)
             {
                 Check(Mathf.Abs(Vector3.Distance(lines[i].GetPosition(0),sample.origin)-.65f)<.0001f,"Near-eye clearance");
@@ -60,16 +78,23 @@ public static class GazeRayValidation
             var before=RenderTexture.active;RenderTexture.active=rt;
             image=new Texture2D(1600,1000,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,1600,1000),0,0);image.Apply();RenderTexture.active=before;
             Directory.CreateDirectory("Evidence/GazeComfort");File.WriteAllBytes("Evidence/GazeComfort/synthetic-ray.png",image.EncodeToPNG());
-            ray.Present(default,"INVALID",Time.realtimeSinceStartupAsDouble,true);Check(!ray.Visible,"Invalid eyes clear");
-            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,false);Check(!ray.Visible,"Paused/completed phase clears");
+            ray.Present(sample,"SYNTHETIC FROZEN",Time.realtimeSinceStartupAsDouble,true,EngineeringGazeRay.DefaultHitDistance,true);
+            Check(ray.State==EngineeringGazeRay.DisplayState.Frozen && ray.Visible && reticle.sharedMaterial.GetColor("_Color")==EngineeringGazeRay.FrozenColor,"Frozen raw pose drawn amber");
+            ray.Present(default,"INVALID",Time.realtimeSinceStartupAsDouble,true);Check(ray.State==EngineeringGazeRay.DisplayState.Held && ray.Visible && !ray.LineVisible && reticle.sharedMaterial.GetColor("_Color")==EngineeringGazeRay.HeldColor,"Invalid eyes hold last point in gray; line hidden");
+            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,false);Check(ray.State==EngineeringGazeRay.DisplayState.Held && ray.Visible,"Disallowed phase holds");
             ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);
-            await Task.Delay(180);Check(!ray.Visible,"Stale samples clear");
+            await Task.Delay(180);Lifecycle(ray,"LateUpdate");Check(ray.State==EngineeringGazeRay.DisplayState.Held && ray.Visible && !ray.LineVisible,"Stale samples hold");
             ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);
-            ray.SendMessage("OnApplicationFocus",false);Check(!ray.Visible,"Focus loss clears");
-            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);Check(!ray.Visible,"Unfocused stays hidden");
-            ray.SendMessage("OnApplicationFocus",true);
-            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);Check(ray.Visible,"Focus recovery requires new sample");
-            ray.SetEnabled(false);Check(!ray.Visible && !ray.RayEnabled,"Live toggle clears");
+            Lifecycle(ray,"OnApplicationFocus",false);Check(ray.State==EngineeringGazeRay.DisplayState.Held && ray.Visible,"Focus loss holds");
+            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);Check(ray.State==(Application.isEditor?EngineeringGazeRay.DisplayState.Live:EngineeringGazeRay.DisplayState.Held),"Editor window focus does not block valid eyes; player focus remains required");
+            foreach(bool editor in new[]{false,true})foreach(bool focused in new[]{false,true})foreach(bool paused in new[]{false,true})
+                Check(EngineeringGazeRay.FocusAllowsRay(editor,focused,paused)==(!paused&&(editor||focused)),"Independent pause/focus policy");
+            Lifecycle(ray,"OnApplicationPause",true);Lifecycle(ray,"OnApplicationFocus",true);
+            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);Check(ray.State==EngineeringGazeRay.DisplayState.Held,"Focus recovery cannot override application pause");
+            Lifecycle(ray,"OnApplicationPause",false);
+            Lifecycle(ray,"OnApplicationFocus",true);
+            ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);Check(ray.State==EngineeringGazeRay.DisplayState.Live,"Focus recovery requires new sample");
+            ray.SetEnabled(false);Check(!ray.Visible && !ray.RayEnabled && ray.State==EngineeringGazeRay.DisplayState.Off,"Live toggle off hides everything");
             string report="PASS: "+checks+" isolated synthetic ray checks. No hardware-validity claim; no synthetic data injected into production reader.";
             File.WriteAllText("Evidence/GazeComfort/ray-validation.txt",report);Debug.Log(report);return report;
         }

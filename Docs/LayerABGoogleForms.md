@@ -1,21 +1,23 @@
 # Layer A/B Google Forms revision
 
-Date: 2026-11-05. Revision: `raw-tlx7-ueq4-preference-google-forms-v4`. Branch: `codex/layer-ab-timing-study`. This supersedes v3 for new sessions; the form URLs are unchanged.
+Date: 2026-11-08. Revision: `raw-tlx7-ueq4-experience7-preference-google-forms-v5.1`. Branch: `codex/layer-ab-timing-study`. This supersedes v4 for new sessions; the form URLs are unchanged. [Page 3 questions, verification and limitations](QuestionnaireExperienceReview.md).
 
-Current v4 uses a seven-point adaptation of Raw NASA-TLX. See [verified CHI precedents, scoring and current validation](SevenPointTLXReview.md). Historical v2/v3 validation below applies only to those versions.
+Current v5 retains the v4 seven-point adaptation of Raw NASA-TLX and adds seven study-specific questions on Page 3. See [verified CHI precedents, scoring and current validation](SevenPointTLXReview.md). Historical v2/v3 validation below applies only to those versions.
+
+Current v5.1 adds four researcher-approved descriptions below the original UEQ+ titles, retaining the endpoints and scoring. [Wording, Console buttons and verification](UEQClarificationConsoleReview.md).
 
 ## Forms and administration
 
 | When | Form | Owner editing | Required fields |
 |---|---|---|---|
-| Immediately after Training 1 and Training 2 | [Two-page post-condition questionnaire](https://docs.google.com/forms/d/e/1FAIpQLSeIC0ZO2EYBvbqF-zqy50panjnd_gNcXdG6wTTMkksT93FYLA/viewform) | [Edit](https://docs.google.com/forms/d/1wV0sCvKddY8j4sFaUxLETLqFSuxs24RBgXCcdTrb7PU/edit) | Page 1: participant code, session ID, training occasion and six Raw TLX ratings. Page 2: four UEQ+ Attractiveness ratings. All 13 fields required. |
-| After both pages of the second post-condition form, once per session | [Final preference](https://docs.google.com/forms/d/e/1FAIpQLSeqZYypO-Gm_ZMSr8K_qVQxLf-7cDv6JbCU2oPjkY-TDCcymA/viewform) | [Edit](https://docs.google.com/forms/d/1xiB5ZjopRAanD6GGLAgFfSrH-IxdsL98pZA2l1Bu2Dk/edit) | Participant code, session ID, preference; reason optional (4 fields total) |
+| Immediately after Training 1 and Training 2 | [Three-page post-condition questionnaire](https://docs.google.com/forms/d/e/1FAIpQLSeIC0ZO2EYBvbqF-zqy50panjnd_gNcXdG6wTTMkksT93FYLA/viewform) | [Edit](https://docs.google.com/forms/d/1wV0sCvKddY8j4sFaUxLETLqFSuxs24RBgXCcdTrb7PU/edit) | Page 1: participant code, session ID, training occasion and six Raw TLX ratings. Page 2: four UEQ+ Attractiveness ratings. Page 3: seven movie-display/training-experience items. All 20 fields required; A2/A3 include N/A. |
+| After all three pages of the second post-condition form, once per session | [Final preference](https://docs.google.com/forms/d/e/1FAIpQLSeqZYypO-Gm_ZMSr8K_qVQxLf-7cDv6JbCU2oPjkY-TDCcymA/viewform) | [Edit](https://docs.google.com/forms/d/1xiB5ZjopRAanD6GGLAgFfSrH-IxdsL98pZA2l1Bu2Dk/edit) | Participant code, session ID, preference; reason optional (4 fields total) |
 
 Workload dimensions: Mental Demand, Physical Demand, Temporal Demand, Performance, Effort and Frustration; 1-7 using horizontal single-choice scales, no preselected rating. Performance anchors are Perfect=1 and Failure=7; other dimensions are Very low=1 and Very high=7. Calculate Raw TLX as the mean of six complete ratings, without weighting or filling missing values. Read wording and endpoints consistently; oral administration requires pilot comprehension review.
 
 Page 2 uses the standard four-item **UEQ+ Attractiveness** scale, measuring overall liking rather than visual beauty. Retain its introductory sentence, "In my opinion, the product is generally:", and specify that the product is the VR system during the just-completed condition. The four endpoint pairs, in order, are annoying/enjoyable, bad/good, unpleasant/pleasant, and unfriendly/friendly. Each item has seven positions: 1 = left term, 7 = right term, midpoint 4, no preselection. Compute the mean of the four complete ratings after subtracting 4 from each (-3 to +3). Higher scores indicate a more positive overall impression. Do not combine this score with TLX. Do not fill missing values. The importance question is omitted because no importance-weighted UX KPI is planned. This is the UEQ+ four-item scale, not an arbitrary shortened original six-item UEQ Attractiveness scale.
 
-The two Google Forms sections are actual pages with Next/Back navigation and a progress bar. Only completing page 2 and submitting completes the post-condition form. Both scales refer to the same immediately preceding condition; the participant is not told which layer policy was used. The extra scale does not create another Unity acknowledgement or alter the fixed rest.
+The three Google Forms sections are actual pages with Next/Back navigation and a progress bar. Only completing page 3 and submitting completes the post-condition form. All pages refer to the immediately preceding condition; the participant is not told which layer policy was used. Page 3 adds no extra Unity acknowledgement and does not alter fixed rest timing. Its seven items are analyzed individually, separately from TLX and UEQ+. Keep A2/A3 N/A distinct from missing answers and from midpoint 4.
 
 ## Public availability and permitted use
 
@@ -26,7 +28,7 @@ Verified before editing on 2026-11-05:
 - Free research use does not mean public domain or a blanket copyright waiver. Keep attribution; no CC/public-domain license is asserted. The final preference question is a study-authored descriptive item, not a validated psychometric scale.
 - Publicly accessible instruments and responder links do not make collected answers public. Shared response summaries and email collection remain off; owner editing remains restricted. The Google account shown to a signed-in operator is not collected as an answer.
 
-Preference choices: Training 1, Training 2, No preference. Do not reveal A/B or frame either controller as better. IMI, adjustment-experience items, repeated SSQ and calibration questionnaires are omitted. Brief verbal discomfort checks belong in session notes, not additional scored questions.
+Preference choices: Training 1, Training 2, No preference. Do not reveal A/B or frame either controller as better. IMI, repeated SSQ and calibration questionnaires are omitted. Since v5, Page 3 contains seven study-specific movie-display/training-experience items; the earlier omission of adjustment-experience questions is superseded. Brief verbal discomfort checks belong in session notes, not additional scored questions.
 
 The participant keeps headset/electrodes in place; the experimenter fills the forms. Equipment movement still invalidates physiological qualification. Use pseudonymous codes only. Forms accept anyone with the responder link. Email collection, required sign-in, one-response restriction, quiz scoring, shuffled questions and shared response summaries are off. Owner editing remains restricted. Original legacy forms were copied, not modified.
 
@@ -38,9 +40,13 @@ After the first submission succeeds, X/Enter records one acknowledgement and sta
 
 The aligned export writes `questionnaire_acknowledgements.csv`, not questionnaire scores. Export both Google response tables separately. Join participant code and exact session ID; the post-condition table contains both scales and additionally uses Training occasion. Map Training 1/2 and preference through the saved allocation. Flag missing, duplicate or mismatched answers. Google submission wall-clock times and operator confirmation are not per-answer RT or LSL acquisition timestamps. Task button edges and original RT remain available for signal alignment.
 
-Old v1, v2 and v3 questionnaire allocations fail the revision check; generate fresh allocations for new sessions. Do not rewrite recorded configurations or answers. Do not pool old six-item-only responses with the revised procedure without retaining version provenance. No new APK accompanies this source update.
+Old v1, v2, v3 and v4 questionnaire allocations fail the current revision check; generate fresh allocations for new sessions. Do not rewrite recorded configurations or answers. Do not pool old six-item-only responses with the revised procedure without retaining version provenance. No new APK accompanies this source update.
 
 ## Validation and remaining checks
+
+### v5: third experience page
+
+Three sections and all seven new required items were verified in the saved editor and non-submittable preview, including navigation from Page 2 to Page 3, scale endpoints and two N/A choices. Preview test entries were cleared; no responses were submitted. Original UEQ+ items are unchanged. See [complete review and evidence](QuestionnaireExperienceReview.md).
 
 ### v3: two-page TLX and UEQ+ revision
 

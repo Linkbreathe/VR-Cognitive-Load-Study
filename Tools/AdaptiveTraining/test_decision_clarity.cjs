@@ -3,6 +3,14 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const context={window:{},setInterval:()=>{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'console/decision-evidence.js'),'utf8'),context);
 const {describe,label,explain}=context.window.EvidenceUI;
+{
+ const original={minX:-1,maxX:1,minY:-1,maxY:1,task:{x:0,y:0,width:.2,height:.2}};
+ const snapshot=JSON.stringify(original);
+ const expanded=context.window.EvidenceUI.fitGazeLayout(original,[{valid:true,projected:true,x:1.5,y:-3},{valid:false,projected:true,x:100,y:100}]);
+ assert.ok(expanded.minY<-3&&expanded.maxX>1.5);
+ assert.equal(expanded.maxY,1);assert.equal(JSON.stringify(original),snapshot);
+ assert.equal(expanded.task,original.task,'Fitting the plot cannot change task bounds');
+}
 const decision={stage:'layer_b',base:{score:.60358,behavior:{ba:.25,count:5},lowThreshold:.56,highThreshold:.6,level:1},
  review:{score:null,applicableBehavior:{ba:1/6,count:4},thresholds:{behaviorTrials:5},reason:'model_window_not_current_condition',
  gazeInput:{simulated:true,environment:'desktop_fixed_gaze',validRatio:.75,taskShare:.7}},delivered:'HOLD',receipt:{level:1}};
@@ -39,6 +47,25 @@ const blocked={stage:'layer_b',trial:10,delivered:'HOLD',receipt:{level:0},
   check('Current-condition eligible trials',5,'>=',5,'met'),check('Current-condition balanced accuracy',.875,'>=',.8,'met',5),
   check('Current-condition omissions',0,'<',2,'met',5),check('Applicable model score',.634,'<=',.56,'outside threshold')]}};
 const blockedSaved=JSON.stringify(blocked),b=describe(blocked);
+// New ON thresholds are taken from each recorded check; historical 80% rows stay intact.
+const relaxed=structuredClone(blocked);
+relaxed.base.behavior.ba=2/3;relaxed.review.applicableBehavior.ba=2/3;
+for(const row of relaxed.review.checks){if(row.name==='Base balanced accuracy'||row.name==='Current-condition balanced accuracy'){row.value=2/3;row.threshold=.65;}}
+const relaxedView=describe(relaxed);
+assert.equal(relaxedView.routes.behavior.rows.find(r=>r.name==='Base balanced accuracy').threshold,.65);
+assert.equal(relaxedView.reviewRows.find(r=>r.name==='Current-condition balanced accuracy').threshold,.65);
+assert.equal(blocked.review.checks[0].threshold,.8);
+const setupHtml=fs.readFileSync(path.join(__dirname,'console/tests.html'),'utf8');
+assert.match(setupHtml,/Behavior proposes ON at balanced accuracy ≥ 65%/);
+assert.match(setupHtml,/OFF at ≤ 50% or 2 omissions/);
+assert.match(setupHtml,/defers a workload-only OFF when balanced accuracy is ≥ 80%/);
+const offHalf=structuredClone(blocked);
+Object.assign(offHalf.base,{action:'OFF',level:1,behaviorTrigger:true,modelTrigger:false});
+offHalf.review={recommended:'OFF',reason:'behavior_reduction',checks:[check('Base balanced accuracy',.5,'<=',.5,'met',5)]};
+offHalf.delivered='OFF';
+assert.equal(describe(offHalf).routes.behavior.rows[0].threshold,.5);
+const historicalOff=structuredClone(offHalf);historicalOff.review.checks[0].threshold=.6;
+assert.equal(describe(historicalOff).routes.behavior.rows[0].threshold,.6);
 assert.equal(b.headline,'Video ON blocked by review');assert.equal(b.tone,'blocked');
 assert.deepEqual([...b.routes.behavior.rows.map(r=>r.name)],['Base balanced accuracy','Match trials','Non-match trials'],'Behavior route keeps only recorded base behavior checks');
 assert.deepEqual([...b.routes.model.rows.map(r=>r.name)],['Base model score']);
@@ -83,3 +110,57 @@ assert.equal(label('round','layer_b'),'Round B');assert.equal(label('training','
 assert.equal(label('scope','editor-test'),'Unity Editor test');assert.equal(label('training','new_status_code'),'New status code','Unknown codes stay readable');
 assert.equal(explain('unrecorded_reason'),'Unrecorded reason.');
 console.log('Decision clarity contracts passed: separate windows, null/zero values, provenance, receipts, routes, first unmet check, hypothetical A review and immutable inputs.');
+
+/* New history-only notes do not inherit archived six/ten-trial requirements. */
+const {linkedOffText}=context.window.EvidenceUI;
+const note={rule:'annotation_only',annotation:{result:'during'},trial:12};
+const noteSaved=JSON.stringify(note);
+assert.match(linkedOffText(note),/historical context.*current-condition behavior.*adds no opening test or lock/);
+assert.doesNotMatch(linkedOffText(note),/6 trials|ten trials|requires opening verification|can be turned on as usual/);
+assert.equal(JSON.stringify(note),noteSaved);
+assert.match(linkedOffText({verifiedReopening:true,basis:'playback_difficulty'}),/recorded policy requires opening verification/);
+assert.doesNotMatch(linkedOffText({verifiedReopening:true,basis:'playback_difficulty'}),/6 trials|ten trials/);
+assert.doesNotMatch(explain('probe_failed'),/second|2 mistakes|6 trials/,'Legacy ten-trial failures must not be described as six-trial failures');
+console.log('Opening-review display contracts passed: history-only notes and archived verification stay distinct.');
+
+/* Round B selective support: suspended direct opening, logged probe and cooldown without a lock. */
+const {supportText,checkName}=context.window.EvidenceUI;
+const suspended={rule:'selective_support_probe',annotation:{result:'during'},trial:16,supportInvalidated:true,requiredOffTrials:7};
+assert.match(linkedOffText(suspended),/suspended direct opening.*logged 4-trial probe after 7 scored trials/);
+assert.match(linkedOffText({...suspended,supportInvalidated:false}),/did not suspend direct opening/);
+assert.match(explain('support_probe_on'),/logged 4-trial probe/);
+assert.match(explain('support_probe_passed'),/Authorization restored via logged probe/);
+for(const r of ['support_probe_failed_behavior','support_probe_failed_model'])
+ assert.match(explain(r),/next opening is again a probe.*at most 7/,r);
+for(const r of ['support_probe_inconclusive_playback','support_probe_inconclusive_no_decoded_playback']){
+ assert.match(explain(r),/inconclusive.*next opening is again a probe; no cooldown is added/,r);
+ assert.doesNotMatch(explain(r),/2 more|at most 7/,r);}
+assert.match(supportText({outcome:'Probe_Inconclusive',nextRequiredOffTrials:5}),/inconclusive.*needs 5 scored trials.*no cooldown was added/);
+assert.match(explain('support_probe_window_closed'),/trial 54/);
+assert.match(supportText({outcome:'Probe_Failed',nextRequiredOffTrials:7}),/again a probe and needs 7/);
+assert.match(supportText({outcome:'Probe_Passed'}),/restored via the logged probe/);
+assert.doesNotMatch(supportText({outcome:'Probe_Failed',nextRequiredOffTrials:7}),/lock|rest of the round/);
+assert.equal(checkName('Probe mistakes and omissions'),'Mistakes and omissions in the probe');
+console.log('Selective-support display contracts passed: suspended direct opening, logged probe, restored authorization and cooldown without a lock.');
+
+/* Probe outcomes are explained by their recorded reason; progress below four trials is not an unmet requirement. */
+{
+ const probeRow={name:'Probe trials completed (video on)',status:'outside threshold',value:0,operator:'>=',threshold:4};
+ const base={action:'HOLD',level:1,behavior:{}};
+ const ended=describe({stage:'layer_b',base,delivered:'OFF',review:{recommended:'OFF',reason:'support_probe_inconclusive_playback',checks:[probeRow],support:{outcome:'Probe_Inconclusive'}}});
+ assert.equal(ended.firstUnmet,undefined);
+ assert.match(ended.steps[1].why,/inconclusive.*no cooldown is added/);
+ const running=describe({stage:'layer_b',base:{...base,action:'OFF'},delivered:'HOLD',review:{recommended:'HOLD',reason:'model_window_not_current_condition',checks:[probeRow],support:{probeEvaluation:{completed:2,errors:0}}}});
+ assert.equal(running.firstUnmet,undefined);
+ assert.match(running.steps[1].why,/score window spans the last video change/);
+ console.log('Probe display contracts passed: outcome reasons lead and probe progress is not shown as an unmet requirement.');
+}
+{
+ const row={name:'Probe trials completed (video on)',status:'outside threshold',value:2,operator:'>=',threshold:4};
+ const running=describe({stage:'layer_b',base:{action:'HOLD',level:1,behavior:{}},delivered:'HOLD',review:{recommended:'HOLD',reason:'base_hold',checks:[row],support:{probeEvaluation:{completed:2,errors:0}}}});
+ assert.equal(running.reviewRows[0].status,'in progress');
+ assert.equal(row.status,'outside threshold','Recorded check status is not mutated');
+ const ended=describe({stage:'layer_b',base:{action:'HOLD',level:1,behavior:{}},delivered:'OFF',review:{recommended:'OFF',reason:'support_probe_inconclusive_playback',checks:[{...row,value:0}],support:{outcome:'Probe_Inconclusive'}}});
+ assert.equal(ended.reviewRows[0].status,'outside threshold');
+ console.log('Probe progress display contract passed: an unfinished probe is shown in progress without changing the record.');
+}

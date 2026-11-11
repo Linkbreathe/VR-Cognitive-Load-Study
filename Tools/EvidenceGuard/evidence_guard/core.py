@@ -21,7 +21,7 @@ class EvidenceGuard:
         self.evidence, self.judgments, self.relations = {}, {}, {}
         self.invalidations, self.authorizations, self.timeline = [], [], []
         self.index, self.audit, self.reviews, self.acks = [], [], {}, {}
-        self.kind_indexes, self.forward_results = {}, {}
+        self.kind_indexes, self.forward_results, self.reverse_results = {}, {}, {}
         self.revoked = set()
         self.epoch = 0
         self.condition_since = float("-inf")
@@ -148,9 +148,15 @@ class EvidenceGuard:
         previous = [e for e in self.query(float("-inf"), signal.start, {"signal"})
                     if e.id != signal.id and e.end <= signal.start and e.epoch == signal.epoch and e.quality and finite(e.data.get("score"))]
         previous.sort(key=lambda e: (e.end, e.id))
-        state = lambda x: "stable" if x <= .45 else "struggling" if x >= .65 else "buffer"
+        # Hosts may supply per-window bands (for example the session cutoffs in effect); otherwise the
+        # original fixed bands apply, so callers that pass nothing keep their earlier behavior.
+        bands = signal.data.get("reverse_bands") or {}
+        low, high = bands.get("stable_max", .45), bands.get("struggling_min", .65)
+        minimum = bands.get("min_change", 0.)
+        state = lambda x: "stable" if x <= low else "struggling" if x >= high else "buffer"
         crossed = bool(signal.quality and finite(score) and previous and
-                       {state(score), state(previous[-1].data["score"])} == {"stable", "struggling"})
+                       {state(score), state(previous[-1].data["score"])} == {"stable", "struggling"} and
+                       abs(score - previous[-1].data["score"]) >= minimum)
         claimed = signal.data.get("claimed_event")
         if not crossed and not claimed and not signal.data.get("physiological_change_confirmed"):
             return
@@ -159,10 +165,16 @@ class EvidenceGuard:
         movies = [e for e in sources if e.kind == "media" and e.epoch == signal.epoch]
         if claimed in self.evidence and self.evidence[claimed] not in movies:
             movies.append(self.evidence[claimed])
-        self._log("reverse", {"signal": signal.id, "trigger": "rf_state_crossing" if crossed else "attribution_or_feature_check",
-                    "comparison": previous[-1].id if previous else None, "comparison_nonoverlap": bool(previous),
-                    "sources": [e.id for e in sources], "rf_change_is_not_physiology": True,
-                    "counterfactual": signal.data.get("counterfactual"), "diagnostic_controls_action": False})
+        summary = {"signal": signal.id, "trigger": "rf_state_crossing" if crossed else "attribution_or_feature_check",
+                   "comparison": previous[-1].id if previous else None, "comparison_nonoverlap": bool(previous),
+                   "score": score if finite(score) else None,
+                   "comparison_score": previous[-1].data["score"] if previous else None,
+                   "bands": {"stable_max": low, "struggling_min": high, "min_change": minimum,
+                             "revision": bands.get("revision", "fixed-0.45-0.65")},
+                   "claimed_event": claimed, "sources": [e.id for e in sources], "rf_change_is_not_physiology": True,
+                   "counterfactual": signal.data.get("counterfactual"), "diagnostic_controls_action": False}
+        self.reverse_results[signal.id] = summary
+        self._log("reverse", summary)
         for movie in movies:
             self._relate(movie, signal, "reverse")
 

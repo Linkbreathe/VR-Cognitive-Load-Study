@@ -1,5 +1,9 @@
 # Engineering eye ray and Quest Pro Link diagnosis
 
+2026-11-10 task-area correction: `gaze-roi-v5-unified-sphere-tray-area` applies the existing sphere/tray area and 4 cm padding to A/B as well as practice, removing the comparison-only sphere restriction. Console, CSV and guard area visibility share the definition. [Current task-area review](UnifiedTaskGazeReview.md).
+
+2026-11-10 follow-up: the referenced Standalone feature had become disabled while an orphan remained enabled. `quest-link-eye-settings-recovery-v1` repairs the referenced instance through the Oculus Editor-preview opt-in. Live Quest Pro acquisition and Console transport were reverified; no Android or full participant acceptance. See [repair, evidence and updated opt-out operation](QuestLinkEyeRepairReview.md). The historical instructions below describe the original v1 setup.
+
 Date: 2026-11-02. Source/application revision: `2.0.0-stage2-dev8` (next Android code 20). No dev8 APK was built. Training configuration/policy remain dev5 / `rolling10-stride2-v1`.
 
 ## Operation

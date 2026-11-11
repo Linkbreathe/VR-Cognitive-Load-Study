@@ -115,7 +115,8 @@ namespace EvidenceVR
                 evidenceGuardMode:adaptiveConfig?.evidenceGuardMode??"off",
                 assignedSessionId:adaptiveConfig?.operatorManaged==true?adaptiveConfig.testSessionId:null,
                 studyDesign:adaptiveConfig?.studyDesign??"legacy",comparison:adaptiveConfig?.Comparison??false,
-                comparisonEnvironment:adaptiveConfig?.comparisonEnvironment??"quest_pro");
+                comparisonEnvironment:adaptiveConfig?.comparisonEnvironment??"quest_pro",
+                revisableComparisonResponses:adaptiveConfig!=null && (adaptiveConfig.Comparison || adaptiveConfig.IsLayerAB));
             DataPath = recorder.DirectoryPath; Debug.Log("Task platform session: " + DataPath);
             Engine.OnEvent += recorder.Event; Engine.OnTrial += recorder.Trial;
             if(adaptiveConfig?.IsLayerAB==true)inputTiming=new InputTimingAudit(Engine,match,nonmatch,advance,pause,calibrate);
@@ -123,7 +124,7 @@ namespace EvidenceVR
             if(adaptiveConfig==null)distractions?.Bind(Engine,Engine.Config,DataPath);
             else {distractions?.Cancel("adaptive_mode");AdaptiveRuntime=gameObject.AddComponent<AdaptiveRuntime>();AdaptiveRuntime.Bind(this,Engine.Adaptive.Config);}
             Engine.Note("session_start", "configuration frozen; generator=xorshift32-v1", Time.realtimeSinceStartupAsDouble, Time.frameCount);
-            if(adaptiveConfig!=null && adaptiveConfigUpgraded)Engine.Note("adaptive_config_upgrade","legacy_to_dev5;rolling10_stride2;countdown_centiseconds;source_override_retained",Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            if(adaptiveConfig!=null && adaptiveConfigUpgraded)Engine.Note("adaptive_config_upgrade","legacy_to_dev5;rolling10_stride2;countdown="+SpatialTaskView.CountdownRevision+";source_override_retained",Time.realtimeSinceStartupAsDouble,Time.frameCount);
             checkedMatch = checkedNonmatch = calibrated = terminalRecorded = false;
             lastPhase = (TaskPhase)(-1); lastTrial = -2; lastTime = Time.realtimeSinceStartupAsDouble;
             Recenter(false); Render(); presentation?.Refresh();
@@ -208,7 +209,11 @@ namespace EvidenceVR
             var position=head.parent.position;
             position.y=TrackingRigHeight(floorTracking,head.localPosition.y);head.parent.position=position;
         }
-        public static float TrackingRigHeight(bool floorMode,float localEyeHeight)=>floorMode ? 0 : 1.2f-localEyeHeight;
+        public const string SeatedHeightRevision="seated-eye-height-v2-normalized";
+        public const float SeatedEyeHeightMeters=1.2f;
+        // Normalize both floor and device origins once during preparation. Keep subsequent head motion tracked.
+        // The eye ray uses this same parent transform in AdaptiveRuntime.SampleGaze.
+        public static float TrackingRigHeight(bool floorMode,float localEyeHeight)=>SeatedEyeHeightMeters-localEyeHeight;
         IEnumerator CalibrateSeatedPose()
         {
             var owner=Engine;
@@ -220,7 +225,9 @@ namespace EvidenceVR
                 var inputs=new List<XRInputSubsystem>();SubsystemManager.GetSubsystems(inputs);
                 foreach(var input in inputs)if(adaptiveConfig?.DesktopComparison!=true && input.running){floorTracking=input.GetTrackingOriginMode()==TrackingOriginModeFlags.Floor;break;}
                 var position=head.parent.position;position.y=TrackingRigHeight(floorTracking,head.localPosition.y);head.parent.position=position;
-                Engine.Note("tracking_calibration","origin="+(floorTracking ? "floor" : "seated_device_fallback")+";local_eye_y="+head.localPosition.y+";rig_y="+head.parent.position.y,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                string heightDetail=SeatedHeightRevision+";origin="+(floorTracking ? "floor" : "seated_device_fallback")+";target_eye_y="+SeatedEyeHeightMeters.ToString(System.Globalization.CultureInfo.InvariantCulture)+";local_eye_y="+head.localPosition.y.ToString(System.Globalization.CultureInfo.InvariantCulture)+";rig_y="+head.parent.position.y.ToString(System.Globalization.CultureInfo.InvariantCulture)+";world_eye_y="+head.position.y.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                Engine.Note("tracking_calibration",heightDetail,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                Debug.Log("Seated height calibration: "+heightDetail);
                 PlaceTask(true);
             }
             calibrationPending=false;
@@ -297,6 +304,8 @@ namespace EvidenceVR
                 }
                 if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame && Engine.Phase == TaskPhase.Paused) BeginSession();
                 distractions?.Tick(now);
+                // Apply the current stimulus visibility before sampling gaze for this frame.
+                stimulus.enabled=Engine.Phase==TaskPhase.Running && Engine.StimulusVisible;
                 AdaptiveRuntime?.Tick(now);
                 if ((Engine.Phase == TaskPhase.Complete || Engine.Phase == TaskPhase.Aborted) && !terminalRecorded)
                 {

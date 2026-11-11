@@ -1,6 +1,6 @@
 """Personalized session orchestration; Unity only presents and acknowledges."""
 from __future__ import annotations
-from layer_ab import PROBE, SLIDING, TRAINING, STAGES, compact, enabled as ab_enabled, validate as validate_ab
+from layer_ab import PROBE, SLIDING, TRAINING, STAGES, COMPACT_REVIEW, COMPACT_BEHAVIOR_REVISION, COMPACT_ON_BA, COMPACT_OFF_BA, compact, enabled as ab_enabled, validate as validate_ab
 
 from collections import deque
 import json
@@ -47,6 +47,7 @@ class PersonalSession:
             raise ValueError("Protocol requires four/six/eight calibration blocks and the allocated training length")
         validate_ab(self.config)
         from comparison_environment import provenance
+        from probe_control import GAZE_REVIEW_REVISION
         self.sliding = self.config.get("slidingRevision") == SLIDING
         self.barrier = float("-inf")
         self.hard_resets = []
@@ -61,11 +62,15 @@ class PersonalSession:
         write_json(self.folder / "personal_protocol.json", {"version": VERSION, "participant": self.participant,
             "session": self.sid, "sessionType": self.kind, "config": self.config, "policy": self.policy, "random_plan": self.plan,
             "gazeInput": provenance(self.config),
-            "featureRevision": FEATURE_REVISION, "behaviorRevision": "scored5-or-v3" if compact(self.config) else "scored10-or-v2" if self.probe else BEHAVIOR_REVISION,
+            "gazeReviewRevision": GAZE_REVIEW_REVISION,
+            "featureRevision": FEATURE_REVISION, "behaviorRevision": COMPACT_BEHAVIOR_REVISION if compact(self.config) else "scored10-or-v2" if self.probe else BEHAVIOR_REVISION,
+            "comparisonBehaviorThresholds": dict(onBA=COMPACT_ON_BA, offBA=COMPACT_OFF_BA, deferBA=.80, omissions=2) if compact(self.config) else None,
             "counterbalance_group": self.config["counterbalanceGroup"], "label_alignment": self.policy["label_alignment"],
             "flow_revision": "independent-stages-v1" if mode in ("practice","practice_eeg","calibration_rehearsal","control_calibration","comparison","comparison_candidate","comparison_rehearsal") else "preparation-practice-rest-math-v1",
-            "comparisonReview": ("pre-response-continuous-gaze-v2" if compact(self.config) else "pre-response-movie-gaze-v1") if mode in ("comparison","comparison_candidate","comparison_rehearsal") else None,
+            "comparisonReview": (COMPACT_REVIEW if compact(self.config) else "pre-response-movie-gaze-v1") if mode in ("comparison","comparison_candidate","comparison_rehearsal") else None,
             "calibrationWindowPolicy": None if skips_forest or mode=="calibration_rehearsal" else workload_rf.WINDOW_POLICY,
+            "workloadWindowContract": workload_rf.window_contract(),
+            "workloadAucPolicy": workload_rf.auc_policy(),
             "rest_seconds": 0 if skips_forest else workload_rf.STAGE_SECONDS, "arithmetic_seconds": 0 if skips_forest else workload_rf.STAGE_SECONDS,
             "calibration_revision": "skipped_direct_test" if direct_test else SLIDING if mode=="control_calibration" else "none" if skips_forest else "task_rehearsal" if mode=="calibration_rehearsal" else workload_rf.REVISION})
         self.signals = {}; self.trials = {}; self.events_seen = set(); self.windows = {}; self.decisions = {}
@@ -82,6 +87,8 @@ class PersonalSession:
         self.reference = None
         self.load_starts = {}
         self.score_thresholds = dict(workload_rf.DEFAULT_THRESHOLDS)
+        # Calibration feature statistics for attribution; older saved models have none unless supplied offline.
+        self.feature_reference = None
         self.load_rows = {}
         self.load_scoring_rows = {}
         self.load_scan = {}
@@ -151,7 +158,7 @@ class PersonalSession:
             stage = e["detail"]
             self.load_starts[stage] = e["actual"]
             self.load_scoring_rows[stage] = {}
-            self.load_rows[stage] = [None] * (workload_rf.STAGE_SECONDS // 10)
+            self.load_rows[stage] = [None] * (workload_rf.STAGE_SECONDS // workload_rf.WINDOW_SECONDS)
             self.load_scan[stage] = dict(nextStart=0, available=0, counts=[0, 0, 0])
             self.load_quality = None
         if e["type"] in ("pause", "personal_mount_interrupted"):
@@ -263,19 +270,24 @@ class PersonalSession:
                         prediction["reason"] = "unseen_calibration_level_pattern"
                 if self.reference:
                     method = workload_rf if self.report["featureRevision"] == workload_rf.REVISION else load_reference
-                    valid = record["valid"] and record["end"] - 10 >= self.barrier
+                    seconds = workload_rf.WINDOW_SECONDS if method is workload_rf else 10
+                    valid = record["valid"] and record["end"] - seconds >= self.barrier
                     if not valid:
                         values, reason = None, record["reason"] if not record["valid"] else "interrupted_window"
                     elif self.workload_control:
-                        values, reason = workload_rf.measure(self, packet, record["end"] - 10, screen_artifacts=False)
+                        values, reason = workload_rf.measure(self, packet, record["end"] - seconds, screen_artifacts=False)
                     else:
-                        values, reason = method.measure(self, packet, record["end"] - 10)
+                        values, reason = method.measure(self, packet, record["end"] - seconds)
                     prediction["loadScore"] = method.score(self.reference, values) if values is not None else None
+                    if values is not None and method is workload_rf:
+                        prediction["loadFeatures"] = workload_rf.window_features(values, self.reference["bandCenterHz"]).tolist()
                     prediction["loadReason"] = reason
                     prediction["loadRevision"] = method.REVISION
+                    prediction.update(loadWindowStart=record["end"]-seconds, loadWindowEnd=record["end"],
+                                      loadWindowSeconds=seconds)
                     if self.workload_control:
                         prediction.update(artifactScreening=False, score=prediction["loadScore"], sourceWindowStart=record["start"],
-                                          start=record["end"]-10, scoreSource=workload_rf.REVISION,
+                                          start=record["end"]-seconds, scoreSource=workload_rf.REVISION,
                                           scoreMeaning="arithmetic_class_score", valid=prediction["loadScore"] is not None,
                                           reason=reason)
                 self.predictions.append(prediction)
@@ -295,28 +307,28 @@ class PersonalSession:
         return result
 
     def update_load_calibration(self, packet):
+        seconds = workload_rf.WINDOW_SECONDS
         for stage, onset in self.load_starts.items():
             rows = self.load_rows[stage]
             scan = self.load_scan[stage]
-            while (not scan.get("interrupted") and scan["nextStart"] <= workload_rf.STAGE_SECONDS - 10
-                   and packet["now"] >= onset + scan["nextStart"] + 11):
+            while (not scan.get("interrupted") and scan["nextStart"] <= workload_rf.STAGE_SECONDS - seconds
+                   and packet["now"] >= onset + scan["nextStart"] + seconds + 1):
                 second = scan["nextStart"]
-                scan["nextStart"] += 1
+                scan["nextStart"] += workload_rf.CANDIDATE_STEP_SECONDS
                 details = {}
-                values, reason = workload_rf.measure(self, packet, onset + second, details)
+                values, reason = workload_rf.measure(self, packet, onset + second, details, screen_artifacts=False)
                 fold = second // workload_rf.FOLD_SECONDS
                 # Earliest finishing usable interval maximizes the disjoint count in each fold.
-                selected = values is not None and second >= scan["available"] and second % workload_rf.FOLD_SECONDS <= workload_rf.FOLD_SECONDS - 10
+                selected = values is not None and second >= scan["available"] and second % workload_rf.FOLD_SECONDS <= workload_rf.FOLD_SECONDS - seconds
                 if selected:
-                    slot = (workload_rf.FOLD_SECONDS // 10) * fold + scan["counts"][fold]
+                    slot = (workload_rf.FOLD_SECONDS // seconds) * fold + scan["counts"][fold]
                     rows[slot] = values
-                    full, _ = workload_rf.measure(self, packet, onset + second, screen_artifacts=False)
-                    self.load_scoring_rows[stage][slot] = full
+                    self.load_scoring_rows[stage][slot] = values
                     scan["counts"][fold] += 1
-                    scan["available"] = second + 10
+                    scan["available"] = second + seconds
                 result = dict(stage=stage, onset=onset, start=onset + second, startSecond=second,
-                              endSecond=second + 10, selected=selected, usableWindows=sum(scan["counts"]),
-                              windowPolicy=workload_rf.WINDOW_POLICY, revision=workload_rf.REVISION,
+                              endSecond=second + seconds, selected=selected, usableWindows=sum(scan["counts"]),
+                              **workload_rf.window_contract(), revision=workload_rf.REVISION,
                               trainingEpochs=len(values) if selected else 0, reason=reason, **details)
                 append(self.folder / "load_windows.jsonl", result)
                 if stage == packet["stage"]:
@@ -331,7 +343,7 @@ class PersonalSession:
         self.attempts = 1
         self.model_status = "load_reference_ready" if self.reference else "load_reference_failed"
         self.report = dict(status=self.model_status, admitted=False, reasons=[reason], **diagnostics,
-                           windowPolicy=workload_rf.WINDOW_POLICY,
+                           **workload_rf.window_contract(),
                            featureRevision=workload_rf.REVISION, features=workload_rf.FEATURES, seed=self.seed,
                            participant=self.participant, session=self.sid, sklearn=sklearn.__version__)
         if self.reference:
@@ -348,15 +360,16 @@ class PersonalSession:
             return None
         row = self.load_quality
         if not row or row["stage"] != stage:
-            return dict(warning=False, text="EEG quality: collecting the first 10 seconds.")
+            return dict(warning=False, text=f"EEG data: collecting the first {workload_rf.WINDOW_SECONDS} seconds. Artifact screening is off.")
         ok = row["reason"] == "ok"
         counts = row.get("flaggedChannels", {})
         flagged = ", ".join(sorted(counts, key=counts.get, reverse=True)[:3])
-        label = "EEG quality OK" if ok else "Check EEG signal"
+        label = "EEG data available" if ok else "EEG data unavailable"
         summary = (f"{label} · {row['startSecond']}–{row['endSecond']} s · "
-                   f"{row['usableWindows']} non-overlapping windows accepted (6 required per stage).")
-        if "cleanSeconds" in row:
-            summary += f" Clean seconds: {row['cleanSeconds']}/10."
+                   f"{row['usableWindows']} non-overlapping windows accepted ({workload_rf.MIN_WINDOWS_PER_CONDITION} required per stage).")
+        summary += " Artifact screening is off."
+        if "trainingSeconds" in row:
+            summary += f" Included seconds: {row['trainingSeconds']}/{workload_rf.WINDOW_SECONDS}."
         if not ok:
             summary += " " + row["reason"].replace("_", " ") + "."
             if flagged:

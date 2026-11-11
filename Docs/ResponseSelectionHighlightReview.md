@@ -1,0 +1,27 @@
+# Comparison selection and soft gaze highlight review
+
+2026-11-10, Stage 2/3. Revisions: `comparison-last-selection-v1`, `comparison-green-timer-soft-tone-v1`, `selection-sine-520hz-65ms-v1`, `engineering-gaze-outline-v5-soft-edge`.
+
+## Request and implemented behavior
+
+The researcher requested gentler Target Highlight visuals and a revisable answer in Comparison. The follow-up explicitly approved a green countdown and short sound for input acknowledgement. This is a scoped exception to the earlier prohibition on response-dependent audio: the sound confirms an accepted selection, with identical sound and color for correct and incorrect choices.
+
+In formal Comparison/A/B training stages, each accepted press replaces the pending answer until the existing four-second deadline. This applies to both A and B, including the 60-trial and 144-trial allocations. The final accepted choice is scored at response close. The 4.5-second onset cycle, integer countdown, warmups, simultaneous-button rejection, boundary-frame rejection, controller checks and media policy remain unchanged. Practice, calibration and non-comparison tasks keep their first-answer behavior. A held button is not a new choice; a new accepted press, including the same answer again, updates the final choice and reaction time.
+
+Every accepted choice makes the countdown green for 300 ms, retriggered by another accepted choice and ending no later than the response deadline. No correctness text is displayed. A separate nonspatial audio voice plays a 520 Hz, 65 ms sine with a smooth envelope at gain 0.06, independently of the onset-cue toggle. Rapid presses restart this voice instead of stacking sounds. Pause, abort and completion stop the voice. The original onset sound is unchanged. These settings are software values, not measured headset loudness or acoustic latency.
+
+Target Highlight now uses feathered white edges, maximum alpha 0.38, a 3.5 mm sphere outline and a 4 mm movie border. Hit intensity rises over 120 ms. Invalid, stale or off-target input removes hit brightness immediately; the persistent sphere position outline remains at alpha 0.10 and 1.5 mm width. This deliberate immediate removal prevents a fading hit from implying valid gaze after its evidence ends. Participant lockout, eye validity, target geometry, task color and gaze records are unchanged. The shared shader defaults to hard edges for other users, preserving Eye Ray's existing rendering.
+
+## Recording
+
+New session metadata records `responseSelectionRevision`, `selectionFeedbackRevision`, `selectionCueRevision` and the revised `gazeDebugRevision`. The original `response-countdown-v3-integer-seconds` revision remains. Comparison revisions describe formal-stage behavior; practice/calibration retain their existing rules.
+
+`button` retains each accepted/rejected attempt. New `response_selection` events identify every accepted choice and whether it replaces an earlier one. `selection_cue_requested` records software sound requests; it does not claim measured sound onset. `response_finalized` records the final answer or omission at close, with its final input edge ID. Existing raw input press/release records remain available. `trials.csv` contains the final answer, final response time/frame/RT and final linked input event. If an input link is unavailable, fields are reset to missing rather than retaining the previous choice's link. Reaction time now describes the last accepted choice in these stages, so historical first-answer RT must not be pooled without accounting for the revision. Existing records are not rewritten.
+
+## Validation and limits
+
+Unity 6000.3.27f2 compilation passed. `AgentScripts/ResponseSelectionValidation.cs` exercises both arms and both trial budgets, correct-to-wrong and wrong-to-correct changes, repeated same answers, pre-onset/exact-deadline/late/paused rejection, omissions, final input linkage/CSV/metadata, unchanged practice/calibration/Stage 1, green acknowledgement expiry/retrigger, cue request count, pause cancellation, soft shader properties, invalid-eye removal and participant lockout. The final suite passed 100 checks in Edit Mode and 100 in an isolated empty-scene Play Mode. Its synthetic logs and recordings are under `Evidence/ResponseAndHighlight-20261110/`, outside participant data. The soft sphere render was inspected. The earlier eye-repair validation's obsolete hard-brightness assertion was updated and the script compile-checked; its full suite was not rerun for this update.
+
+Current Unity console error count is zero and compilation is not failed. The Pipeline history retains unrelated earlier compile errors; those are not current errors. Validation used the installed Pipeline documentation `commands/scripts.md`, `commands/editor-lifecycle-and-observability.md`, `commands/capture.md` and `commands/runtime.md`. Original scene setup was restored and Play Mode stopped. Auto-tick was already enabled and remains enabled. Pre-edit copies are in `Evidence/ResponseAndHighlight-20261110/restore/`; prior uncommitted work was preserved.
+
+Pending: worn Quest Pro readability/comfort, real controller presses and perceived cue volume/latency, movie-border appearance during actual headset playback, Android/IL2CPP build and participant acceptance. No APK was built. Start a fresh assignment/session with the recompiled Editor code; installed Players require a rebuild. Green means input received, never correct.

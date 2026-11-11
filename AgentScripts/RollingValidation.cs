@@ -23,9 +23,9 @@ public static class RollingValidation
     public static string Model()
     {
         checks=0;Directory.CreateDirectory(Folder);
-        Check(SpatialTaskView.FormatCountdown(4)=="4.00","4.00");
-        Check(SpatialTaskView.FormatCountdown(3.126)=="3.13","rounded hundredths");
-        Check(SpatialTaskView.FormatCountdown(-1)=="0.00","clamped zero");
+        Check(SpatialTaskView.FormatCountdown(4)=="4","integer onset");
+        Check(SpatialTaskView.FormatCountdown(3.126)=="4","ceiling seconds");
+        Check(SpatialTaskView.FormatCountdown(-1)=="0","clamped zero");
         var restore="Evidence/RestorePoints/rolling-window-20261102/editor-config.json";
         var migration=File.Exists(restore)?JsonUtility.FromJson<AdaptiveTrainingConfig>(File.ReadAllText(restore)):new AdaptiveTrainingConfig{version="2.0.0-stage2-dev4",mode="OFF",seed=20261102,enabled=true};
         string originalMode=migration.mode;int originalSeed=migration.seed;bool originalEnabled=migration.enabled;string originalUrl=migration.controllerUrl;
@@ -105,7 +105,7 @@ public static class RollingValidation
                 if(!captured && real-began>2)
                 {
                     captured=true;c.spatialView.timer.ForceMeshUpdate();
-                    Check(System.Text.RegularExpressions.Regex.IsMatch(c.spatialView.timer.text,@"^\d\.\d{2}$"),"Actual two-decimal HUD");
+                    Check(System.Text.RegularExpressions.Regex.IsMatch(c.spatialView.timer.text,@"^[0-4]$"),"Actual integer HUD");
                     Check(!c.spatialView.timer.isTextOverflowing,"Countdown fits existing rectangle");
                     ScreenCapture.CaptureScreenshot(Path.GetFullPath(Folder+"/countdown.png"));
                 }
@@ -116,7 +116,7 @@ public static class RollingValidation
             Check(started>=3 && ended>=3 && failures==0 && interruptions==0,"Real media retained, no failures or interrupted clips");
             Check(e.Adaptive.TrainingEndRequested,"Level 2 mastery queued for statistics boundary");
             e.Pause(Time.realtimeSinceStartupAsDouble,Time.frameCount,"engineering_probe_complete");
-            string report="PASS: "+checks+" live checks; real-time 10/2 HTTP control, Level 1->2 after "+(changeTime-began).ToString("F2")+" s; Level 2 candidate completion queued; "+started+" media starts / "+ended+" ends / 0 failures; mixed statistics, F2 countdown fits. Accelerated setup and programmatic answers, no physical/sensor validation. Session: "+c.DataPath;
+            string report="PASS: "+checks+" live checks; real-time 10/2 HTTP control, Level 1->2 after "+(changeTime-began).ToString("F2")+" s; Level 2 candidate completion queued; "+started+" media starts / "+ended+" ends / 0 failures; mixed statistics, integer countdown fits. Accelerated setup and programmatic answers, no physical/sensor validation. Session: "+c.DataPath;
             File.WriteAllText(path,report);Debug.Log(report);return report;
         }
         catch(Exception ex){e.Pause(Time.realtimeSinceStartupAsDouble,Time.frameCount,"engineering_probe_failure");File.WriteAllText(path,"FAIL: "+ex+"\nSession: "+c.DataPath);throw;}
@@ -130,11 +130,11 @@ public static class RollingValidation
         Check(c.Engine.Adaptive.Config.mode=="OFF","User mode preserved");
         var e=c.Engine;e.Advance(Time.realtimeSinceStartupAsDouble,Time.frameCount);e.Advance(Time.realtimeSinceStartupAsDouble,Time.frameCount);
         await Task.Delay(1100);c.spatialView.timer.ForceMeshUpdate();
-        Check(System.Text.RegularExpressions.Regex.IsMatch(c.spatialView.timer.text,@"^\d\.\d{2}$") && !c.spatialView.timer.isTextOverflowing,"Final countdown");
+        Check(System.Text.RegularExpressions.Regex.IsMatch(c.spatialView.timer.text,@"^[0-4]$") && !c.spatialView.timer.isTextOverflowing,"Final countdown");
         string metadata=File.ReadAllText(Path.Combine(c.DataPath,"session.json"));
         Check(metadata.Contains(SpatialTaskView.CountdownRevision) && metadata.Contains("adaptive-lab-v2.0-rolling-countdown"),"Saved display revisions");
         e.Pause(Time.realtimeSinceStartupAsDouble,Time.frameCount,"engineering_final_smoke");
-        string result="PASS: final dev5 runtime/config stamps, preserved OFF mode, actual decimal HUD and session display metadata. "+c.DataPath;
+        string result="PASS: final dev5 runtime/config stamps, preserved OFF mode, actual integer HUD and session display metadata. "+c.DataPath;
         File.WriteAllText(Folder+"/final-smoke.txt",result);Debug.Log(result);return result;
     }
 }

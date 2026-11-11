@@ -125,6 +125,8 @@ namespace EvidenceVR
         public TaskMode Mode { get; private set; }
         public bool Practice { get; private set; }
         public bool ShowsCorrectnessFeedback => Practice || (!IsPersonalized && config.formalFeedbackEnabled);
+        public const string ComparisonResponseRevision="comparison-last-selection-v1";
+        public bool AllowsResponseRevision => Adaptive!=null && (Adaptive.Config.Comparison || Adaptive.Config.IsLayerAB) && !Practice && LayerABStudy.IsTraining(Adaptive.Stage);
         public int Block { get; private set; } = -1;
         public int TrialIndex { get; private set; } = -1;
         public bool StimulusVisible { get; private set; }
@@ -319,6 +321,12 @@ namespace EvidenceVR
         {
             closed = true; CurrentResult.closeTime = now;
             CurrentResult.timeout = !CurrentResult.responded;
+            if(AllowsResponseRevision && Current.scored)
+            {
+                CurrentResult.correct=CurrentResult.responded && CurrentResult.responseMatch==Current.expectedMatch;
+                Emit("response_finalized",now,frame,Planned+config.responseSeconds,
+                    ComparisonResponseRevision+";answer="+(!CurrentResult.responded?"omitted":CurrentResult.responseMatch?"match":"nonmatch")+";input_event_id="+CurrentResult.inputEventId);
+            }
             CollectRolling(now,frame);
             Emit("response_close", now, frame, Planned + config.responseSeconds);
         }
@@ -331,13 +339,16 @@ namespace EvidenceVR
                 FinishMath(match?"A":"B",now,frame);
                 return true;
             }
-            string rejection = Phase != TaskPhase.Running ? "not_running" : !Current.scored ? "warmup" : CurrentResult.responded ? "duplicate" : now - Planned >= config.responseSeconds || now < CurrentResult.actualOnset ? "outside_window" : "";
+            string rejection = Phase != TaskPhase.Running ? "not_running" : !Current.scored ? "warmup" : CurrentResult.responded && !AllowsResponseRevision ? "duplicate" : closed || now - Planned >= config.responseSeconds || now < CurrentResult.actualOnset ? "outside_window" : "";
             Emit("button", now, frame, now, (match ? "match" : "nonmatch") + (rejection == "" ? ":accepted" : ":" + rejection));
             if (rejection != "") return false;
+            bool revised=CurrentResult.responded;
             CurrentResult.responded = true; CurrentResult.responseMatch = match;
-            CurrentResult.correct = match == Current.expectedMatch;
+            CurrentResult.correct = !AllowsResponseRevision && match == Current.expectedMatch;
             CurrentResult.responseTime = now; CurrentResult.responseFrame = frame;
             CurrentResult.reactionTime = now - CurrentResult.actualOnset;
+            CurrentResult.inputEventId=-1;CurrentResult.inputEventTime=CurrentResult.inputReactionTime=-1;
+            if(AllowsResponseRevision)Emit("response_selection",now,frame,now,ComparisonResponseRevision+";answer="+(match?"match":"nonmatch")+";revised="+revised);
             return true;
         }
         public void Pause(double now, int frame, string reason = "operator", double? freezeAt = null)

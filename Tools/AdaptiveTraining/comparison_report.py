@@ -5,7 +5,7 @@ from comparison_environment import provenance
 
 from probe_control import response_end
 from evidence_guard_adapter import identity as event_identity
-from decision_gaze import attach_gaze
+from decision_gaze import attach_gaze, REVISION as GAZE_DISPLAY_REVISION
 
 
 def records(path):
@@ -49,6 +49,7 @@ def report(folder):
     first_signal = next(records(folder / "raw_signals.jsonl"), {})
     signal_source = first_signal.get("stream", {}).get("data_origin", "not recorded")
     eyes, trials, decisions, signals, media = [], {}, {}, [], {}
+    relations, reverse, clip_evidence, signal_data = {}, {}, {}, {}
     segment_cuts = []
     receipts = {}
     latest = 0.
@@ -56,6 +57,10 @@ def report(folder):
         kind = row["record"]
         if kind == "host_decision":
             decisions[row["base"]["requestId"]] = row
+        elif kind == "relation":
+            relations[row["id"]] = row  # Later rows supersede earlier states for the same pair.
+        elif kind == "reverse":
+            reverse[row["signal"]] = row
         elif kind == "enactment" and row["actual"]:
             receipts[row["request_id"]] = row
         elif kind == "evidence":
@@ -71,6 +76,13 @@ def report(folder):
             elif row["kind"] == "signal":
                 signals.append(dict(id=row["id"], start=row["start"], end=row["end"],
                                     stage=data["stage"], score=data.get("score"), valid=row["quality"]))
+                signal_data[row["id"]] = dict(start=row["start"], end=row["end"], stage=data["stage"], score=data.get("score"),
+                                              quality=row["quality"], level=row["level"], bands=data.get("reverse_bands"),
+                                              claim=data.get("attribution"))
+            elif row["kind"] == "media":
+                clip_evidence[row["id"]] = dict(id=row["id"], clip=data.get("clip_id"), stage=data.get("metadata", {}).get("stage"),
+                                                start=row["start"], end=row["end"], actual=data.get("actual"),
+                                                audio=data.get("audio_confirmed"), level=row["level"])
     for e in records(folder / "events.jsonl"):
         latest = max(latest, e["actual"])
         if e["type"] == "adaptive_media_segment_changed":
@@ -149,6 +161,19 @@ def report(folder):
                                 review=review, delivered=delivered, receipt=receipt,
                                 execution="confirmed" if receipt else "no change requested" if delivered=="HOLD" else "unknown",
                                 followUpTrials=[t["id"] for t in follow]))
+    for c in checkpoints:
+        support = c["review"].get("support")
+        if not support:
+            continue
+        counts = summary[c["stage"]].setdefault("support", dict(normalOn=0, probeOn=0, probePassed=0,
+                                                                  probeFailed=0, probeInconclusive=0,
+                                                                  probeWindowClosed=0))
+        if c["delivered"] == "ON":
+            counts["probeOn" if support.get("authorization") == "Probe_ON" else "normalOn"] += 1
+        if c["delivered"] == "OFF" and support.get("outcome") in ("Probe_Failed", "Probe_Inconclusive"):
+            counts["probeFailed" if support["outcome"] == "Probe_Failed" else "probeInconclusive"] += 1
+        counts["probePassed"] += c["review"].get("reason") == "support_probe_passed"
+        counts["probeWindowClosed"] += c["review"].get("reason") == "support_probe_window_closed"
     by_checkpoint = {(c["stage"],c["trial"]):c for c in checkpoints}
     for c in checkpoints:
         review = c["review"]
@@ -158,13 +183,83 @@ def report(folder):
         if original:
             original["verificationRequest"] = c["request"]
             c["upgradeRequest"] = original["request"]
+    evidence = evidence_relations(timeline, checkpoints, signal_data, clip_evidence, relations, reverse)
     gaze_source = provenance(config) if "comparisonEnvironment" in config else None
     attach_gaze(folder, checkpoints, timeline, simulated=bool((gaze_source or {}).get("simulated")) or assignment.get("clientId") == "seeded-simulator")
-    return dict(spatialEvidenceRevision="decision-gaze-density-v1", evidenceScope=meta.get("sessionType",config.get("sessionType")), configRevision=config.get("evaluationPolicy"), reviewRevision=meta.get("comparisonReview"), modelHash=config.get("testModelHash"), session=meta["session"], participant=meta["participant"], model=config.get("testModelId"),
+    return dict(spatialEvidenceRevision=GAZE_DISPLAY_REVISION, evidenceScope=meta.get("sessionType",config.get("sessionType")), configRevision=config.get("evaluationPolicy"), reviewRevision=meta.get("comparisonReview"), modelHash=config.get("testModelHash"), session=meta["session"], participant=meta["participant"], model=config.get("testModelId"),
                 mode=config.get("testSessionMode"), gazeInput=provenance(config) if "comparisonEnvironment" in config else None,
                 signalSource=signal_source, syntheticSignal=first_signal.get("synthetic"),
                 trialBudget=config.get("trainingTrials"), decisionStride=2 if config.get("evaluationPolicy")=="behavior5-continuous-stride2-v3" else 5,
                 summary=summary, checkpoints=checkpoints,
                 initialScoreThresholds=assignment.get("initialScoreThresholds", assignment.get("scoreThresholds")),
                 currentScoreThresholds=assignment.get("scoreThresholds"), thresholdHistory=assignment.get("thresholdHistory", []),
-                trials=timeline, eegWindows=signals, media=list(media.values()), segmentCuts=segment_cuts)
+                trials=timeline, eegWindows=signals, media=list(media.values()), segmentCuts=segment_cuts,
+                evidenceRelations=evidence)
+
+
+def relation_view(relation, clip):
+    return dict(id=relation["id"], clip=clip, state=relation["state"], directions=relation["directions"],
+                actualSeconds=relation["actual_seconds"], timeCorrespondence=relation["time_correspondence"],
+                visualExposure=relation["visual_exposure"], audioConfirmed=relation["audio_confirmed"],
+                alternatives=relation["alternatives"], causalClaim=relation["causal_claim"])
+
+
+def evidence_relations(timeline, checkpoints, signal_data, clips, relations, reverse):
+    """Read-only projection of Evidence Guard forward/reverse checks and attribution claims.
+
+    Attaches the relations for each decision's score window to its checkpoint and returns per-round
+    summaries and clip spans for the timeline. Nothing here is used by any control decision.
+    """
+    starts = {}
+    for t in timeline:
+        starts.setdefault(t["stage"], []).append((t["start"], t["trial"]))
+
+    def trial_at(stage, when):
+        rows = starts.get(stage, [])
+        index = bisect_left(rows, (when, float("inf"))) - 1
+        return rows[index][1] if index >= 0 else (rows[0][1] if rows else None)
+
+    by_signal = {}
+    for r in relations.values():
+        by_signal.setdefault(r["signal"], []).append(r)
+    summary, spans, marks = {}, {}, {}
+    for stage in ("layer_a", "layer_b"):
+        own = [c for c in clips.values() if c["stage"] == stage]
+        rel = [r for r in relations.values() if clips.get(r["event"], {}).get("stage") == stage]
+        claims = [d["claim"] for d in signal_data.values() if d["stage"] == stage and d.get("claim")]
+        bands = next((d["bands"] for d in signal_data.values() if d["stage"] == stage and d.get("bands")), None)
+        summary[stage] = dict(
+            clips=len(own), relatedWindows=len({r["signal"] for r in rel}),
+            states={k: sum(r["state"] == k for r in rel) for k in ("SUPPORTED", "UNRESOLVED", "DISPUTED")},
+            reverse=dict(total=sum(signal_data.get(k, {}).get("stage") == stage for k in reverse),
+                         up=sum(c["direction"] == "up" for c in claims), down=sum(c["direction"] == "down" for c in claims),
+                         withClip=sum(bool(c["claimedEvent"]) for c in claims), withoutClip=sum(not c["claimedEvent"] for c in claims)),
+            unresolvedDifferentVideoState=sum(r["state"] == "UNRESOLVED" and signal_data.get(r["signal"], {}).get("level") != clips.get(r["event"], {}).get("level")
+                                              for r in rel),
+            bands=bands, lowestScore=min((d["score"] for d in signal_data.values() if d["stage"] == stage and d["quality"] and d["score"] is not None), default=None))
+        spans[stage] = [dict(id=c["id"], clip=c["clip"], start=c["start"], end=c["end"], seconds=c["end"] - c["start"],
+                             startTrial=trial_at(stage, c["start"]), endTrial=trial_at(stage, c["end"]),
+                             states={k: sum(r["state"] == k for r in rel if r["event"] == c["id"]) for k in ("SUPPORTED", "UNRESOLVED", "DISPUTED")})
+                        for c in sorted(own, key=lambda c: c["start"]) if c["actual"]]
+        marks[stage] = [dict(signal=k, trial=trial_at(stage, signal_data[k]["end"]), direction=(signal_data[k].get("claim") or {}).get("direction"),
+                             claimedEvent=(signal_data[k].get("claim") or {}).get("claimedEvent"))
+                        for k in reverse if signal_data.get(k, {}).get("stage") == stage]
+    for c in checkpoints:
+        trial = c["base"].get("predictionTrial")
+        key = f"signal:{c['stage']}:{trial}" if trial is not None else None
+        data = signal_data.get(key) if key else None
+        if not data:
+            continue
+        previous = [d for k, d in signal_data.items() if k != key and d["stage"] == c["stage"] and d["quality"]
+                    and d["score"] is not None and d["end"] <= data["start"]]
+        prior = max(previous, key=lambda d: d["end"]) if previous else None
+        claim = data.get("claim")
+        claim_relation = relations.get(f"{claim['claimedEvent']}::{key}") if claim and claim["claimedEvent"] else None
+        c["evidenceRelations"] = dict(
+            signal=key, score=data["score"], bands=data.get("bands"),
+            previousScore=prior["score"] if prior else None,
+            claim=dict(claim, relationState=claim_relation["state"] if claim_relation else None) if claim else None,
+            reverse=reverse.get(key),
+            relations=[relation_view(r, clips.get(r["event"], {})) for r in by_signal.get(key, [])])
+    return dict(revision="evidence-relations-report-v1", summary=summary, clips=spans, reverseMarks=marks,
+                note="Temporal association only. These relations are recorded alongside decisions and do not control them.")

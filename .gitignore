@@ -16,6 +16,9 @@
 /Assets/Resources/PerformanceTestRunSettings.json*
 /Evidence/
 /Tools/__pycache__/
+/AgentScripts/__pycache__/
+# Unity automatic scene recovery files are local working backups.
+/Assets/_Recovery/
 /Tools/AdaptiveTraining/.venv/
 /Tools/AdaptiveTraining/__pycache__/
 /Tools/EvidenceGuard/**/__pycache__/

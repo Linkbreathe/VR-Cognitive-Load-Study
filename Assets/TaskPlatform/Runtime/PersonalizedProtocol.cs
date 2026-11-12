@@ -26,9 +26,11 @@ namespace EvidenceVR
         public int TrainingOrdinal {get;private set;}
         public bool ABQuestionnaireAcknowledged {get;private set;}
         double abQuestionnaireAcknowledgedAt;
-        public double ABRestRemaining(double now)=>Adaptive.Config.IsLayerAB && Adaptive.Stage=="questionnaire_1" && ABQuestionnaireAcknowledged?
+        public double ABRestRemaining(double now)=>Adaptive.Config.IsLayerAB && !Adaptive.Config.IndependentComparison && Adaptive.Stage=="questionnaire_1" && ABQuestionnaireAcknowledged?
             Math.Max(0,Adaptive.Config.abInterConditionRestSeconds-(now-abQuestionnaireAcknowledgedAt)):0;
-        public string ProtocolStageLabel => LayerABStudy.IsTraining(Adaptive.Stage) ? "Training "+TrainingOrdinal :
+        public string ProtocolStageLabel => Adaptive.Config.IndependentComparison && LayerABStudy.IsTraining(Adaptive.Stage)?
+            (Adaptive.Config.FixedExposure?"Fixed Exposure":Adaptive.Stage=="layer_a"?"Adaptive - Without Evidence":"Adaptive - With Evidence"):
+            LayerABStudy.IsTraining(Adaptive.Stage) ? "Training "+TrainingOrdinal :
             Adaptive.Stage=="calibration"?"Calibration":Adaptive.Stage=="practice"?"Practice":
             Adaptive.Stage=="preparation" || Adaptive.Stage=="model_wait"?"Preparation":"Questionnaire / rest";
         int protocolLength, phaseOffset, blockStartIndex;
@@ -89,9 +91,10 @@ namespace EvidenceVR
                     {
                         ABQuestionnaireAcknowledged=true;abQuestionnaireAcknowledgedAt=now;
                         AcknowledgeOralQuestionnaire("training_"+TrainingOrdinal,now,frame);
-                        if(Adaptive.Stage=="questionnaire_2")AcknowledgeOralQuestionnaire("final_preference",now,frame);
+                        if(Adaptive.Stage=="questionnaire_2" && !Adaptive.Config.IndependentComparison)AcknowledgeOralQuestionnaire("final_preference",now,frame);
                     }
                     if(ABRestRemaining(now)>0)return;
+                    if(Adaptive.Config.IndependentComparison){CompleteOperatorTest(now,frame);return;}
                 }
                 if(Adaptive.Stage=="questionnaire_calibration")
                 {TrainingOrdinal=1;AcknowledgeOralQuestionnaire("calibration",now,frame);PersonalStage(firstTraining,0,now,frame);}
@@ -133,6 +136,17 @@ namespace EvidenceVR
         }
         void BeginPersonalTrial(double now,int frame)
         {
+            if(Adaptive.Config.FixedExposure)
+            {
+                int target=TrialIndex>=Adaptive.Config.FixedOnTrialIndex?1:0;
+                if(Adaptive.Level!=target)
+                {
+                    int before=Adaptive.Level;Adaptive.Pending=null;Adaptive.SetPersonalLevel(target);
+                    Emit("fixed_exposure_transition",now,frame,now,"trial="+(TrialIndex+1)+";level="+target+";revision="+Adaptive.Config.comparisonRevision);
+                    Emit("adaptive_level_changed",now,frame,now,"level="+target+";stage=fixed_exposure;previous_level="+before+";basis=fixed_schedule");
+                    UnityEngine.Debug.Log("Fixed exposure: trial "+(TrialIndex+1)+"; video level="+target+"; decoded playback recorded separately.");
+                }
+            }
             BeginTrial(now,frame);
             CurrentResult.level=Practice?1:Adaptive.Level;
             CurrentResult.phaseTrial=phaseOffset+TrialIndex;CurrentResult.blockTrial=TrialIndex-blockStartIndex;
@@ -246,7 +260,7 @@ namespace EvidenceVR
             {
                 Close(now,frame);
                 int count=TrialIndex+1;
-                if(Adaptive.Config.Sliding && LayerABStudy.IsTraining(Adaptive.Stage) && count%Adaptive.Config.DecisionStride==0 && count<protocolLength)
+                if(Adaptive.Config.Sliding && !Adaptive.Config.FixedExposure && LayerABStudy.IsTraining(Adaptive.Stage) && count%Adaptive.Config.DecisionStride==0 && count<protocolLength)
                 {
                     PersonalDecisionId++;
                     Emit("personal_decision_due",now,frame,Planned+4,"closed_responses="+count+";deadline="+(Planned+4.5).ToString("R",System.Globalization.CultureInfo.InvariantCulture));
@@ -285,6 +299,7 @@ namespace EvidenceVR
         }
         void ApplyPersonalDecision(double now,int frame)
         {
+            if(Adaptive.Config.FixedExposure){Adaptive.Pending=null;return;}
             if(!PersonalMountIntact){Adaptive.Pending=null;return;}
             var d=Adaptive.Pending;if(d==null)return;
             if(!EvidenceGuardContract.Allows(Adaptive.Config,d,Adaptive.Stage))

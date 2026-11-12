@@ -448,6 +448,7 @@ def make_handler(service):
                 self.reply(200, (WEB / name).read_bytes(), mime)
             elif url.path == "/console/health":
                 self.reply(200, {"application": "Evidence Console", "revision": CONSOLE_REVISION,
+                                 "comparisonRevision": layer_ab.INDEPENDENT_REVISION,
                                  "featureRevision": FEATURE_REVISION,
                                  "project": str(Path(__file__).resolve().parents[2]), **service.console_info})
             elif url.path == "/console/snapshot":

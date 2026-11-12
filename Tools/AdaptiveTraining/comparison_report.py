@@ -42,6 +42,7 @@ def slice_gaze(samples, starts, start, end):
 
 
 def report(folder):
+    from fixed_exposure_thresholds import summarize as fixed_thresholds
     meta = json.loads((folder / "personal_protocol.json").read_text(encoding="utf-8"))
     config = meta["config"]
     assignment_path = folder.parent / "test-session.json"
@@ -71,7 +72,7 @@ def report(folder):
                 if (target == "task" and not data["task_visible"]) or (target == "movie" and not data["movie_visible"]):
                     target = "other"
                 eyes.append((row["start"], min(row["end"], row["start"] + .1), target))
-            elif row["kind"] == "trial" and data["trainingStage"] in ("layer_a", "layer_b"):
+            elif row["kind"] == "trial" and data["trainingStage"] in ("layer_a", "layer_b", "fixed_exposure"):
                 trials[row["id"]] = data
             elif row["kind"] == "signal":
                 signals.append(dict(id=row["id"], start=row["start"], end=row["end"],
@@ -187,7 +188,9 @@ def report(folder):
     gaze_source = provenance(config) if "comparisonEnvironment" in config else None
     attach_gaze(folder, checkpoints, timeline, simulated=bool((gaze_source or {}).get("simulated")) or assignment.get("clientId") == "seeded-simulator")
     return dict(spatialEvidenceRevision=GAZE_DISPLAY_REVISION, evidenceScope=meta.get("sessionType",config.get("sessionType")), configRevision=config.get("evaluationPolicy"), reviewRevision=meta.get("comparisonReview"), modelHash=config.get("testModelHash"), session=meta["session"], participant=meta["participant"], model=config.get("testModelId"),
-                mode=config.get("testSessionMode"), gazeInput=provenance(config) if "comparisonEnvironment" in config else None,
+                mode=config.get("testSessionMode"), comparisonStage=config.get("comparisonStage"), comparisonRevision=config.get("comparisonRevision"),
+                fixedExposureThresholds=fixed_thresholds(config, trials.values(), list(records(folder / "personal_predictions.jsonl")), list(records(folder / "events.jsonl"))),
+                gazeInput=provenance(config) if "comparisonEnvironment" in config else None,
                 signalSource=signal_source, syntheticSignal=first_signal.get("synthetic"),
                 trialBudget=config.get("trainingTrials"), decisionStride=2 if config.get("evaluationPolicy")=="behavior5-continuous-stride2-v3" else 5,
                 summary=summary, checkpoints=checkpoints,

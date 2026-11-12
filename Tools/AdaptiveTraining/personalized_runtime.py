@@ -1,6 +1,6 @@
 """Personalized session orchestration; Unity only presents and acknowledges."""
 from __future__ import annotations
-from layer_ab import PROBE, SLIDING, TRAINING, STAGES, COMPACT_REVIEW, COMPACT_BEHAVIOR_REVISION, COMPACT_ON_BA, COMPACT_OFF_BA, compact, enabled as ab_enabled, validate as validate_ab
+from layer_ab import PROBE, SLIDING, TRAINING, STAGES, COMPACT_REVIEW, COMPACT_BEHAVIOR_REVISION, COMPACT_ON_BA, COMPACT_OFF_BA, compact, trial_budget, enabled as ab_enabled, validate as validate_ab
 
 from collections import deque
 import json
@@ -43,11 +43,12 @@ class PersonalSession:
         if packet["configVersion"] != VERSION or self.config.get("protocol") != PROTOCOL:
             raise ValueError("Personalized protocol mismatch")
         self.probe = self.config.get("studyDesign") == PROBE
-        if self.config.get("calibrationBlocks") not in (4, 6, 8) or self.config.get("trainingTrials") != (60 if compact(self.config) else 144 if self.probe else 96):
+        if self.config.get("calibrationBlocks") not in (4, 6, 8) or self.config.get("trainingTrials") != trial_budget(self.config):
             raise ValueError("Protocol requires four/six/eight calibration blocks and the allocated training length")
         validate_ab(self.config)
         from comparison_environment import provenance
         from probe_control import GAZE_REVIEW_REVISION
+        from fixed_exposure_thresholds import policy_revision as fixed_threshold_policy
         self.sliding = self.config.get("slidingRevision") == SLIDING
         self.barrier = float("-inf")
         self.hard_resets = []
@@ -63,6 +64,9 @@ class PersonalSession:
             "session": self.sid, "sessionType": self.kind, "config": self.config, "policy": self.policy, "random_plan": self.plan,
             "gazeInput": provenance(self.config),
             "gazeReviewRevision": GAZE_REVIEW_REVISION,
+            "comparisonStage": self.config.get("comparisonStage", ""),
+            "comparisonRevision": self.config.get("comparisonRevision", ""),
+            "fixedExposureThresholdPolicy": fixed_threshold_policy(self.config) if self.config.get("comparisonStage") == "fixed_exposure" else None,
             "featureRevision": FEATURE_REVISION, "behaviorRevision": COMPACT_BEHAVIOR_REVISION if compact(self.config) else "scored10-or-v2" if self.probe else BEHAVIOR_REVISION,
             "comparisonBehaviorThresholds": dict(onBA=COMPACT_ON_BA, offBA=COMPACT_OFF_BA, deferBA=.80, omissions=2) if compact(self.config) else None,
             "counterbalance_group": self.config["counterbalanceGroup"], "label_alignment": self.policy["label_alignment"],
@@ -412,6 +416,9 @@ class PersonalSession:
                 raise ValueError("Personal identity/configuration is immutable")
             if (packet["stage"] in STAGES and not ab_enabled(self.config)) or (ab_enabled(self.config) and packet["stage"] in ("random", "bioadaptive")):
                 raise ValueError("Training stage does not match frozen study design")
+            selected = self.config.get("comparisonStage")
+            if packet["stage"] in (*STAGES, "fixed_exposure") and ((selected and packet["stage"] != selected) or (packet["stage"] == "fixed_exposure" and not selected)):
+                raise ValueError("Training stage does not match independent assignment")
             self.packet = packet
             for e in packet.get("events", []):
                 self.event(e)
@@ -449,6 +456,8 @@ class PersonalSession:
             return reply
 
     def decide(self, p):
+        if self.config.get("comparisonStage") == "fixed_exposure":
+            raise ValueError("Fixed exposure uses the recorded trial schedule, not adaptive decisions")
         threshold_revision = 0
         if self.workload_control and self.test_store:
             assignment = self.test_store.records[self.sid]

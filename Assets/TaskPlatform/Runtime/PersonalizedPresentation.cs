@@ -253,7 +253,13 @@ namespace EvidenceVR
                     owner.heading.text="Questions and rest";
                     owner.body.text="Keep your headset and sensors in place.\nThe experimenter will read the questions aloud\nand record your answers. Answer verbally.\nTell the experimenter if you need to remove the headset.";
                     owner.presentation.actionHint.text="X / ENTER  Confirm questions completed";
-                    if(config.IsLayerAB)
+                    if(config.IndependentComparison)
+                    {
+                        owner.heading.text="Stage complete - questions";
+                        owner.body.text="This "+config.trainingTrials+"-trial stage is finished.\nKeep the headset and sensors in place.\nAnswer the experimenter's questions verbally.\nThe next stage is selected separately in Console.";
+                        owner.presentation.actionHint.text="Experimenter: X / ENTER after questionnaire submission";
+                    }
+                    else if(config.IsLayerAB)
                     {
                         owner.body.text="Keep your headset and sensors in place.\nAnswer six workload and four overall impression ratings aloud.\n"+(stage=="questionnaire_2"?"Then give your preference between the two sessions.":"Tell the experimenter about any discomfort.");
                         owner.presentation.actionHint.text=!engine.ABQuestionnaireAcknowledged?"Experimenter: X / ENTER after Google Forms submission":

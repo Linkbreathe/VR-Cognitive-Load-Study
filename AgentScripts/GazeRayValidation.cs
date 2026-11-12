@@ -44,42 +44,34 @@ public static class GazeRayValidation
             ray.SetEnabled(true);
             var sample=GazeRegions.Classify(true,Vector3.zero,Vector3.forward,new Bounds(Vector3.forward*2,Vector3.one*.2f),false,null,false);
             ray.Present(sample,"SYNTHETIC FIXTURE ONLY",Time.realtimeSinceStartupAsDouble,true);
-            Check(ray.Visible && ray.LineVisible && ray.State==EngineeringGazeRay.DisplayState.Live,"Valid non-ROI gaze visible (live)");
-            var all=root.GetComponentsInChildren<LineRenderer>();Check(all.Length==2,"One ray line plus one hit reticle");
-            var reticle=all.Single(l=>l.loop);var lines=all.Where(l=>!l.loop).ToArray();Check(lines.Length==1,"One continuous line");
-            Check(ray.ReticleVisible && reticle.positionCount==EngineeringGazeRay.ReticleSegments,"Reticle visible with valid eyes");
-            float expectedRadius=EngineeringGazeRay.DefaultHitDistance*Mathf.Tan(EngineeringGazeRay.ReticleRadiusDegrees*Mathf.Deg2Rad);
+            Check(ray.Visible && !ray.LineVisible && ray.State==EngineeringGazeRay.DisplayState.Live,"Live ring without directional ray");
+            var lines=root.GetComponentsInChildren<LineRenderer>();Check(lines.Length==1 && lines[0].loop,"Only one closed ring, no directional line");
+            Check(root.GetComponentsInChildren<MeshRenderer>().Length==0,"No bird renderer");
+            var reticle=lines[0];
+            Check(ray.ReticleVisible && reticle.positionCount==EngineeringGazeRay.ReticleSegments,"Ring geometry");
+            var center=sample.origin+sample.direction*EngineeringGazeRay.DefaultHitDistance;
+            float radius=EngineeringGazeRay.DefaultHitDistance*Mathf.Tan(EngineeringGazeRay.ReticleRadiusDegrees*Mathf.Deg2Rad);
             for(int i=0;i<reticle.positionCount;i++)
-            {
-                var p=reticle.GetPosition(i);var center=sample.origin+sample.direction*EngineeringGazeRay.DefaultHitDistance;
-                Check(Mathf.Abs(Vector3.Distance(p,center)-expectedRadius)<.0001f && Mathf.Abs(Vector3.Dot(p-center,sample.direction))<.0001f,"Reticle ring centered on gaze hit, facing the eye");
-            }
-            Check(Mathf.Approximately(reticle.sharedMaterial.GetFloat("_ZTest"),(float)UnityEngine.Rendering.CompareFunction.Always),"Reticle not hidden by its hit surface");
+                Check(Mathf.Abs(Vector3.Distance(reticle.GetPosition(i),center)-radius)<.0001f && Mathf.Abs(Vector3.Dot(reticle.GetPosition(i)-center,sample.direction))<.0001f,"Ring centered on gaze hit and facing eyes");
+            Check(Mathf.Approximately(reticle.sharedMaterial.GetFloat("_ZTest"),(float)UnityEngine.Rendering.CompareFunction.Always),"Ring visible on hit surface");
+            Check(reticle.sharedMaterial.GetColor("_Color")==EngineeringGazeRay.LiveColor,"Live ring white");
             ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true,1f);
-            Check(Vector3.Distance(reticle.GetPosition(0),sample.origin+sample.direction)<expectedRadius,"Reticle follows supplied hit distance");
+            Check(Mathf.Abs(Vector3.Distance(reticle.GetPosition(0),sample.origin+sample.direction)-radius*.5f)<.0001f,"Constant angular size at nearer hit");
             ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);
             var surface=new Bounds(Vector3.forward*1.5f,Vector3.one*.2f);
             float surfaceHit=GazeRegions.HitDistance(sample,surface,null,9f);Check(surfaceHit>0 && surfaceHit<=1.4001f,"Reticle lands no farther than the sphere surface");
             Check(GazeRegions.HitDistance(default,surface,null,9f)==9f,"Invalid eyes use fallback distance");
             reticle.gameObject.layer=30;
-            for(int i=0;i<lines.Length;i++)
-            {
-                Check(Mathf.Abs(Vector3.Distance(lines[i].GetPosition(0),sample.origin)-.65f)<.0001f,"Near-eye clearance");
-                Check(Mathf.Abs(Vector3.Distance(lines[i].GetPosition(1),sample.origin)-3.85f)<.0001f,"Far endpoint");
-                Check(Mathf.Abs(lines[i].widthMultiplier-.0015f)<.00001f,"Thin line");
-                Check(lines[i].sharedMaterial.GetColor("_Color")==new Color(1,1,1,.22f),"Translucent white material");
-                lines[i].gameObject.layer=30;
-            }
             Check(root.GetComponentsInChildren<Collider>().Length==0,"No collision effects");
             var camera=cameraObject.AddComponent<Camera>();camera.enabled=false;camera.cullingMask=1<<30;
-            camera.transform.position=new Vector3(1.8f,1.2f,-.4f);camera.transform.LookAt(Vector3.forward*1.9f);
+            camera.transform.position=Vector3.zero;camera.transform.LookAt(Vector3.forward*2);camera.fieldOfView=8;
             camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.025f,.03f,.05f);
             rt=new RenderTexture(1600,1000,24){antiAliasing=4};camera.targetTexture=rt;camera.Render();
             var before=RenderTexture.active;RenderTexture.active=rt;
             image=new Texture2D(1600,1000,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,1600,1000),0,0);image.Apply();RenderTexture.active=before;
-            Directory.CreateDirectory("Evidence/GazeComfort");File.WriteAllBytes("Evidence/GazeComfort/synthetic-ray.png",image.EncodeToPNG());
+            Directory.CreateDirectory("Evidence/RingOnlyGaze-20261112");File.WriteAllBytes("Evidence/RingOnlyGaze-20261112/synthetic-ring.png",image.EncodeToPNG());
             ray.Present(sample,"SYNTHETIC FROZEN",Time.realtimeSinceStartupAsDouble,true,EngineeringGazeRay.DefaultHitDistance,true);
-            Check(ray.State==EngineeringGazeRay.DisplayState.Frozen && ray.Visible && reticle.sharedMaterial.GetColor("_Color")==EngineeringGazeRay.FrozenColor,"Frozen raw pose drawn amber");
+            Check(ray.State==EngineeringGazeRay.DisplayState.Frozen && ray.Visible && !ray.LineVisible && reticle.sharedMaterial.GetColor("_Color")==EngineeringGazeRay.FrozenColor,"Frozen ring amber with no ray");
             ray.Present(default,"INVALID",Time.realtimeSinceStartupAsDouble,true);Check(ray.State==EngineeringGazeRay.DisplayState.Held && ray.Visible && !ray.LineVisible && reticle.sharedMaterial.GetColor("_Color")==EngineeringGazeRay.HeldColor,"Invalid eyes hold last point in gray; line hidden");
             ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,false);Check(ray.State==EngineeringGazeRay.DisplayState.Held && ray.Visible,"Disallowed phase holds");
             ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);
@@ -95,8 +87,11 @@ public static class GazeRayValidation
             Lifecycle(ray,"OnApplicationFocus",true);
             ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);Check(ray.State==EngineeringGazeRay.DisplayState.Live,"Focus recovery requires new sample");
             ray.SetEnabled(false);Check(!ray.Visible && !ray.RayEnabled && ray.State==EngineeringGazeRay.DisplayState.Off,"Live toggle off hides everything");
-            string report="PASS: "+checks+" isolated synthetic ray checks. No hardware-validity claim; no synthetic data injected into production reader.";
-            File.WriteAllText("Evidence/GazeComfort/ray-validation.txt",report);Debug.Log(report);return report;
+            ray.SetEnabled(true);ray.Present(sample,"SYNTHETIC",Time.realtimeSinceStartupAsDouble,true);
+            Check(root.GetComponentsInChildren<Renderer>().Length==1 && !ray.LineVisible,"Re-enabling creates no additional renderers");
+            ray.Clear();ray.Hold();Check(!ray.Visible && ray.State==EngineeringGazeRay.DisplayState.Waiting,"No invented position before first sample");
+            string report="PASS: "+checks+" isolated synthetic ring-only checks. No hardware-validity claim; no synthetic data injected into production reader.";
+            File.WriteAllText("Evidence/RingOnlyGaze-20261112/ring-validation.txt",report);Debug.Log(report);return report;
         }
         finally
         {

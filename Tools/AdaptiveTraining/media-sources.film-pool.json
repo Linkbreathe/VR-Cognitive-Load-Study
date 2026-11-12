@@ -1,0 +1,231 @@
+{
+  "revision": "film-scenes-hd-v1-20261112",
+  "assemblySeed": 20261112,
+  "selectionPolicy": "participant-film-pool-v1",
+  "sources": [
+    {
+      "work": "Interstellar",
+      "id": "v2H1s9gj5DA",
+      "url": "https://www.youtube.com/watch?v=v2H1s9gj5DA",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "Interstellar",
+      "id": "u-ElPzExvPA",
+      "url": "https://www.youtube.com/watch?v=u-ElPzExvPA",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "Inception",
+      "id": "i3-jlhJgU9U",
+      "url": "https://www.youtube.com/watch?v=i3-jlhJgU9U",
+      "starts": [
+        0,
+        20,
+        40,
+        60,
+        80
+      ]
+    },
+    {
+      "work": "Inception",
+      "id": "0b-H8oQUs1A",
+      "url": "https://www.youtube.com/watch?v=0b-H8oQUs1A",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "The Truman Show",
+      "id": "MdwuW8n3JYA",
+      "url": "https://www.youtube.com/watch?v=MdwuW8n3JYA",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "The Truman Show",
+      "id": "6U4-KZSoe6g",
+      "url": "https://www.youtube.com/watch?v=6U4-KZSoe6g",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "The Godfather",
+      "id": "eZHsmb4ezEk",
+      "url": "https://www.youtube.com/watch?v=eZHsmb4ezEk",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "The Godfather",
+      "id": "7IXVycNgGN0",
+      "url": "https://www.youtube.com/watch?v=7IXVycNgGN0",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "The Avengers",
+      "id": "TTv4i9CqR80",
+      "url": "https://www.youtube.com/watch?v=TTv4i9CqR80",
+      "starts": [
+        12,
+        32,
+        52,
+        72,
+        92
+      ]
+    },
+    {
+      "work": "The Avengers",
+      "id": "rgFjcUXyWW0",
+      "url": "https://www.youtube.com/watch?v=rgFjcUXyWW0",
+      "starts": [
+        12,
+        32,
+        52,
+        72,
+        92
+      ]
+    },
+    {
+      "work": "Star Wars",
+      "id": "60dFh008LKo",
+      "url": "https://www.youtube.com/watch?v=60dFh008LKo",
+      "starts": [
+        12,
+        132,
+        152,
+        72,
+        92
+      ],
+      "selectionNotes": "Replaced source ranges 32-52 and 52-72 after near-black-interval review. Remaining original film darkness is retained."
+    },
+    {
+      "work": "Star Wars",
+      "id": "2r70SDJjwEg",
+      "url": "https://www.youtube.com/watch?v=2r70SDJjwEg",
+      "starts": [
+        12,
+        32,
+        52,
+        72,
+        92
+      ]
+    },
+    {
+      "work": "How to Train Your Dragon",
+      "id": "CLtfrZCMwbU",
+      "url": "https://www.youtube.com/watch?v=CLtfrZCMwbU",
+      "starts": [
+        10,
+        30,
+        50,
+        70,
+        90,
+        210,
+        230,
+        250,
+        270,
+        290
+      ]
+    },
+    {
+      "work": "Raiders of the Lost Ark",
+      "id": "8bYvCSfd72A",
+      "url": "https://www.youtube.com/watch?v=8bYvCSfd72A",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "Raiders of the Lost Ark",
+      "id": "854Zlz5-vXQ",
+      "url": "https://www.youtube.com/watch?v=854Zlz5-vXQ",
+      "starts": [
+        5,
+        25,
+        45,
+        65,
+        85
+      ]
+    },
+    {
+      "work": "Leon The Professional",
+      "id": "rGLoyxKW3JY",
+      "url": "https://www.youtube.com/watch?v=rGLoyxKW3JY",
+      "starts": [
+        12,
+        32,
+        52,
+        72,
+        92
+      ]
+    },
+    {
+      "work": "Leon The Professional",
+      "id": "HFp67p3ucj4",
+      "url": "https://www.youtube.com/watch?v=HFp67p3ucj4",
+      "starts": [
+        12,
+        32,
+        52,
+        72,
+        92
+      ]
+    }
+  ],
+  "excludedSources": [
+    {
+      "id": "cILXVO90DeI",
+      "reason": "Persistent Disney+ streaming advertisement overlay"
+    },
+    {
+      "id": "G0UHmCtnWng",
+      "reason": "Persistent Disney+ streaming advertisement overlay"
+    },
+    {
+      "id": "_J3EIFYsRVs",
+      "reason": "Persistent Disney+ streaming advertisement overlay"
+    }
+  ]
+}

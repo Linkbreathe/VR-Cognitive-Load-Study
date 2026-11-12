@@ -20,7 +20,7 @@ namespace EvidenceVR
     [Serializable] public sealed class AdaptiveMediaManifest
     {
         public string version;
-        public int trainingClipCount;
+        public int trainingClipCount, continuousClipCount;
         public AdaptiveMediaItem[] items;
         public bool HasExpectedTrainingClips()
         {
@@ -32,7 +32,8 @@ namespace EvidenceVR
         {
             if(items==null || items.Any(m=>m==null || string.IsNullOrWhiteSpace(m.id)))return false;
             int training=items.Count(m=>m.split=="train");
-            return training>=6 && training%2==0 && items.Length==training+4+items.Count(m=>m.split=="training20") && items.Select(m=>m.id).Distinct().Count()==items.Length &&
+            return training>=6 && training%2==0 && items.Length==training+4+items.Count(m=>m.split=="training20" || m.split=="continuous20") &&
+                items.Count(m=>m.split=="continuous20")==continuousClipCount && items.Select(m=>m.id).Distinct().Count()==items.Length &&
                 items.Count(m=>m.split=="test_a")==2 && items.Count(m=>m.split=="test_b")==2;
         }
     }
@@ -179,14 +180,14 @@ namespace EvidenceVR
             scheduler=new AdaptiveMediaScheduler(config,manifest);
             Ready=manifest.HasValidLayout() &&
                 manifest.items.All(m=>m.ready && m.volumeReviewed && (config.sessionType!="participant"||!m.synthetic) && m.gain>=0 && m.gain<=1 &&
-                !string.IsNullOrEmpty(m.source) && !string.IsNullOrEmpty(m.rightsRecord) && (m.split=="training20"?Math.Abs(m.duration-20)<.01:m.duration>=10 && m.duration<=12) && !string.IsNullOrEmpty(m.audioSha256) && !string.IsNullOrEmpty(m.videoSha256));
+                !string.IsNullOrEmpty(m.source) && !string.IsNullOrEmpty(m.rightsRecord) && (m.split=="training20" || m.split=="continuous20"?Math.Abs(m.duration-20)<.01:m.duration>=10 && m.duration<=12) && !string.IsNullOrEmpty(m.audioSha256) && !string.IsNullOrEmpty(m.videoSha256));
             foreach(var item in manifest.items.Where(m=>m.ready))
             {
                 string audio=Path.Combine(Application.persistentDataPath,"AdaptiveMedia",Path.GetFileName(item.audioFile));
                 string video=Path.Combine(Application.persistentDataPath,"AdaptiveMedia",Path.GetFileName(item.videoFile));
                 if(!File.Exists(audio)||!File.Exists(video)){Ready=false;continue;}
                 if(Hash(audio)!=item.audioSha256 || Hash(video)!=item.videoSha256){Ready=false;continue;}
-                if(config.Probe && item.split=="training20"){videos[item.id]=video;continue;}
+                if(config.Probe && (item.split=="training20" || item.split=="continuous20")){videos[item.id]=video;continue;}
                 using(var request=UnityWebRequestMultimedia.GetAudioClip(new Uri(audio).AbsoluteUri,AudioType.WAV))
                 {
                     yield return request.SendWebRequest();
@@ -197,7 +198,7 @@ namespace EvidenceVR
             File.WriteAllText(Path.Combine(owner.DataPath,"adaptive-media-manifest.json"),ManifestJson);
             bool bankReady=!config.Probe || manifest.HasExpectedTrainingClips();
             Ready &= bankReady;
-            EngineeringReady=bankReady && manifest.HasValidLayout() && clips.Count==manifest.items.Count(m=>!config.Probe || m.split!="training20") && videos.Count==manifest.items.Length;
+            EngineeringReady=bankReady && manifest.HasValidLayout() && clips.Count==manifest.items.Count(m=>!config.Probe || (m.split!="training20" && m.split!="continuous20")) && videos.Count==manifest.items.Length;
             if(config.CompactComparison)LoadContinuousBank();
             engine.Note("adaptive_media_ready","complete="+Ready+";engineering_files_ready="+EngineeringReady+";loaded_pairs="+clips.Count,Time.realtimeSinceStartupAsDouble,Time.frameCount);
             if(engine.Phase==TaskPhase.Running)PrepareNext();
@@ -381,8 +382,8 @@ namespace EvidenceVR
 {
     [Serializable] public sealed class ContinuousSegment
     {
-        public string mediaId, sourceVideoHash;
-        public double start, duration;
+        public string mediaId, sourceVideoHash, work, source;
+        public double start, duration, sourceStartSeconds;
     }
     [Serializable] public sealed class ContinuousPlaylist
     {
@@ -392,7 +393,8 @@ namespace EvidenceVR
     }
     [Serializable] public sealed class ContinuousMediaBank
     {
-        public string revision;
+        public string revision, catalogVersion, selectionRevision;
+        public string[] randomizedPlaylistIds;
         public ContinuousPlaylist[] playlists;
     }
 
@@ -415,7 +417,12 @@ namespace EvidenceVR
                 string path=Path.Combine(Application.persistentDataPath,"continuous-comparison-media.json");
                 string json=File.ReadAllText(path);
                 continuousBank=JsonUtility.FromJson<ContinuousMediaBank>(json);
-                if(continuousBank.revision!=ContinuousRevision || continuousBank.playlists?.Length!=2)throw new InvalidDataException("Invalid continuous playlist bank");
+                if(continuousBank.revision!=ContinuousRevision || continuousBank.playlists==null || continuousBank.playlists.Length<2 ||
+                    continuousBank.playlists.Any(p=>p==null || string.IsNullOrWhiteSpace(p.id)) ||
+                    continuousBank.playlists.Select(p=>p.id).Distinct().Count()!=continuousBank.playlists.Length)
+                    throw new InvalidDataException("Invalid continuous playlist bank");
+                if(config.IndependentComparison && continuousBank.selectionRevision!=ContinuousPlaylistAllocation.Revision)
+                    throw new InvalidDataException("Install the randomized film pool before starting an independent comparison.");
                 foreach(var list in continuousBank.playlists)
                 {
                     var file=Path.Combine(Application.persistentDataPath,"AdaptiveMedia",Path.GetFileName(list.file));
@@ -445,12 +452,37 @@ namespace EvidenceVR
             EndContinuous("ended","stage_transition");
             player.Stop();continuousStage=stage;continuousSegment=-1;continuousExposure=0;
             if(continuousBank==null)return;
-            int index=(config.seed&1)^(stage=="layer_b"?1:0);
-            continuousPlaylist=continuousBank.playlists[index];
+            string selection="legacy_seed_parity";
+            try
+            {
+                if(config.IndependentComparison)
+                {
+                    string scope=config.sessionType+"\n"+config.participantCode+"\n"+Path.GetFullPath(string.IsNullOrEmpty(config.testStorageFolder)?owner.DataPath:config.testStorageFolder).TrimEnd(Path.DirectorySeparatorChar).ToLowerInvariant();
+                    string session=string.IsNullOrEmpty(config.testSessionId)?owner.DataPath:config.testSessionId;
+                    var reservation=ContinuousPlaylistAllocation.Reserve(Path.Combine(Application.persistentDataPath,"ContinuousMediaHistory"),
+                        scope,continuousBank,session,config.comparisonStage,config.seed,owner.DataPath);
+                    continuousPlaylist=continuousBank.playlists.Single(p=>p.id==reservation.playlistId && p.sha256==reservation.playlistHash);
+                    selection=ContinuousPlaylistAllocation.Revision+";previous_reservations="+reservation.previousReservations+";seed="+reservation.seed;
+                }
+                else
+                {
+                    int index=(config.seed&1)^(stage=="layer_b"?1:0);
+                    continuousPlaylist=continuousBank.playlists[index];
+                }
+            }
+            catch(Exception error)
+            {
+                continuousPlaylist=null;Ready=EngineeringReady=false;
+                engine.Note("continuous_media_unavailable",error.Message,Time.realtimeSinceStartupAsDouble,Time.frameCount);
+                return;
+            }
             player.url=Path.Combine(Application.persistentDataPath,"AdaptiveMedia",Path.GetFileName(continuousPlaylist.file));
             player.isLooping=false;player.Prepare();
-            engine.Note("continuous_media_assignment",ContinuousRevision+";stage="+stage+";playlist="+continuousPlaylist.id+";sha256="+continuousPlaylist.sha256,
+            engine.Note("continuous_media_assignment",ContinuousRevision+";stage="+stage+";playlist="+continuousPlaylist.id+";sha256="+continuousPlaylist.sha256+
+                ";catalog="+continuousBank.catalogVersion+";selection="+selection,
                 Time.realtimeSinceStartupAsDouble,Time.frameCount);
+            if(config.IndependentComparison)
+                engine.Note("continuous_media_playlist",JsonUtility.ToJson(continuousPlaylist),Time.realtimeSinceStartupAsDouble,Time.frameCount);
         }
 
         bool HandleContinuousEvent(TaskEvent e)

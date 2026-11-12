@@ -11,7 +11,25 @@ COMPACT_OFF_BA = 0.50
 QUESTIONNAIRE = "raw-tlx7-ueq4-experience7-preference-google-forms-v5.1"
 COMPARISON_MODES = ("comparison", "comparison_candidate", "comparison_rehearsal")
 STAGES = ("layer_a", "layer_b")
-TRAINING = ("random", "bioadaptive", *STAGES)
+TRAINING = ("random", "bioadaptive", *STAGES, "fixed_exposure")
+INDEPENDENT_REVISION = "comparison-three-stages34-v2"
+LEGACY_INDEPENDENT_REVISION = "comparison-three-stages30-v1"
+INDEPENDENT_STAGES = ("fixed_exposure", "layer_a", "layer_b")
+
+
+def independent(config):
+    return config.get("comparisonStage", "") in INDEPENDENT_STAGES
+
+
+def trial_budget(config):
+    if independent(config):
+        return 30 if config.get("comparisonRevision") == LEGACY_INDEPENDENT_REVISION else 34
+    return 60 if compact(config) else 144 if config.get("studyDesign") == PROBE else 96
+
+
+def fixed_on_index(config):
+    """Zero-based first ON position; the new schedule has two warmups plus 16 scored OFF trials."""
+    return 15 if config.get("comparisonRevision") == LEGACY_INDEPENDENT_REVISION else 18
 
 
 def compact(config):
@@ -36,7 +54,11 @@ def enabled(config):
 def validate(config):
     from comparison_environment import validate as validate_environment
     validate_environment(config)
-    if config.get("studyDesign") == PROBE and (config.get("trainingTrials") != (60 if compact(config) else 144) or config.get("slidingRevision") != SLIDING):
+    if config.get("comparisonStage", "") not in ("", *INDEPENDENT_STAGES):
+        raise ValueError("Unknown independent comparison stage")
+    if independent(config) and (not compact(config) or config.get("comparisonRevision") not in (INDEPENDENT_REVISION, LEGACY_INDEPENDENT_REVISION) or not config.get("operatorManaged") or config.get("testSessionMode") not in COMPARISON_MODES):
+        raise ValueError("Independent stages require the versioned engineering comparison")
+    if config.get("studyDesign") == PROBE and (config.get("trainingTrials") != trial_budget(config) or config.get("slidingRevision") != SLIDING):
         raise ValueError("Probe trial budget must match its versioned response-close policy")
     if compact(config) and (config.get("rollingWindowTrials") != 5 or config.get("rollingStrideTrials") != 2):
         raise ValueError("Compact comparison requires window 5 and stride 2")
@@ -58,4 +80,6 @@ def guard_mode(config, stage):
 
 
 def condition(config, ordinal):
+    if independent(config):
+        return {"fixed_exposure":"Fixed", "layer_a":"A", "layer_b":"B"}[config["comparisonStage"]]
     return "A" if (ordinal == 1) == (config["counterbalanceGroup"] // 2 == 0) else "B"

@@ -4,7 +4,7 @@
 const human=v=>v==null||v===''?'—':String(v).replaceAll('_',' ').replaceAll('-',' ').replace(/^./,c=>c.toUpperCase());
 /* One vocabulary for every Console page. Recorded codes stay unchanged; only their display text is mapped. */
 const terms={
- round:{layer_a:'Round A',layer_b:'Round B'},
+ round:{fixed_exposure:'Fixed Exposure',layer_a:'Round A',layer_b:'Round B'},
  roundRole:{layer_a:'Review observed only',layer_b:'Review enforced'},
  scope:{'editor-test':'Unity Editor test',engineering:'Engineering session',participant:'Participant session',synthetic:'Synthetic test','synthetic-test':'Synthetic test',replay:'Replay'},
  signal:{live_sensor:'Live EEG',replay:'Recorded EEG replay',csv_replay:'CSV EEG replay',synthetic:'Synthetic EEG'},

@@ -182,8 +182,11 @@ function executedSplit(stage,v){
  return on+off===v.executedChanges&&on>=0&&off>=0?`${on} ON · ${off} OFF`:'';
 }
 function summary(){
+ if(data.comparisonStage==='fixed_exposure'){el('summary').hidden=true;return;}
+ el('summary').hidden=false;
  const box=el('totals');box.replaceChildren();
- const stages=Object.keys(data.summary).filter(s=>['layer_a','layer_b'].includes(s));
+ const stages=Object.keys(data.summary).filter(s=>['layer_a','layer_b'].includes(s)&&(!data.comparisonStage||s===data.comparisonStage));
+ el('summary').querySelector('.eyebrow').textContent=data.comparisonStage?'STAGE SUMMARY':'A / B SUMMARY';
  const t=document.createElement('table');t.className='compare-table';box.append(t);
  const head=t.createTHead().insertRow();append(head,'th');
  for(const s of stages){const th=append(head,'th');append(th,'strong',round(s));append(th,'span',T().label('roundRole',s));}
@@ -217,16 +220,107 @@ function summary(){
   if(!Object.keys(reasons).length)append(list,'p','No proposals were held.','muted');
  }
 }
+/* Read-only projection: thresholds come from the report, never from the chart. */
+function fixedScoreChart(panel,result){
+ const numeric=v=>typeof v==='number'&&Number.isFinite(v);
+ const eligible=w=>w.valid&&numeric(w.score)&&w.score>=0&&w.score<=1;
+ const windows=(data.eegWindows||[]).filter(w=>w.stage==='fixed_exposure'&&numeric(w.end)).sort((a,b)=>a.end-b.end);
+ const valid=windows.filter(eligible), anchors=Object.values(result.groups).flatMap(g=>g.windows);
+ const range=values=>values.length?`${fixed(Math.min(...values),3)}–${fixed(Math.max(...values),3)}`:'Unavailable';
+ const cards=append(panel,'div',null,'ft-stats');
+ for(const [label,value,note] of [
+  ['Observed score range',range(valid.map(w=>w.score)),`${valid.length} valid recorded scores · min–max`],
+  ['Video OFF · eligible range',range(result.groups.videoOff.windows.map(w=>w.score)),`${result.groups.videoOff.count} windows · median ${fixed(result.groups.videoOff.median,3)}`],
+  ['Video ON · eligible range',range(result.groups.videoOn.windows.map(w=>w.score)),`${result.groups.videoOn.count} windows · median ${fixed(result.groups.videoOn.median,3)}`]
+ ]){const card=append(cards,'div');append(card,'span',label,'muted small');append(card,'strong',value);append(card,'span',note,'muted small');}
+ append(panel,'p','Scores vary over time; a suggested threshold pair is a summary estimate, not a moving score. Ranges below are observed min–max, not confidence intervals.','muted small');
+ if(!windows.length){append(panel,'p','No recorded score timeline is available. Eligible-window details remain below.','notice');return;}
+ const trials=(data.trials||[]).filter(t=>t.stage==='fixed_exposure');
+ const start=trials.length?Math.min(...trials.map(t=>t.start)):Math.min(...windows.map(w=>numeric(w.start)?w.start:w.end));
+ const end=Math.max(start+1,...trials.map(t=>t.deadline),...windows.map(w=>w.end));
+ const x=t=>58+Math.max(0,Math.min(1,(t-start)/(end-start)))*760,y=v=>268-v*220;
+ const figure=append(panel,'figure',null,'ft-figure'),scroll=append(figure,'div',null,'ft-scroll');
+ scroll.tabIndex=0;scroll.setAttribute('aria-label','Workload score chart; scroll horizontally on narrow screens');
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');
+ svg.setAttribute('viewBox','0 0 990 330');svg.setAttribute('role','img');svg.setAttribute('aria-label','Recorded workload scores over time, configured thresholds and eligible behavior windows');scroll.append(svg);
+ const draw=(tag,attrs={},text,parent=svg)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!=null)n.textContent=text;parent.append(n);return n;};
+ draw('title',{},'Workload scores and threshold candidates');
+ draw('desc',{},'Vertical axis: workload model score from 0 to 1. Horizontal axis: seconds since the first trial. Dashed lines are configured reference thresholds; solid colored lines appear only for available suggestions. Large markers identify eligible five-response behavior groups.');
+ const revised=data.comparisonRevision==='comparison-three-stages34-v2';
+ const boundary=trials.find(t=>t.trial===(revised?19:16))?.start;
+ if(numeric(boundary)){
+  draw('rect',{x:58,y:48,width:x(boundary)-58,height:220,class:'ft-off-band'});
+  draw('rect',{x:x(boundary),y:48,width:818-x(boundary),height:220,class:'ft-on-band'});
+  draw('text',{x:(58+x(boundary))/2,y:27,'text-anchor':'middle'},revised?'Trials 1–18 · OFF (2 warmups)':'Trials 1–15 · scheduled OFF');
+  draw('text',{x:(x(boundary)+818)/2,y:27,'text-anchor':'middle'},revised?'Trials 19–34 · scheduled ON':'Trials 16–30 · scheduled ON');
+ }
+ for(const v of [0,.2,.4,.6,.8,1]){draw('line',{x1:58,x2:818,y1:y(v),y2:y(v),class:'ft-grid'});draw('text',{x:45,y:y(v)+4,'text-anchor':'end'},v.toFixed(1));}
+ for(let i=0;i<=5;i++){const t=start+(end-start)*i/5;draw('text',{x:x(t),y:294,'text-anchor':'middle'},fixed(t-start,0));}
+ draw('text',{x:438,y:320,'text-anchor':'middle'},'Time since first trial (seconds)');
+ const configured=data.currentScoreThresholds||data.initialScoreThresholds;
+ const labels=[];
+ for(const [kind,pair] of [['Configured',configured],['Suggested',result.recommended]]){
+  for(const key of ['on','off'])if(numeric(pair?.[key])){
+   const value=pair[key],cls=kind==='Configured'?'ft-configured':`ft-suggested ft-${key}`;
+   draw('line',{x1:58,x2:818,y1:y(value),y2:y(value),class:cls});
+   labels.push({value,text:`${kind} ${key.toUpperCase()} ${fixed(value,3)}`,cls});
+  }
+ }
+ labels.sort((a,b)=>b.value-a.value);
+ let labelY=35;
+ for(const label of labels){labelY=Math.max(y(label.value)+4,labelY+17);draw('text',{x:830,y:labelY,class:label.cls},label.text);}
+ let path='',previous=null;
+ for(const w of windows){
+  if(!eligible(w)){previous=null;draw('path',{d:`M ${x(w.end)-3} 274 l 6 6 m -6 0 l 6 -6`,class:'ft-invalid'});continue;}
+  path+=(previous&&w.end-previous.end<=7?'L':'M')+`${x(w.end)},${y(w.score)} `;previous=w;
+ }
+ draw('path',{d:path,class:'ft-score-line'});
+ const hint=append(figure,'figcaption','Select a point for its score and window details. Crosses below the axis mark invalid scores; gaps are not filled.','muted small');
+ const point=(w,anchor)=>{
+  const time=anchor?w.scoreEnd:w.end;if(!numeric(time)||!numeric(w.score))return;
+  const description=anchor?`Trials ${w.firstTrial}–${w.lastTrial} · ${w.label} · score ${fixed(w.score,3)} · BA ${fixed(w.balancedAccuracy,3)} · ${w.omissions} omissions · EEG window ${fixed(w.scoreStart-start,1)}–${fixed(time-start,1)} s`:`Recorded score ${fixed(w.score,3)} · EEG window ${fixed(w.start-start,1)}–${fixed(time-start,1)} s`;
+  const dot=draw('circle',{cx:x(time),cy:y(w.score),r:anchor?6:3.5,class:anchor?`ft-point ft-${w.label}`:'ft-point ft-recorded',tabindex:0,role:'button','aria-label':description});
+  draw('title',{},description,dot);
+  const show=()=>{hint.textContent=description;};dot.onclick=show;dot.onfocus=show;dot.onmouseenter=show;dot.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();show();}};
+ };
+ for(const w of valid)point(w,false);for(const w of anchors)point(w,true);
+ const legend=append(panel,'div',null,'ft-legend');
+ for(const [cls,label] of [['recorded','Recorded score'],['stable','Stable group'],['struggling','Struggling group'],['unlabeled','Unlabeled group']]){const item=append(legend,'span');append(item,'i',null,`ft-${cls}`);append(item,'span',label);}
+ append(panel,'p','Background bands show scheduled exposure. Large markers use the existing eligibility checks, including actual playback. Behavior groups contain five responses; each plotted EEG score uses its recorded time window.','muted small');
+}
 function header(){
+ const fixedStage=data.comparisonStage==='fixed_exposure';
+ el('fixed-thresholds').hidden=!fixedStage;
+ const panel=el('fixed-threshold-content');panel.replaceChildren();
+ if(fixedStage && data.fixedExposureThresholds){
+   const result=data.fixedExposureThresholds;
+   append(panel,'p',result.recommended?`Suggested ON ≤ ${fixed(result.recommended.on,3)} · OFF ≥ ${fixed(result.recommended.off,3)}. Exploratory candidate; not applied automatically.`:`No suggested threshold pair · ${T().human(result.reason)}.`,'notice');
+   append(panel,'p',`Behavior anchors: ${result.anchors.stable} Stable · ${result.anchors.struggling} Struggling. At least 2 of each are required, with OFF − ON ≥ 0.05. Configured thresholds are reference values; Fixed Exposure follows its scheduled OFF / ON sequence.`,'muted');
+   fixedScoreChart(panel,result);
+   const groups=append(panel,'details');append(groups,'summary','Eligible windows and calculation details');
+   const revised=data.comparisonRevision==='comparison-three-stages34-v2';
+   for(const [key,label] of [['videoOff',revised?'Trials 3–18 · 16 scored video-off trials':'Trials 1–15 · video off'],['videoOn',revised?'Trials 19–34 · 16 scored video-on trials':'Trials 16–30 · video on']]){
+     const group=result.groups[key];append(groups,'h3',label);
+     append(groups,'p',`${group.count} eligible non-overlapping windows · median score ${fixed(group.median,3)}`);
+     for(const w of group.windows)append(groups,'p',`Trials ${w.firstTrial}–${w.lastTrial}: score ${fixed(w.score,3)} · BA ${fixed(w.balancedAccuracy,2)} · ${w.omissions} omissions · ${w.label}`,'small');
+   }
+   if(result.recommended)append(groups,'p',`Exact candidate ON ≤ ${result.recommended.on} · OFF ≥ ${result.recommended.off}. Manually enter these values in Study setup for the next adaptive stage with the same participant and model. They are not applied automatically.`);
+   append(groups,'p',result.method,'muted');append(panel,'p',result.limitation,'muted small');
+   details(groups,'Excluded windows',result.excluded,'No excluded recorded candidate windows.');
+ }
+ el('decisions').hidden=fixedStage;
+ const filter=el('arm-filter');
+ filter.replaceChildren(...(data.comparisonStage&&!fixedStage?[[data.comparisonStage,round(data.comparisonStage)]]:[['all','All recorded stages'],['layer_a','Round A'],['layer_b','Round B']]).map(([value,label])=>new Option(label,value)));
  el('report-kind').textContent='SESSION REPORT · '+T().label('mode',data.mode).toUpperCase();
  el('report-title').textContent=[data.participant,sessionTime(data.session)].filter(Boolean).join(' · ');
  const chips=el('identity');chips.replaceChildren();
  const chip=(text,cls)=>append(chips,'span',text,'chip'+(cls?' '+cls:''));
  if(data.gazeInput)chip(data.gazeInput.simulated?'Desktop · simulated gaze':'Quest Pro · tracked eyes',data.gazeInput.simulated?'sim':'');
  chip(T().label('scope',typeof data.evidenceScope==='string'?data.evidenceScope:'unspecified'));
- if(data.trialBudget)chip(data.trialBudget+' trials per round');
+ if(data.comparisonStage)chip(round(data.comparisonStage));
+ if(data.trialBudget)chip(data.trialBudget+' trials per '+(data.comparisonStage?'stage':'round'));
  const th=data.currentScoreThresholds||data.initialScoreThresholds;
- if(th)chip(`ON ≤ ${fixed(th.on,2)} · OFF ≥ ${fixed(th.off,2)}`,'num');
+ if(th)chip(`Configured ON ≤ ${fixed(th.on,3)} · OFF ≥ ${fixed(th.off,3)}`,'num');
  if(data.thresholdHistory?.length)chip(`Thresholds edited ${data.thresholdHistory.length}×`,'sim');
  const scope=typeof data.evidenceScope==='string'?data.evidenceScope:JSON.stringify(data.evidenceScope||'unspecified');
  el('provenance').textContent=[T().label('scope',scope),T().label('signal',data.signalSource||'not recorded')+(data.syntheticSignal?' (synthetic)':''),data.gazeInput?.simulated?`simulated gaze (${Math.round(100*(data.gazeInput.validRatio??.75))}% valid, ${Math.round(100*(data.gazeInput.taskShare??.7))}% on task)`:null].filter(Boolean).join(' · ')+'. '+

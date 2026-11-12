@@ -10,7 +10,7 @@ import time
 import threading
 
 
-REVISION = "evidence-console-v1.30-gaze-display"
+REVISION = "evidence-console-v1.32-three-stages34"
 WEB = Path(__file__).with_name("console")
 
 

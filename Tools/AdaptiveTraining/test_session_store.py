@@ -220,6 +220,14 @@ class TestSessionStore:
             links = read(Path(__file__).resolve().parents[2] / "Tools/LayerAB/questionnaire-links.json")
             configure_probe(config, 0 if order=="AB" else 2, links, short=mode in ("comparison", "comparison_candidate", "comparison_rehearsal"))
         config.setdefault("evidenceGuardMode", "off")
+        from layer_ab import INDEPENDENT_STAGES, INDEPENDENT_REVISION, validate as validate_comparison
+        stage = request.get("comparisonStage", "")
+        if stage and (stage not in INDEPENDENT_STAGES or mode not in ("comparison", "comparison_candidate", "comparison_rehearsal")):
+            raise ValueError("Choose a valid independent comparison stage")
+        config.update(comparisonStage=stage, comparisonRevision=INDEPENDENT_REVISION if stage else "")
+        if stage:
+            config.update(trainingTrials=34, counterbalanceGroup=2 if stage=="layer_b" else 0)
+        validate_comparison(config)
         # Match Unity JsonUtility's serialized float32 values exactly at the handshake.
         f32 = lambda x: struct.unpack("f", struct.pack("f", x))[0]
         for field in ("mediaVolume", "onsetJitterSeconds", "videoAngle", "videoWidth", "videoHeight", "practiceOnsetJitterSeconds"):

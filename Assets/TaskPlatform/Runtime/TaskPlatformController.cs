@@ -109,7 +109,7 @@ namespace EvidenceVR
             if(adaptiveConfig!=null)config=Engine.Config;
             recorder = new SessionRecorder(Path.Combine(Application.persistentDataPath, adaptiveConfig==null?"TaskPlatformData":"AdaptiveTrainingData"), Engine.Config,
                 participant:adaptiveConfig?.participantCode??"anonymous",kind:Application.isEditor?"editor-test":adaptiveConfig?.sessionType??"participant",
-                presentationVersion:adaptiveConfig==null?null:adaptiveConfig.CompactComparison?AdaptiveMedia.ContinuousRevision:adaptiveConfig.Probe?"probe-dialogue20-front-v1":adaptiveConfig.IsPersonalized?TaskEngine.PersonalPresentationRevision:"adaptive-lab-v2.0-rolling-countdown",
+                presentationVersion:adaptiveConfig==null?null:adaptiveConfig.IndependentComparison?ContinuousPlaylistAllocation.Revision:adaptiveConfig.CompactComparison?AdaptiveMedia.ContinuousRevision:adaptiveConfig.Probe?"probe-dialogue20-front-v1":adaptiveConfig.IsPersonalized?TaskEngine.PersonalPresentationRevision:"adaptive-lab-v2.0-rolling-countdown",
                 gazeDebugRequested:adaptiveConfig?.engineeringGazeHighlight??false,gazeDebugEnabled:GazeDebugHighlighter.IsAllowed(adaptiveConfig),
                 gazeRayRequested:adaptiveConfig?.engineeringGazeRay??false,gazeRayEnabled:EngineeringGazeRay.IsAllowed(adaptiveConfig) && adaptiveConfig.engineeringGazeRay,
                 evidenceGuardMode:adaptiveConfig?.evidenceGuardMode??"off",

@@ -22,6 +22,11 @@ namespace EvidenceVR
         public bool UsesComparisonModel => testSessionMode=="comparison" || testSessionMode=="comparison_candidate";
         public bool Comparison => operatorManaged && (UsesComparisonModel || testSessionMode=="comparison_rehearsal");
         public string comparisonEnvironment="quest_pro";
+        public string comparisonStage="", comparisonRevision="";
+        public bool IndependentComparison=>Comparison && !string.IsNullOrEmpty(comparisonStage);
+        public bool FixedExposure=>IndependentComparison && comparisonStage=="fixed_exposure";
+        public int IndependentTrialBudget=>comparisonRevision=="comparison-three-stages30-v1"?30:34;
+        public int FixedOnTrialIndex=>comparisonRevision=="comparison-three-stages30-v1"?15:18;
         public bool DesktopComparison=>Comparison && comparisonEnvironment=="desktop_fixed_gaze";
         public bool ComparisonTrackingReady(bool headsetTracked,bool eyesTracked)=>!Comparison || DesktopComparison || (headsetTracked && eyesTracked);
         public bool TaskOnly => operatorManaged && (testSessionMode=="practice" || testSessionMode=="calibration_rehearsal" || testSessionMode=="comparison_rehearsal");
@@ -67,6 +72,8 @@ namespace EvidenceVR
         }
         public void Validate()
         {
+            if(!string.IsNullOrEmpty(comparisonStage) && (!IndependentComparison || !CompactComparison || !new[]{"comparison-three-stages30-v1","comparison-three-stages34-v2"}.Contains(comparisonRevision) ||
+                !new[]{"fixed_exposure","layer_a","layer_b"}.Contains(comparisonStage)))throw new ArgumentException("Invalid independent comparison stage.");
             if(comparisonEnvironment!="quest_pro" && comparisonEnvironment!="desktop_fixed_gaze")throw new ArgumentException("Unknown comparison environment.");
             if(comparisonEnvironment=="desktop_fixed_gaze" && (!Comparison || sessionType!="engineering"))throw new ArgumentException("Fixed gaze requires an operator-managed engineering comparison.");
             if(!string.IsNullOrEmpty(slidingRevision) && !Sliding)throw new ArgumentException("Unknown sliding control revision.");
@@ -91,7 +98,7 @@ namespace EvidenceVR
             {
                 if(!new[]{"OFF","SHADOW","ACTIVE"}.Contains(mode) || !new[]{"engineering","participant"}.Contains(sessionType) ||
                     questionnaireAdministration!=TaskEngine.PersonalQuestionnaireAdministration ||
-                    string.IsNullOrWhiteSpace(participantCode) || (calibrationBlocks!=4 && calibrationBlocks!=6 && calibrationBlocks!=8) || trainingTrials!=(CompactComparison?60:Probe?144:96) ||
+                    string.IsNullOrWhiteSpace(participantCode) || (calibrationBlocks!=4 && calibrationBlocks!=6 && calibrationBlocks!=8) || trainingTrials!=(IndependentComparison?IndependentTrialBudget:CompactComparison?60:Probe?144:96) ||
                     counterbalanceGroup<0 || counterbalanceGroup>3 || evaluationPolicy!=(CompactComparison?"behavior5-continuous-stride2-v3":Probe?"behavior10-or-probe-v2":"physio5-behavior20-stride5-v2") ||
                     videoWidth!=(Probe?3.84f:3.2f) || videoHeight!=(Probe?2.16f:1.8f) || videoPlacement!="front_wall_center" ||
                     !(mediaVolume>=0 && mediaVolume<=1) || !(onsetJitterSeconds>=0 && onsetJitterSeconds<=1) ||

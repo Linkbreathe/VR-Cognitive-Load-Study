@@ -1,0 +1,17 @@
+{
+  "revision": "gaze-bird-frames-v1",
+  "sourceSha256": "e255122a2578648f0f2e75320850033ac9330189ee83b3e717d8a447f1f72efd",
+  "width": 443,
+  "height": 443,
+  "durations": [
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15
+  ],
+  "loop": true
+}

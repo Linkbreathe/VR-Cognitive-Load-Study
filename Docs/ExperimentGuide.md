@@ -1,5 +1,11 @@
 # Experiment guide: current modes
 
+## After the 2026-11-17 LSL recovery
+
+The local port-8765 receiving bridge is restored and the selected Mindtooth source was refreshed. Use a fresh assignment; recovered historical assignments cannot resume. The repaired registry was reconstructed from assignment snapshots, so missing final completion/archive/training summaries must be checked against original files. Do not delete historical data or reset the registry as a routine connection fix.
+
+If a restarted Mindtooth publisher has a new outlet UID, disconnect in **Signal Sources**, scan, select the current matching source and reconnect. Discoverability alone does not prove samples are arriving. Verify **Receiving** and advancing sample timestamps. During this recovery the Mindtooth Signal Quality Check dialog interrupted EEG reception; close it and verify recovery before proceeding. Run normal signal quality checks separately and create a new assignment after interruptions. [Backup locations, validation and limitations](LslIndexRecovery20261117.md).
+
 
 ## Randomized movie content for the three comparison stages
 

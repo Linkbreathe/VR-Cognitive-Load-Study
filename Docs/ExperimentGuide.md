@@ -501,4 +501,4 @@ In the session report, drag the Checkpoint bar or use the previous/next buttons 
 
 ## Media backup published on 2026-11-12
 
-The latest film pool is available in the [Drive backup folder](https://drive.google.com/drive/folders/1Cus3zTk8vBEBp5mwbdDrq-ciHlNoB5CW). Download all six standalone mixes and ten companion ZIPs; follow the [restore and checksum instructions](MediaBackup20261112.md). This backup supplements the existing original media bank and does not replace configuration, allocation history or participant records. Physical acceptance remains unchanged.
+Download the six standalone mixes from SharePoint and restore them with the ten companion ZIPs. Keep the original media bank, configuration, allocation history, and participant records. [SharePoint video folder](https://aarhusuniversitet-my.sharepoint.com/:f:/r/personal/au759496_uni_au_dk/Documents/XR%20Lab/Wei%20Xiong/Patent/video?d=w94870fe5abb2459a9cc586e5c7540295&csf=1&web=1&e=bQiBEA) · [Restore instructions and checksums](MediaBackup20261112.md)

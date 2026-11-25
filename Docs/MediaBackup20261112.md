@@ -4,12 +4,13 @@
 
 ## Download and restore
 
-[Google Drive media folder](https://drive.google.com/drive/folders/1Cus3zTk8vBEBp5mwbdDrq-ciHlNoB5CW).
+Sign in with an account that has access to the video folder. [SharePoint video folder](https://aarhusuniversitet-my.sharepoint.com/:f:/r/personal/au759496_uni_au_dk/Documents/XR%20Lab/Wei%20Xiong/Patent/video?d=w94870fe5abb2459a9cc586e5c7540295&csf=1&web=1&e=bQiBEA)
 
-The distribution contains six standalone `film-mix-v1-01.mp4` through
+The full distribution contains six standalone `film-mix-v1-01.mp4` through
 `film-mix-v1-06.mp4` videos and ten independently extractable companion ZIPs.
 The companion ZIPs contain 90 twenty-second excerpts, 90 WAVs, the two complete
 catalogs, source provenance, thumbnails, preview HTML and a SHA-256 manifest.
+Obtain any missing companion files from the study operator.
 
 1. Download all ten companion ZIPs and extract them into the same empty folder.
 2. Download all six standalone mixes and place them in its `AdaptiveMedia` folder.
